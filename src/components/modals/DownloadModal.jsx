@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Smartphone, X } from 'lucide-react'
+import { colors } from '../../theme/colors'
 
 const QR_PATTERN = [
   [1, 1, 1, 1, 1, 1, 1],
@@ -20,7 +21,7 @@ function QrBlock({ r, c, yOffset = 0, prefix = '' }) {
       width={16}
       height={16}
       rx={2}
-      fill="#0057B8"
+      fill="#40deaa"
     />
   ) : null
 }
@@ -48,22 +49,27 @@ export default function DownloadModal({ onClose }) {
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{
-        background: 'rgba(8,18,40,0.6)',
+        background: 'rgba(5,15,12,0.75)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
       }}
     >
       <div
-        className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden"
-        style={{ animation: 'modalPop 0.3s cubic-bezier(0.34,1.5,0.64,1) both' }}
+        className="relative w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden"
+        style={{
+          animation: 'modalPop 0.3s cubic-bezier(0.34,1.5,0.64,1) both',
+          background: colors.bgElevated,
+          border: `1px solid ${colors.borderStrong}`,
+        }}
       >
-        <div
-          className="h-1"
-          style={{ background: 'linear-gradient(90deg,#0057B8,#00A0FF,#00A651)' }}
-        />
+        <div className="h-1" style={{ background: colors.primaryBtn }} />
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 transition-colors z-10"
+          className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-colors z-10"
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            color: colors.textSecondary,
+          }}
         >
           <X size={15} />
         </button>
@@ -71,14 +77,22 @@ export default function DownloadModal({ onClose }) {
         <div className="p-7 text-center">
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg"
-            style={{ background: 'linear-gradient(135deg,#0057B8,#0090FF)' }}
+            style={{ background: colors.primaryBtn }}
           >
-            <Smartphone size={26} className="text-white" />
+            <Smartphone size={26} className="text-[#04140f]" />
           </div>
-          <h2 className="text-xl font-black text-slate-900 mb-1">Get the MEDIQ App</h2>
-          <p className="text-sm text-slate-400 mb-6">Scan the QR code or tap a button below</p>
+          <h2 className="text-xl font-black text-white mb-1">Get the MEDIQ App</h2>
+          <p className="text-sm mb-6" style={{ color: colors.textSecondary }}>
+            Scan the QR code or tap a button below
+          </p>
 
-          <div className="w-40 h-40 mx-auto mb-6 bg-slate-50 border-2 border-slate-200 rounded-2xl flex items-center justify-center">
+          <div
+            className="w-40 h-40 mx-auto mb-6 rounded-2xl flex items-center justify-center"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: `1px solid ${colors.borderStrong}`,
+            }}
+          >
             <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
               {[0, 1, 2, 3, 4, 5, 6].map((r) =>
                 [0, 1, 2, 3, 4, 5, 6].map((c) => <QrBlock key={`t-${r}-${c}`} r={r} c={c} />),
@@ -93,7 +107,7 @@ export default function DownloadModal({ onClose }) {
                 [54, 60],
                 [60, 60],
               ].map(([x, y], i) => (
-                <rect key={`d${i}`} x={x} y={y} width={6} height={6} rx={1} fill="#0057B8" opacity={0.7} />
+                <rect key={`d${i}`} x={x} y={y} width={6} height={6} rx={1} fill="#40deaa" opacity={0.7} />
               ))}
               {[0, 1, 2, 3, 4, 5, 6].map((r) =>
                 [0, 1, 2, 3, 4, 5, 6].map((c) => (
@@ -103,7 +117,9 @@ export default function DownloadModal({ onClose }) {
             </svg>
           </div>
 
-          <p className="text-xs text-slate-400 mb-5 font-medium">Available on iOS &amp; Android</p>
+          <p className="text-xs mb-5 font-medium" style={{ color: colors.textDim }}>
+            Available on iOS &amp; Android
+          </p>
 
           <div className="flex flex-col gap-3">
             <a

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AlertCircle, Check } from 'lucide-react'
+import { colors } from '../../theme/colors'
 
 export default function Field({
   label,
@@ -17,23 +18,38 @@ export default function Field({
 
   return (
     <div>
-      <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+      <label
+        className="block text-xs font-bold uppercase tracking-wider mb-1.5"
+        style={{ color: colors.textDim }}
+      >
         {label}
       </label>
       <div
-        className={`relative flex items-center rounded-2xl border-2 transition-all duration-200 ${
+        className="relative flex items-center rounded-2xl border-2 transition-all duration-200"
+        style={
           error
-            ? 'border-red-400 bg-red-50/40'
+            ? {
+                borderColor: '#ff8a80',
+                background: 'rgba(255,138,128,0.08)',
+              }
             : focused
-              ? 'border-blue-500 bg-white ring-4 ring-blue-50'
-              : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'
-        }`}
+              ? {
+                  borderColor: colors.accent,
+                  background: 'rgba(255,255,255,0.06)',
+                  boxShadow: '0 0 0 4px rgba(64,222,170,0.12)',
+                }
+              : {
+                  borderColor: 'rgba(255,255,255,0.12)',
+                  background: 'rgba(255,255,255,0.04)',
+                }
+        }
       >
         <Icon
           size={15}
-          className={`absolute left-3.5 flex-shrink-0 transition-colors ${
-            error ? 'text-red-400' : focused ? 'text-blue-500' : 'text-slate-400'
-          }`}
+          className="absolute left-3.5 flex-shrink-0 transition-colors"
+          style={{
+            color: error ? '#ff8a80' : focused ? colors.accent : colors.textDim,
+          }}
         />
         <input
           type={type}
@@ -43,18 +59,19 @@ export default function Field({
           onBlur={() => setFocused(false)}
           placeholder={placeholder}
           autoComplete={autoComplete}
-          className="w-full bg-transparent pl-10 pr-10 py-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none"
+          className="w-full bg-transparent pl-10 pr-10 py-3 text-sm outline-none"
+          style={{ color: colors.textBright }}
         />
         {children}
         {!children && valid && (
-          <Check size={14} className="absolute right-3.5 text-green-500" strokeWidth={2.5} />
+          <Check size={14} className="absolute right-3.5 text-[#40deaa]" strokeWidth={2.5} />
         )}
         {error && !children && (
-          <AlertCircle size={14} className="absolute right-3.5 text-red-400" />
+          <AlertCircle size={14} className="absolute right-3.5 text-[#ff8a80]" />
         )}
       </div>
       {error && (
-        <p className="mt-1.5 ml-0.5 text-xs text-red-500 flex items-center gap-1">
+        <p className="mt-1.5 ml-0.5 text-xs text-[#ff8a80] flex items-center gap-1">
           <AlertCircle size={10} />
           {error}
         </p>

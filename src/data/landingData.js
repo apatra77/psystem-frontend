@@ -14,32 +14,32 @@ export const FEATURES = [
     icon: Pill,
     title: 'Order Medicines',
     desc: '10,000+ medicines delivered to your door. Upload prescription or order OTC.',
-    color: 'bg-blue-50',
-    ic: 'text-blue-600',
+    color: 'bg-[rgba(64,222,170,0.12)]',
+    ic: 'text-[#40deaa]',
     badge: '10k+ Products',
   },
   {
     icon: FlaskConical,
     title: 'Book Lab Tests',
     desc: '800+ diagnostic tests at NABL accredited labs. Home sample collection available.',
-    color: 'bg-green-50',
-    ic: 'text-green-600',
+    color: 'bg-[rgba(111,194,255,0.12)]',
+    ic: 'text-[#6fc2ff]',
     badge: '35% off today',
   },
   {
     icon: Video,
     title: 'Consult Doctors',
     desc: '200+ specialists online. Video, audio or chat consultations in minutes.',
-    color: 'bg-purple-50',
-    ic: 'text-purple-600',
+    color: 'bg-[rgba(178,135,255,0.12)]',
+    ic: 'text-[#b287ff]',
     badge: '₹99 onwards',
   },
   {
     icon: Activity,
     title: 'Health Records',
     desc: 'Store prescriptions, lab reports, and health history securely in one place.',
-    color: 'bg-orange-50',
-    ic: 'text-orange-600',
+    color: 'bg-[rgba(255,213,143,0.12)]',
+    ic: 'text-[#ffd58f]',
     badge: 'Encrypted & safe',
   },
 ]
@@ -69,9 +69,24 @@ export const TESTIMONIALS = [
 ]
 
 export const TRUST_BADGES = [
-  { icon: ShieldCheck, label: '100% Genuine Medicines', c: 'text-blue-600', bg: 'bg-blue-50' },
-  { icon: Truck, label: 'Same Day Delivery', c: 'text-green-600', bg: 'bg-green-50' },
-  { icon: BadgeCheck, label: 'FSSAI Approved', c: 'text-orange-600', bg: 'bg-orange-50' },
+  {
+    icon: ShieldCheck,
+    label: '100% Genuine Medicines',
+    c: 'text-[#40deaa]',
+    bg: 'bg-[rgba(64,222,170,0.12)]',
+  },
+  {
+    icon: Truck,
+    label: 'Same Day Delivery',
+    c: 'text-[#6fc2ff]',
+    bg: 'bg-[rgba(111,194,255,0.12)]',
+  },
+  {
+    icon: BadgeCheck,
+    label: 'FSSAI Approved',
+    c: 'text-[#ffd58f]',
+    bg: 'bg-[rgba(255,213,143,0.12)]',
+  },
 ]
 
 export const SPECIALTIES = ['General Physician', 'Dermatologist', 'Cardiologist', 'Gynaecologist']

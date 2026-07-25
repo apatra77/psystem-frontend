@@ -16,6 +16,7 @@ import Spinner from '../ui/Spinner'
 import PrimaryBtn, { Divider, SocialBtns, SuccessState } from '../auth/AuthFormParts'
 import { isValidEmail } from '../../utils/validation'
 import { requestLoginOtp } from '../../services/auth'
+import { colors } from '../../theme/colors'
 
 export default function AuthModal({ onClose }) {
   const [mode, setMode] = useState('login')
@@ -116,23 +117,28 @@ export default function AuthModal({ onClose }) {
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{
-        background: 'rgba(8,18,40,0.6)',
+        background: 'rgba(5,15,12,0.75)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
       }}
     >
       <div
-        className="relative w-full max-w-[420px] bg-white rounded-[24px] shadow-2xl overflow-hidden"
-        style={{ animation: 'modalPop 0.3s cubic-bezier(0.34,1.5,0.64,1) both' }}
+        className="relative w-full max-w-[420px] rounded-[24px] shadow-2xl overflow-hidden"
+        style={{
+          animation: 'modalPop 0.3s cubic-bezier(0.34,1.5,0.64,1) both',
+          background: colors.bgElevated,
+          border: `1px solid ${colors.borderStrong}`,
+        }}
       >
-        <div
-          className="h-1"
-          style={{ background: 'linear-gradient(90deg,#0057B8,#00A0FF,#00A651)' }}
-        />
+        <div className="h-1" style={{ background: colors.primaryBtn }} />
 
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 transition-colors"
+          className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            color: colors.textSecondary,
+          }}
         >
           <X size={15} />
         </button>
@@ -140,13 +146,13 @@ export default function AuthModal({ onClose }) {
         <div className="flex items-center justify-center gap-2 pt-7 pb-1">
           <div
             className="w-7 h-7 rounded-xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg,#0057B8,#0090FF)' }}
+            style={{ background: colors.primaryBtn }}
           >
-            <Activity size={14} className="text-white" strokeWidth={2.5} />
+            <Activity size={14} className="text-[#04140f]" strokeWidth={2.5} />
           </div>
           <span
-            className="text-lg font-black tracking-tight"
-            style={{ color: '#0057B8', fontFamily: 'Plus Jakarta Sans, sans-serif' }}
+            className="text-lg font-black tracking-tight text-white"
+            style={{ fontFamily: 'Manrope, sans-serif' }}
           >
             MEDIQ
           </span>
@@ -160,12 +166,14 @@ export default function AuthModal({ onClose }) {
               <form onSubmit={submitLogin} noValidate>
                 <div className="text-center mb-6">
                   <h2
-                    className="text-2xl font-black text-slate-900"
+                    className="text-2xl font-black text-white"
                     style={{ letterSpacing: '-0.025em' }}
                   >
                     Welcome Back 👋
                   </h2>
-                  <p className="text-sm text-slate-400 mt-1">Sign in to your MEDIQ account</p>
+                  <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+                    Sign in to your MEDIQ account
+                  </p>
                 </div>
                 <div className="space-y-3.5">
                   <Field
@@ -232,12 +240,12 @@ export default function AuthModal({ onClose }) {
               <form onSubmit={submitSignup} noValidate>
                 <div className="text-center mb-5">
                   <h2
-                    className="text-2xl font-black text-slate-900"
+                    className="text-2xl font-black text-white"
                     style={{ letterSpacing: '-0.025em' }}
                   >
                     Create Account ✨
                   </h2>
-                  <p className="text-sm text-slate-400 mt-1">
+                  <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>
                     Join millions on MEDIQ — it&apos;s free
                   </p>
                 </div>
@@ -301,24 +309,25 @@ export default function AuthModal({ onClose }) {
                     </button>
                   </Field>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-2.5 leading-relaxed">
+                <p className="text-[11px] mt-2.5 leading-relaxed" style={{ color: colors.textDim }}>
                   By signing up you agree to MEDIQ&apos;s{' '}
-                  <span className="text-blue-600 font-semibold cursor-pointer hover:underline">
+                  <span className="font-semibold cursor-pointer hover:underline" style={{ color: colors.accent }}>
                     Terms
                   </span>{' '}
                   &amp;{' '}
-                  <span className="text-blue-600 font-semibold cursor-pointer hover:underline">
+                  <span className="font-semibold cursor-pointer hover:underline" style={{ color: colors.accent }}>
                     Privacy Policy
                   </span>
                   .
                 </p>
                 <PrimaryBtn loading={sLoading} label="Create Account" green />
-                <p className="text-center text-sm text-slate-500 mt-5">
+                <p className="text-center text-sm mt-5" style={{ color: colors.textSecondary }}>
                   Already have an account?{' '}
                   <button
                     type="button"
                     onClick={() => setMode('login')}
-                    className="font-bold text-blue-600 hover:underline"
+                    className="font-bold hover:underline"
+                    style={{ color: colors.accent }}
                   >
                     Login
                   </button>
@@ -333,21 +342,25 @@ export default function AuthModal({ onClose }) {
             {fDone ? (
               <div className="flex flex-col items-center py-8 gap-4 text-center">
                 <div
-                  className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center"
-                  style={{ animation: 'popIn 0.35s cubic-bezier(0.34,1.5,0.64,1)' }}
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                  style={{
+                    animation: 'popIn 0.35s cubic-bezier(0.34,1.5,0.64,1)',
+                    background: 'rgba(64,222,170,0.15)',
+                  }}
                 >
-                  <Mail size={26} className="text-blue-600" />
+                  <Mail size={26} className="text-[#40deaa]" />
                 </div>
                 <div>
-                  <div className="text-lg font-black text-slate-800">Check your inbox 📬</div>
-                  <div className="text-sm text-slate-400 mt-1">
+                  <div className="text-lg font-black text-white">Check your inbox 📬</div>
+                  <div className="text-sm mt-1" style={{ color: colors.textSecondary }}>
                     Reset link sent to{' '}
-                    <span className="font-semibold text-slate-600">{fEmail}</span>
+                    <span className="font-semibold text-white">{fEmail}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setMode('login')}
-                  className="text-sm font-bold text-blue-600 hover:underline"
+                  className="text-sm font-bold hover:underline"
+                  style={{ color: colors.accent }}
                 >
                   ← Back to Login
                 </button>
@@ -357,17 +370,21 @@ export default function AuthModal({ onClose }) {
                 <button
                   type="button"
                   onClick={() => setMode('login')}
-                  className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-600 mb-4 transition-colors"
+                  className="flex items-center gap-1 text-xs font-semibold mb-4 transition-colors"
+                  style={{ color: colors.textDim }}
                 >
                   <ChevronLeft size={13} />
                   Back to Login
                 </button>
                 <div className="text-center mb-6">
-                  <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                    <Lock size={22} className="text-blue-600" />
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3"
+                    style={{ background: 'rgba(64,222,170,0.15)' }}
+                  >
+                    <Lock size={22} className="text-[#40deaa]" />
                   </div>
-                  <h2 className="text-xl font-black text-slate-900">Forgot Password?</h2>
-                  <p className="text-sm text-slate-400 mt-1">
+                  <h2 className="text-xl font-black text-white">Forgot Password?</h2>
+                  <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>
                     Enter your email to receive a reset link
                   </p>
                 </div>
@@ -383,8 +400,8 @@ export default function AuthModal({ onClose }) {
                 <button
                   type="submit"
                   disabled={fLoading || !fEmail}
-                  className="mt-5 w-full py-3.5 rounded-2xl text-white text-sm font-bold flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-60"
-                  style={{ background: 'linear-gradient(135deg,#0057B8,#0090FF)' }}
+                  className="mt-5 w-full py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-60"
+                  style={{ background: colors.primaryBtn, color: colors.accentText }}
                 >
                   {fLoading ? (
                     <>

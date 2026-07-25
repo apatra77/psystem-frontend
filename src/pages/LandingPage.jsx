@@ -8,6 +8,7 @@ import CtaBanner from '../components/landing/CtaBanner'
 import Footer from '../components/landing/Footer'
 import AuthModal from '../components/modals/AuthModal'
 import DownloadModal from '../components/modals/DownloadModal'
+import { colors } from '../theme/colors'
 
 export default function LandingPage() {
   const [modal, setModal] = useState(null)
@@ -17,10 +18,11 @@ export default function LandingPage() {
 
   return (
     <div
-      className="min-h-screen w-full overflow-x-hidden text-slate-900"
+      className="min-h-screen w-full overflow-x-hidden"
       style={{
-        fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
-        background: 'linear-gradient(160deg, #EBF4FF 0%, #F5FFF8 50%, #EBF4FF 100%)',
+        fontFamily: "'Manrope', sans-serif",
+        background: colors.pageBg,
+        color: colors.text,
       }}
     >
       <Header onAuth={openAuth} onDownload={openDownload} />

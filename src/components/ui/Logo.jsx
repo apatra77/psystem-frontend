@@ -9,13 +9,16 @@ export default function Logo({ size = 'md' }) {
     <div className="flex items-center gap-2 flex-shrink-0">
       <div
         className={`${boxSize} rounded-xl flex items-center justify-center shadow`}
-        style={{ background: 'linear-gradient(135deg,#0057B8,#0090FF)' }}
+        style={{
+          background: 'linear-gradient(135deg,#40deaa,#0d8a64)',
+          boxShadow: '0 6px 18px rgba(64,222,170,0.45), inset 0 1px 2px rgba(255,255,255,0.5)',
+        }}
       >
-        <Activity size={iconSize} className="text-white" strokeWidth={2.5} />
+        <Activity size={iconSize} className="text-[#04140f]" strokeWidth={2.5} />
       </div>
       <span
-        className={`${textSize} font-black tracking-tight`}
-        style={{ color: '#0057B8', letterSpacing: '-0.03em' }}
+        className={`${textSize} font-black tracking-tight text-white`}
+        style={{ letterSpacing: '-0.03em' }}
       >
         MEDIQ
       </span>
