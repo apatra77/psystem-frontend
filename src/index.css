@@ -87,3 +87,21 @@
 .float-badge-alt {
   animation: floatBadgeAlt 4.5s ease-in-out infinite;
 }
+
+.field-input:-webkit-autofill,
+.field-input:-webkit-autofill:hover,
+.field-input:-webkit-autofill:focus,
+.field-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #0a2b21 inset !important;
+  box-shadow: 0 0 0 1000px #0a2b21 inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.field-input:-moz-autofill,
+.field-input:-moz-autofill-preview {
+  filter: none;
+  background-color: #0a2b21 !important;
+  color: #ffffff !important;
+}

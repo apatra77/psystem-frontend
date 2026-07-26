@@ -59,8 +59,8 @@ export default function Field({
           onBlur={() => setFocused(false)}
           placeholder={placeholder}
           autoComplete={autoComplete}
-          className="w-full bg-transparent pl-10 pr-10 py-3 text-sm outline-none"
-          style={{ color: colors.textBright }}
+          className="field-input w-full bg-transparent pl-10 pr-10 py-3 text-sm outline-none rounded-2xl"
+          style={{ color: colors.textBright, colorScheme: 'dark' }}
         />
         {children}
         {!children && valid && (
