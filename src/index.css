@@ -73,6 +73,64 @@
   }
 }
 
+@keyframes modalIn {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dropIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.owner-dropdown {
+  animation: dropIn 0.18s ease;
+}
+
+.owner-pulse-dot {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.owner-scroll::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.owner-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.owner-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 99px;
+}
+
+.owner-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .float-badge,
   .float-badge-alt {
@@ -104,4 +162,15 @@
   filter: none;
   background-color: #0a2b21 !important;
   color: #ffffff !important;
+}
+
+.otp-digit:-webkit-autofill,
+.otp-digit:-webkit-autofill:hover,
+.otp-digit:-webkit-autofill:focus,
+.otp-digit:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px rgba(64,222,170,0.08) inset !important;
+  box-shadow: 0 0 0 1000px rgba(64,222,170,0.08) inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff;
+  transition: background-color 9999s ease-out 0s;
 }

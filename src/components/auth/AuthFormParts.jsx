@@ -64,14 +64,14 @@ function SocialBtns() {
   )
 }
 
-function SuccessState({ title, sub }) {
+function SuccessState({ title, sub, green }) {
   return (
     <div className="flex flex-col items-center py-10 gap-4 text-center">
       <div
         className="w-16 h-16 rounded-full flex items-center justify-center"
         style={{
           animation: 'popIn 0.4s cubic-bezier(0.34,1.5,0.64,1)',
-          background: 'rgba(64,222,170,0.15)',
+          background: green ? 'rgba(64,222,170,0.15)' : 'rgba(64,222,170,0.15)',
         }}
       >
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-[#40deaa]" strokeWidth="2.5">
@@ -86,4 +86,20 @@ function SuccessState({ title, sub }) {
   )
 }
 
-export { Divider, SocialBtns, SuccessState }
+function AuthTermsNotice() {
+  return (
+    <p className="text-center text-[11px] mt-5 leading-relaxed" style={{ color: colors.textDim }}>
+      By continuing, you agree to MEDIQ&apos;s{' '}
+      <button type="button" className="font-semibold hover:underline" style={{ color: colors.accent }}>
+        Terms of Use
+      </button>{' '}
+      &amp;{' '}
+      <button type="button" className="font-semibold hover:underline" style={{ color: colors.accent }}>
+        Privacy Policy
+      </button>
+      .
+    </p>
+  )
+}
+
+export { Divider, SocialBtns, SuccessState, AuthTermsNotice }
