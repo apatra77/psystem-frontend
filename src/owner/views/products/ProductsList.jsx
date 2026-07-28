@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
+import Spinner from '../../../components/ui/Spinner'
 import { useOwnerPortal } from '../../context/OwnerPortalContext'
 import { stockMeta } from '../../utils/helpers'
 import { colors } from '../../../theme/colors'
@@ -41,16 +42,22 @@ function Th({ children }) {
 
 export default function ProductsList() {
   const navigate = useNavigate()
-  const { products, categories, activeOutletName, deleteProduct, toggleProductStatus } = useOwnerPortal()
+  const {
+    products,
+    productCategories,
+    activeOutletName,
+    deleteProduct,
+    toggleProductStatus,
+    productsLoading,
+    productsError,
+    reloadProducts,
+  } = useOwnerPortal()
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('all')
   const [stockFilter, setStockFilter] = useState('all')
   const [addMenuOpen, setAddMenuOpen] = useState(false)
 
-  const totalCatalogCount = useMemo(
-    () => categories.reduce((sum, c) => sum + c.count, 0),
-    [categories],
-  )
+  const categoryOptions = productCategories.length > 0 ? productCategories : []
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -108,7 +115,7 @@ export default function ProductsList() {
         <select
           value={catFilter}
           onChange={(e) => setCatFilter(e.target.value)}
-          className="text-[12.5px] font-bold rounded-xl px-3 py-2.5 cursor-pointer"
+          className="owner-select text-[12.5px] font-bold rounded-xl px-3 py-2.5 cursor-pointer"
           style={{
             color: '#cfe6dc',
             background: '#0d211a',
@@ -116,7 +123,7 @@ export default function ProductsList() {
           }}
         >
           <option value="all">All categories</option>
-          {categories.map((c) => (
+          {categoryOptions.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
@@ -206,6 +213,27 @@ export default function ProductsList() {
       </div>
 
       <GlassCard className="overflow-hidden">
+        {productsLoading ? (
+          <div className="flex items-center justify-center gap-2.5 py-16 text-[13px]" style={{ color: colors.textSecondary }}>
+            <Spinner />
+            Loading products…
+          </div>
+        ) : productsError ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 px-6 text-center">
+            <div className="text-[13px] font-bold text-red-400">{productsError}</div>
+            <button
+              type="button"
+              onClick={reloadProducts}
+              className="text-[12.5px] font-bold px-4 py-2 rounded-[10px] cursor-pointer"
+              style={{
+                color: colors.accentText,
+                background: colors.primaryBtn,
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
         <table className="w-full border-collapse">
           <thead>
             <tr>
@@ -219,8 +247,14 @@ export default function ProductsList() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p) => {
-              const cat = categories.find((c) => c.id === p.cat)
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-14 text-center text-[13px]" style={{ color: colors.textDim }}>
+                  No products found.
+                </td>
+              </tr>
+            ) : (
+            filtered.map((p) => {
               const sm = stockMeta(p.stock)
               const isActive = p.status === 'active'
               return (
@@ -243,17 +277,19 @@ export default function ProductsList() {
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-xs whitespace-nowrap" style={{ color: '#cfe6dc' }}>
-                    {cat?.name ?? p.cat}
+                    {p.catName ?? p.cat}
                   </td>
                   <td className="px-4 py-2.5 whitespace-nowrap">
                     <span className="text-[12.5px] font-bold text-white tabular-nums">₹{p.price}</span>
-                    <span className="text-[11px] line-through ml-1.5" style={{ color: '#5f7d73' }}>
-                      ₹{p.mrp}
-                    </span>
+                    {p.mrp > p.price && (
+                      <span className="text-[11px] line-through ml-1.5" style={{ color: '#5f7d73' }}>
+                        ₹{p.mrp}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 whitespace-nowrap">
                     <div className="text-xs" style={{ color: '#cfe6dc' }}>
-                      {p.stock} units
+                      {p.stock} {p.stockUnit ?? 'units'}
                     </div>
                     <span
                       className="text-[9.5px] font-extrabold px-[7px] py-0.5 rounded-full inline-block mt-0.5"
@@ -314,13 +350,15 @@ export default function ProductsList() {
                   </td>
                 </tr>
               )
-            })}
+            })
+            )}
           </tbody>
         </table>
+        )}
       </GlassCard>
 
       <div className="text-[11.5px]" style={{ color: '#5f7d73' }}>
-        Showing {filtered.length} of {totalCatalogCount} products across {activeOutletName}.
+        Showing {filtered.length} of {products.length} products across {activeOutletName}.
       </div>
     </div>
   )

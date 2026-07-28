@@ -107,13 +107,11 @@ export default function ProductFormModal() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <ModalFieldLabel>Category</ModalFieldLabel>
-            <ModalSelect value={draft.cat} onChange={(e) => setField('cat', e.target.value)}>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </ModalSelect>
+            <ModalSelect
+              value={draft.cat}
+              onChange={(e) => setField('cat', e.target.value)}
+              options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            />
           </div>
           <div>
             <ModalFieldLabel>SKU</ModalFieldLabel>

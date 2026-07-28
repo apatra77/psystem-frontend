@@ -1,26 +1,7 @@
-const API_BASE = 'http://66.116.246.58:8080'
+import { API_BASE, parseJsonResponse, getErrorMessage } from './api'
+
 const AUTH_TOKEN_KEY = 'authToken'
 const AUTH_USER_KEY = 'authUser'
-
-async function parseJsonResponse(res) {
-  let data = null
-  try {
-    data = await res.json()
-  } catch {
-    /* non-JSON body */
-  }
-  return data
-}
-
-function getErrorMessage(data, status) {
-  return (
-    data?.message ??
-    data?.error ??
-    (typeof data === 'string' ? data : null) ??
-    `Request failed (${status})`
-  )
-}
-
 export async function requestLoginOtp(identifier) {
   const res = await fetch(`${API_BASE}/api/auth/login`, {
     method: 'POST',

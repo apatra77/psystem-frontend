@@ -109,6 +109,15 @@
   animation: dropIn 0.18s ease;
 }
 
+.owner-select {
+  color-scheme: dark;
+}
+
+.owner-select option {
+  background-color: #0d211a;
+  color: #eaf5f0;
+}
+
 .owner-pulse-dot {
   animation: pulseGlow 2s ease-in-out infinite;
 }
