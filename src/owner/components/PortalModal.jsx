@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { colors } from '../../theme/colors'
 
-export default function PortalModal({ onClose, children, width = 520 }) {
+export default function PortalModal({ onClose, children, width = 520, scrollable = true }) {
   return (
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center p-6"
@@ -11,7 +11,7 @@ export default function PortalModal({ onClose, children, width = 520 }) {
       role="presentation"
     >
       <div
-        className="max-w-[92vw] max-h-[88vh] overflow-y-auto rounded-[22px] shadow-[0_40px_100px_rgba(0,0,0,0.6)]"
+        className={`max-w-[92vw] rounded-[22px] shadow-[0_40px_100px_rgba(0,0,0,0.6)] max-h-[88vh] ${scrollable ? 'overflow-y-auto' : 'overflow-hidden'}`}
         style={{
           width,
           background: '#0d211a',
@@ -29,7 +29,7 @@ export default function PortalModal({ onClose, children, width = 520 }) {
 
 export function ModalFieldLabel({ children }) {
   return (
-    <div className="text-[11px] font-bold mb-1.5" style={{ color: colors.textSecondary }}>
+    <div className="text-[11px] font-bold mb-1" style={{ color: colors.textSecondary }}>
       {children}
     </div>
   )
@@ -38,7 +38,7 @@ export function ModalFieldLabel({ children }) {
 export function ModalInput({ className = '', ...props }) {
   return (
     <input
-      className={`w-full rounded-[10px] px-3 py-2.5 text-[13px] text-white font-[inherit] outline-none ${className}`}
+      className={`w-full rounded-[10px] px-3 py-2 text-[13px] text-white font-[inherit] outline-none ${className}`}
       style={{
         background: 'rgba(255,255,255,0.06)',
         border: '1px solid rgba(255,255,255,0.16)',
@@ -73,7 +73,7 @@ export function ModalSelect({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="w-full rounded-[10px] px-3 py-2.5 text-[13px] font-[inherit] outline-none flex items-center justify-between gap-2 cursor-pointer text-left"
+        className="w-full rounded-[10px] px-3 py-2 text-[13px] font-[inherit] outline-none flex items-center justify-between gap-2 cursor-pointer text-left"
         style={{
           color: selected ? '#ffffff' : colors.textDim,
           background: 'rgba(255,255,255,0.06)',
@@ -121,6 +121,20 @@ export function ModalSelect({
         </div>
       )}
     </div>
+  )
+}
+
+export function ModalTextarea({ className = '', rows = 2, ...props }) {
+  return (
+    <textarea
+      rows={rows}
+      className={`w-full rounded-[10px] px-3 py-2 text-[13px] text-white font-[inherit] outline-none resize-none ${className}`}
+      style={{
+        background: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.16)',
+      }}
+      {...props}
+    />
   )
 }
 

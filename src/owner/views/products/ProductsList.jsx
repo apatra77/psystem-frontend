@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import Spinner from '../../../components/ui/Spinner'
+import { ModalSelect } from '../../components/PortalModal'
 import { useOwnerPortal } from '../../context/OwnerPortalContext'
 import { stockMeta } from '../../utils/helpers'
 import { colors } from '../../../theme/colors'
@@ -44,11 +45,12 @@ export default function ProductsList() {
   const navigate = useNavigate()
   const {
     products,
-    productCategories,
+    categories,
     activeOutletName,
     deleteProduct,
     toggleProductStatus,
     productsLoading,
+    categoriesLoading,
     productsError,
     reloadProducts,
   } = useOwnerPortal()
@@ -57,7 +59,14 @@ export default function ProductsList() {
   const [stockFilter, setStockFilter] = useState('all')
   const [addMenuOpen, setAddMenuOpen] = useState(false)
 
-  const categoryOptions = productCategories.length > 0 ? productCategories : []
+  const categoryOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All categories' },
+      ...categories.map((c) => ({ value: c.id, label: c.name })),
+    ],
+    [categories],
+  )
+  const isLoading = productsLoading || categoriesLoading
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -112,23 +121,13 @@ export default function ProductsList() {
           />
         </div>
 
-        <select
+        <ModalSelect
+          className="min-w-[190px] flex-shrink-0"
           value={catFilter}
           onChange={(e) => setCatFilter(e.target.value)}
-          className="owner-select text-[12.5px] font-bold rounded-xl px-3 py-2.5 cursor-pointer"
-          style={{
-            color: '#cfe6dc',
-            background: '#0d211a',
-            border: '1px solid rgba(255,255,255,0.16)',
-          }}
-        >
-          <option value="all">All categories</option>
-          {categoryOptions.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+          options={categoryOptions}
+          placeholder="All categories"
+        />
 
         <div className="flex gap-1.5 flex-wrap">
           {stockChips.map((f) => (
@@ -213,7 +212,7 @@ export default function ProductsList() {
       </div>
 
       <GlassCard className="overflow-hidden">
-        {productsLoading ? (
+        {isLoading ? (
           <div className="flex items-center justify-center gap-2.5 py-16 text-[13px]" style={{ color: colors.textSecondary }}>
             <Spinner />
             Loading products…
@@ -277,7 +276,7 @@ export default function ProductsList() {
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-xs whitespace-nowrap" style={{ color: '#cfe6dc' }}>
-                    {p.catName ?? p.cat}
+                    {categories.find((c) => c.id === p.cat)?.name ?? p.catName ?? p.cat}
                   </td>
                   <td className="px-4 py-2.5 whitespace-nowrap">
                     <span className="text-[12.5px] font-bold text-white tabular-nums">₹{p.price}</span>

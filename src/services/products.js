@@ -8,6 +8,21 @@ function pick(obj, ...keys) {
   return undefined
 }
 
+function extractApiList(payload, nestedKeys = []) {
+  if (Array.isArray(payload)) return payload
+
+  const data = payload?.data ?? payload
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.content)) return data.content
+  if (Array.isArray(data?.items)) return data.items
+
+  for (const key of nestedKeys) {
+    if (Array.isArray(data?.[key])) return data[key]
+  }
+
+  return []
+}
+
 function slugify(value) {
   return String(value)
     .toLowerCase()
@@ -15,6 +30,100 @@ function slugify(value) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 }
+
+// --- Categories ---
+
+export function mapCategoryFromApi(item) {
+  return {
+    id: String(pick(item, 'id', 'categoryId') ?? ''),
+    name: pick(item, 'name', 'categoryName') ?? 'Unnamed category',
+  }
+}
+
+let inFlightCategoriesRequest = null
+
+export async function fetchCategories({ force = false } = {}) {
+  if (!force && inFlightCategoriesRequest) {
+    return inFlightCategoriesRequest
+  }
+
+  inFlightCategoriesRequest = authFetch('/api/categories', {}, PRODUCT_API_BASE)
+    .then((payload) => extractApiList(payload, ['categories']).map(mapCategoryFromApi))
+    .finally(() => {
+      inFlightCategoriesRequest = null
+    })
+
+  return inFlightCategoriesRequest
+}
+
+// --- Tax groups ---
+
+export function mapSalesTaxFromApi(item) {
+  return {
+    id: String(pick(item, 'salesTaxId', 'id') ?? ''),
+    code: pick(item, 'taxCode', 'code') ?? '',
+    name: pick(item, 'taxName', 'name') ?? 'Unnamed tax',
+    percent: Number(pick(item, 'taxPercent', 'percent')) || 0,
+  }
+}
+
+export function mapPurchaseTaxFromApi(item) {
+  return {
+    id: String(pick(item, 'purchTaxId', 'purchaseTaxId', 'id') ?? ''),
+    code: pick(item, 'taxCode', 'code') ?? '',
+    name: pick(item, 'taxName', 'name') ?? 'Unnamed tax',
+    percent: Number(pick(item, 'taxPercent', 'percent')) || 0,
+  }
+}
+
+export function toTaxSelectOptions(groups) {
+  return groups.map((group) => ({
+    value: group.code || group.id,
+    label: group.code || group.name,
+  }))
+}
+
+let inFlightSalesTaxRequest = null
+let inFlightPurchaseTaxRequest = null
+
+export async function fetchSalesTaxGroups({ force = false } = {}) {
+  if (!force && inFlightSalesTaxRequest) {
+    return inFlightSalesTaxRequest
+  }
+
+  inFlightSalesTaxRequest = authFetch('/api/sales-tax-groups', {}, PRODUCT_API_BASE)
+    .then((payload) => extractApiList(payload).map(mapSalesTaxFromApi))
+    .finally(() => {
+      inFlightSalesTaxRequest = null
+    })
+
+  return inFlightSalesTaxRequest
+}
+
+export async function fetchPurchaseTaxGroups({ force = false } = {}) {
+  if (!force && inFlightPurchaseTaxRequest) {
+    return inFlightPurchaseTaxRequest
+  }
+
+  inFlightPurchaseTaxRequest = authFetch('/api/purchase-tax-groups', {}, PRODUCT_API_BASE)
+    .then((payload) => extractApiList(payload).map(mapPurchaseTaxFromApi))
+    .finally(() => {
+      inFlightPurchaseTaxRequest = null
+    })
+
+  return inFlightPurchaseTaxRequest
+}
+
+export async function fetchTaxGroups({ force = false } = {}) {
+  const [salesTaxGroups, purchaseTaxGroups] = await Promise.all([
+    fetchSalesTaxGroups({ force }),
+    fetchPurchaseTaxGroups({ force }),
+  ])
+
+  return { salesTaxGroups, purchaseTaxGroups }
+}
+
+// --- Products ---
 
 function resolveCategory(item, categories = []) {
   const categoryRaw = item.category ?? pick(item, 'categoryId', 'categoryName', 'cat')
@@ -107,18 +216,6 @@ export function mapProductFromApi(item, categories = []) {
   }
 }
 
-export function extractProductList(payload) {
-  if (Array.isArray(payload)) return payload
-
-  const data = payload?.data ?? payload
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data?.content)) return data.content
-  if (Array.isArray(data?.products)) return data.products
-  if (Array.isArray(data?.items)) return data.items
-
-  return []
-}
-
 let inFlightProductsRequest = null
 
 export async function fetchProducts(categories = [], { force = false } = {}) {
@@ -127,10 +224,53 @@ export async function fetchProducts(categories = [], { force = false } = {}) {
   }
 
   inFlightProductsRequest = authFetch('/api/products', {}, PRODUCT_API_BASE)
-    .then((payload) => extractProductList(payload).map((item) => mapProductFromApi(item, categories)))
+    .then((payload) =>
+      extractApiList(payload, ['products']).map((item) => mapProductFromApi(item, categories)),
+    )
     .finally(() => {
       inFlightProductsRequest = null
     })
 
   return inFlightProductsRequest
+}
+
+export function buildCreateProductPayload({
+  productName,
+  description,
+  mrp,
+  price,
+  genericName,
+  categoryName,
+  purchTaxCode,
+  salesTaxCode,
+  stockQty,
+  stockUnit,
+}) {
+  return {
+    productName,
+    description,
+    mrp: Number(mrp),
+    price: Number(price),
+    genericName,
+    categoryName,
+    purchTaxCode,
+    salesTaxCode,
+    packings: [
+      {
+        quantity: Number(stockQty),
+        unit: stockUnit,
+      },
+    ],
+  }
+}
+
+export async function createProduct(payload) {
+  return authFetch(
+    '/api/products',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    PRODUCT_API_BASE,
+  )
 }

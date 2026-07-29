@@ -1,8 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { pageToPath } from '../routes'
 import {
-  INITIAL_CATEGORIES,
   INITIAL_ORDERS,
   INITIAL_OUTLETS,
   INITIAL_PROMOS,
@@ -12,7 +11,7 @@ import {
 } from '../data/initialState'
 import { mapOrder, stockMeta } from '../utils/helpers'
 import { getStoredAuthUser } from '../../services/auth'
-import { fetchProducts } from '../../services/products'
+import { fetchCategories, fetchProducts } from '../../services/products'
 
 const OwnerPortalContext = createContext(null)
 
@@ -31,9 +30,12 @@ export function OwnerPortalProvider({ children }) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [orders, setOrders] = useState(INITIAL_ORDERS)
   const [products, setProducts] = useState([])
-  const [productsLoading, setProductsLoading] = useState(true)
+  const [productsLoading, setProductsLoading] = useState(false)
   const [productsError, setProductsError] = useState(null)
-  const [categories] = useState(INITIAL_CATEGORIES)
+  const [categories, setCategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(false)
+  const [categoriesError, setCategoriesError] = useState(null)
+  const [catalogLoaded, setCatalogLoaded] = useState(false)
   const [staff] = useState(INITIAL_STAFF)
   const [riders] = useState(INITIAL_RIDERS)
   const [promos] = useState(INITIAL_PROMOS)
@@ -74,10 +76,16 @@ export function OwnerPortalProvider({ children }) {
     const rec = {
       id: draft.id || `p${Date.now()}`,
       name: draft.name || 'Untitled product',
+      genericName: draft.genericName || '',
+      description: draft.description || '',
       cat: draft.cat || 'medicines',
+      purchaseTax: draft.purchaseTax ?? '',
+      salesTax: draft.salesTax ?? '',
       sku: draft.sku || `MQ-NEW-${Math.floor(Math.random() * 9000 + 1000)}`,
       price: Number(draft.price) || 0,
       mrp: Number(draft.mrp) || 0,
+      discountPercent: Number(draft.discountPercent) || 0,
+      discountPrice: Number(draft.discountPrice) || 0,
       stock: Number(draft.stock) || 0,
       stockUnit: draft.stockUnit || 'units',
       rx: !!draft.rx,
@@ -101,23 +109,40 @@ export function OwnerPortalProvider({ children }) {
     )
   }, [])
 
-  const loadProducts = useCallback(async ({ force = false } = {}) => {
+  const loadProductCatalog = useCallback(async ({ force = false } = {}) => {
+    if (!force && catalogLoaded) return
+
     setProductsLoading(true)
+    setCategoriesLoading(true)
     setProductsError(null)
+    setCategoriesError(null)
+
+    let cats = []
+
     try {
-      const list = await fetchProducts(categories, { force })
+      cats = await fetchCategories({ force })
+      setCategories(cats)
+    } catch (err) {
+      setCategoriesError(err?.message ?? 'Failed to load categories')
+      setCategories([])
+    } finally {
+      setCategoriesLoading(false)
+    }
+
+    try {
+      const list = await fetchProducts(cats, { force })
       setProducts(list)
+      setProductsError(null)
+      setCatalogLoaded(true)
     } catch (err) {
       setProductsError(err?.message ?? 'Failed to load products')
       setProducts([])
     } finally {
       setProductsLoading(false)
     }
-  }, [categories])
+  }, [catalogLoaded])
 
-  useEffect(() => {
-    loadProducts()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- load once on portal mount
+  const reloadProducts = useCallback(() => loadProductCatalog({ force: true }), [loadProductCatalog])
 
   const value = useMemo(() => {
     const outlet = INITIAL_OUTLETS.find((o) => o.id === activeOutlet)
@@ -126,13 +151,15 @@ export function OwnerPortalProvider({ children }) {
     const incoming = ordersMapped.filter((o) => o.status === 'new')
     const lowStock = products.filter((p) => p.stock <= 20)
 
-    const productCategories = (() => {
-      const map = new Map()
-      products.forEach((p) => {
-        if (p.cat) map.set(p.cat, p.catName || p.cat)
-      })
-      return Array.from(map, ([id, name]) => ({ id, name }))
-    })()
+    const productCategories = categories.length > 0
+      ? categories
+      : (() => {
+          const map = new Map()
+          products.forEach((p) => {
+            if (p.cat) map.set(p.cat, p.catName || p.cat)
+          })
+          return Array.from(map, ([id, name]) => ({ id, name }))
+        })()
 
     return {
       goToPage,
@@ -164,9 +191,12 @@ export function OwnerPortalProvider({ children }) {
       products,
       productsLoading,
       productsError,
-      reloadProducts: () => loadProducts({ force: true }),
-      productCategories,
       categories,
+      categoriesLoading,
+      categoriesError,
+      loadProductCatalog,
+      reloadProducts,
+      productCategories,
       saveProduct,
       deleteProduct,
       toggleProductStatus,
@@ -186,8 +216,12 @@ export function OwnerPortalProvider({ children }) {
     products,
     productsLoading,
     productsError,
-    loadProducts,
     categories,
+    categoriesLoading,
+    categoriesError,
+    loadProductCatalog,
+    reloadProducts,
+    catalogLoaded,
     staff,
     riders,
     promos,
