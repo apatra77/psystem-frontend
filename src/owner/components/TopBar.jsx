@@ -1,10 +1,14 @@
-import { Bell, ChevronDown } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { ArrowLeft, Bell, ChevronDown, LogOut, Settings, User } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
 import { useOwnerPage } from '../routes'
+import { clearAuthSession, getUserInitials } from '../../services/auth'
 import { PAGE_META } from '../utils/helpers'
 import { colors } from '../../theme/colors'
 
 export default function TopBar() {
+  const navigate = useNavigate()
   const page = useOwnerPage()
   const {
     activeOutletName,
@@ -23,7 +27,25 @@ export default function TopBar() {
     cycleStoreStatus,
     incomingCount,
     incomingPreview,
+    authUser,
   } = useOwnerPortal()
+
+  const displayName = authUser?.fullName?.trim() || authUser?.email || 'User'
+  const displayRole = authUser?.role || '—'
+  const initials = getUserInitials(authUser)
+  const profileMenuRef = useRef(null)
+
+  useEffect(() => {
+    if (!profileMenuOpen) return undefined
+
+    const handleOutsideClick = (event) => {
+      if (profileMenuRef.current?.contains(event.target)) return
+      setProfileMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [profileMenuOpen, setProfileMenuOpen])
 
   const meta = PAGE_META[page] || PAGE_META.dashboard
   const subtitle =
@@ -45,6 +67,23 @@ export default function TopBar() {
     setProfileMenuOpen(false)
   }
 
+  const toggleProfile = () => {
+    setProfileMenuOpen(!profileMenuOpen)
+    setOutletMenuOpen(false)
+    setNotifOpen(false)
+  }
+
+  const handleLogout = () => {
+    clearAuthSession()
+    setProfileMenuOpen(false)
+    navigate('/', { replace: true })
+  }
+
+  const openMyProfile = () => {
+    setProfileMenuOpen(false)
+    navigate('/owner/profile')
+  }
+
   return (
     <>
       <header
@@ -55,10 +94,27 @@ export default function TopBar() {
           borderBottom: `1px solid ${colors.borderSubtle}`,
         }}
       >
-        <div className="flex-1 min-w-0">
-          <div className="text-[21px] font-extrabold tracking-tight text-white">{meta.title}</div>
-          <div className="text-[12.5px] mt-0.5" style={{ color: colors.textSecondary }}>
-            {subtitle}
+        <div className="flex-1 min-w-0 flex items-center gap-3">
+          {page === 'profile' && (
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer flex-shrink-0 hover:bg-white/8"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.13)',
+                color: colors.textHighlight,
+              }}
+              aria-label="Go back"
+            >
+              <ArrowLeft size={16} strokeWidth={2} />
+            </button>
+          )}
+          <div className="min-w-0">
+            <div className="text-[21px] font-extrabold tracking-tight text-white">{meta.title}</div>
+            <div className="text-[12.5px] mt-0.5" style={{ color: colors.textSecondary }}>
+              {subtitle}
+            </div>
           </div>
         </div>
 
@@ -192,6 +248,80 @@ export default function TopBar() {
                   No new orders right now.
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        <div className="relative" ref={profileMenuRef}>
+          <button
+            type="button"
+            onClick={toggleProfile}
+            className="w-9 h-9 rounded-full flex items-center justify-center font-extrabold text-[13px] flex-shrink-0 cursor-pointer"
+            style={{
+              background: 'linear-gradient(135deg,#d4bcff,#8f6fd1)',
+              color: '#1c1030',
+            }}
+            aria-label="Open profile menu"
+          >
+            {initials}
+          </button>
+          {profileMenuOpen && (
+            <div
+              className="absolute top-[calc(100%+8px)] right-0 w-[240px] z-[60] rounded-[14px] p-2 owner-dropdown"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'rgba(10,28,22,0.97)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.13)',
+                boxShadow: '0 30px 70px rgba(0,0,0,0.6)',
+              }}
+            >
+              <div className="flex items-center gap-3 px-2.5 py-2.5">
+                <span
+                  className="w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm flex-shrink-0"
+                  style={{
+                    background: 'linear-gradient(135deg,#d4bcff,#8f6fd1)',
+                    color: '#1c1030',
+                  }}
+                >
+                  {initials}
+                </span>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-bold text-white truncate">{displayName}</div>
+                  <div className="text-[11px] font-bold mt-0.5" style={{ color: colors.textDim }}>
+                    {displayRole}
+                  </div>
+                </div>
+              </div>
+              <div className="border-t my-1.5" style={{ borderColor: colors.borderSubtle }} />
+              <button
+                type="button"
+                onClick={openMyProfile}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[12.5px] font-bold rounded-[9px] cursor-pointer hover:bg-white/6 text-left"
+                style={{ color: colors.textHighlight }}
+              >
+                <User size={15} strokeWidth={1.8} style={{ color: colors.textDim }} />
+                My Profile
+              </button>
+              <button
+                type="button"
+                onClick={() => setProfileMenuOpen(false)}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[12.5px] font-bold rounded-[9px] cursor-pointer hover:bg-white/6 text-left"
+                style={{ color: colors.textHighlight }}
+              >
+                <Settings size={15} strokeWidth={1.8} style={{ color: colors.textDim }} />
+                Account Settings
+              </button>
+              <div className="border-t my-1.5" style={{ borderColor: colors.borderSubtle }} />
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[12.5px] font-bold rounded-[9px] cursor-pointer hover:bg-white/6 text-left"
+                style={{ color: colors.textHighlight }}
+              >
+                <LogOut size={15} strokeWidth={1.8} style={{ color: colors.textDim }} />
+                Logout
+              </button>
             </div>
           )}
         </div>

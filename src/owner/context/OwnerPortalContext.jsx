@@ -10,8 +10,14 @@ import {
   INITIAL_STORE_PROFILES,
 } from '../data/initialState'
 import { mapOrder, stockMeta } from '../utils/helpers'
-import { getStoredAuthUser } from '../../services/auth'
-import { fetchCategories, fetchProducts } from '../../services/products'
+import { getStoredAuthUser, updateStoredUserProfile, skipProfileSetup as skipStoredProfileSetup } from '../../services/auth'
+import {
+  fetchCategories,
+  fetchProducts,
+  fetchProductsByCategory,
+  fetchProductsSearch,
+  deleteProductById,
+} from '../../services/products'
 
 const OwnerPortalContext = createContext(null)
 
@@ -40,7 +46,19 @@ export function OwnerPortalProvider({ children }) {
   const [riders] = useState(INITIAL_RIDERS)
   const [promos] = useState(INITIAL_PROMOS)
   const [storeProfiles, setStoreProfiles] = useState(INITIAL_STORE_PROFILES)
-  const [authUser] = useState(() => getStoredAuthUser())
+  const [authUser, setAuthUser] = useState(() => getStoredAuthUser())
+
+  const updateAuthUser = useCallback((profile) => {
+    const updated = updateStoredUserProfile(profile)
+    if (updated) setAuthUser(updated)
+    return updated
+  }, [])
+
+  const skipProfileSetup = useCallback(() => {
+    const updated = skipStoredProfileSetup()
+    if (updated) setAuthUser(updated)
+    return updated
+  }, [])
 
   const closeMenus = () => {
     setOutletMenuOpen(false)
@@ -97,7 +115,8 @@ export function OwnerPortalProvider({ children }) {
     })
   }, [])
 
-  const deleteProduct = useCallback((id) => {
+  const deleteProduct = useCallback(async (id) => {
+    await deleteProductById(id)
     setProducts((prev) => prev.filter((p) => p.id !== id))
   }, [])
 
@@ -142,7 +161,92 @@ export function OwnerPortalProvider({ children }) {
     }
   }, [catalogLoaded])
 
-  const reloadProducts = useCallback(() => loadProductCatalog({ force: true }), [loadProductCatalog])
+  const loadProductsByCategory = useCallback(
+    async (categoryId = 'all', { force = false } = {}) => {
+      setProductsLoading(true)
+      setProductsError(null)
+
+      let cats = categories
+      if (cats.length === 0) {
+        setCategoriesLoading(true)
+        setCategoriesError(null)
+        try {
+          cats = await fetchCategories({ force })
+          setCategories(cats)
+        } catch (err) {
+          setCategoriesError(err?.message ?? 'Failed to load categories')
+          setCategories([])
+        } finally {
+          setCategoriesLoading(false)
+        }
+      }
+
+      try {
+        const list =
+          categoryId === 'all'
+            ? await fetchProducts(cats, { force })
+            : await fetchProductsByCategory(categoryId, cats, { force })
+        setProducts(list)
+        setProductsError(null)
+        setCatalogLoaded(true)
+      } catch (err) {
+        setProductsError(err?.message ?? 'Failed to load products')
+        setProducts([])
+      } finally {
+        setProductsLoading(false)
+      }
+    },
+    [categories],
+  )
+
+  const searchProducts = useCallback(
+    async (query, { force = false } = {}) => {
+      const trimmed = query.trim()
+      if (!trimmed) {
+        return loadProductsByCategory('all', { force })
+      }
+
+      setProductsLoading(true)
+      setProductsError(null)
+
+      let cats = categories
+      if (cats.length === 0) {
+        setCategoriesLoading(true)
+        setCategoriesError(null)
+        try {
+          cats = await fetchCategories({ force })
+          setCategories(cats)
+        } catch (err) {
+          setCategoriesError(err?.message ?? 'Failed to load categories')
+          setCategories([])
+        } finally {
+          setCategoriesLoading(false)
+        }
+      }
+
+      try {
+        const list = await fetchProductsSearch(trimmed, cats)
+        setProducts(list)
+        setProductsError(null)
+        setCatalogLoaded(true)
+      } catch (err) {
+        setProductsError(err?.message ?? 'Failed to search products')
+        setProducts([])
+      } finally {
+        setProductsLoading(false)
+      }
+    },
+    [categories, loadProductsByCategory],
+  )
+
+  const reloadProducts = useCallback(
+    (categoryId = 'all', query = '') => {
+      const trimmed = query.trim()
+      if (trimmed) return searchProducts(trimmed, { force: true })
+      return loadProductsByCategory(categoryId, { force: true })
+    },
+    [loadProductsByCategory, searchProducts],
+  )
 
   const value = useMemo(() => {
     const outlet = INITIAL_OUTLETS.find((o) => o.id === activeOutlet)
@@ -176,7 +280,7 @@ export function OwnerPortalProvider({ children }) {
       profileMenuOpen,
       setProfileMenuOpen,
       closeMenus,
-      anyMenuOpen: outletMenuOpen || notifOpen,
+      anyMenuOpen: outletMenuOpen || notifOpen || profileMenuOpen,
       storeProfile,
       storeStatusMeta: STORE_STATUS[storeProfile.status],
       cycleStoreStatus,
@@ -195,6 +299,8 @@ export function OwnerPortalProvider({ children }) {
       categoriesLoading,
       categoriesError,
       loadProductCatalog,
+      loadProductsByCategory,
+      searchProducts,
       reloadProducts,
       productCategories,
       saveProduct,
@@ -204,6 +310,8 @@ export function OwnerPortalProvider({ children }) {
       riders,
       promos,
       authUser,
+      updateAuthUser,
+      skipProfileSetup,
     }
   }, [
     goToPage,
@@ -220,6 +328,8 @@ export function OwnerPortalProvider({ children }) {
     categoriesLoading,
     categoriesError,
     loadProductCatalog,
+    loadProductsByCategory,
+    searchProducts,
     reloadProducts,
     catalogLoaded,
     staff,
@@ -229,6 +339,9 @@ export function OwnerPortalProvider({ children }) {
     saveProduct,
     deleteProduct,
     toggleProductStatus,
+    authUser,
+    updateAuthUser,
+    skipProfileSetup,
   ])
 
   return <OwnerPortalContext.Provider value={value}>{children}</OwnerPortalContext.Provider>

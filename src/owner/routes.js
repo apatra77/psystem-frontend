@@ -10,6 +10,7 @@ export const OWNER_PAGES = [
   'discounts',
   'staff',
   'store',
+  'profile',
 ]
 
 export function pathToPage(pathname) {

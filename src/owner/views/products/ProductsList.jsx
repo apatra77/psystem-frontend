@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
+import PortalModal from '../../components/PortalModal'
 import Spinner from '../../../components/ui/Spinner'
 import { ModalSelect } from '../../components/PortalModal'
 import { useOwnerPortal } from '../../context/OwnerPortalContext'
+import { useProductSearchQuery } from '../../hooks/useProductSearchQuery'
 import { stockMeta } from '../../utils/helpers'
 import { colors } from '../../../theme/colors'
 
@@ -52,12 +54,27 @@ export default function ProductsList() {
     productsLoading,
     categoriesLoading,
     productsError,
+    loadProductsByCategory,
+    searchProducts,
     reloadProducts,
   } = useOwnerPortal()
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('all')
+  const skipInitialCategoryFetch = useRef(true)
+  const catFilterRef = useRef(catFilter)
+  catFilterRef.current = catFilter
+
+  const getCategoryFilter = useCallback(() => catFilterRef.current, [])
+  const { queueSearch } = useProductSearchQuery({
+    searchProducts,
+    loadProductsByCategory,
+    getCategoryFilter,
+  })
   const [stockFilter, setStockFilter] = useState('all')
   const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const categoryOptions = useMemo(
     () => [
@@ -68,17 +85,29 @@ export default function ProductsList() {
   )
   const isLoading = productsLoading || categoriesLoading
 
+  useEffect(() => {
+    if (skipInitialCategoryFetch.current) {
+      skipInitialCategoryFetch.current = false
+      return
+    }
+    if (search.trim()) return
+    loadProductsByCategory(catFilter)
+  }, [catFilter, loadProductsByCategory, search])
+
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
     return products.filter((p) => {
-      if (q && !(p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))) return false
-      if (catFilter !== 'all' && p.cat !== catFilter) return false
       if (stockFilter === 'low' && !(p.stock > 0 && p.stock <= 20)) return false
       if (stockFilter === 'out' && p.stock !== 0) return false
       if (stockFilter === 'in' && p.stock <= 20) return false
       return true
     })
-  }, [products, search, catFilter, stockFilter])
+  }, [products, stockFilter])
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value
+    setSearch(value)
+    queueSearch(value)
+  }
 
   const stockChips = STOCK_FILTERS.map((f) => {
     const active = stockFilter === f.key
@@ -98,9 +127,25 @@ export default function ProductsList() {
     }
   })
 
-  const handleDelete = (p) => {
-    if (window.confirm(`Delete "${p.name}"?`)) {
-      deleteProduct(p.id)
+  const closeDeleteModal = () => {
+    if (deleting) return
+    setDeleteTarget(null)
+    setDeleteError('')
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await deleteProduct(deleteTarget.id)
+      setDeleteTarget(null)
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error ? error.message : 'Failed to delete product. Please try again.',
+      )
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -116,7 +161,7 @@ export default function ProductsList() {
             type="text"
             placeholder="Search products or SKU…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={handleSearchChange}
             className="flex-1 bg-transparent border-none outline-none text-white text-[12.5px] font-[inherit]"
           />
         </div>
@@ -222,7 +267,7 @@ export default function ProductsList() {
             <div className="text-[13px] font-bold text-red-400">{productsError}</div>
             <button
               type="button"
-              onClick={reloadProducts}
+              onClick={() => reloadProducts(catFilter, search)}
               className="text-[12.5px] font-bold px-4 py-2 rounded-[10px] cursor-pointer"
               style={{
                 color: colors.accentText,
@@ -338,7 +383,10 @@ export default function ProductsList() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(p)}
+                        onClick={() => {
+                          setDeleteError('')
+                          setDeleteTarget(p)
+                        }}
                         className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center cursor-pointer transition-colors hover:bg-red-500/15 hover:text-red-400"
                         style={{ color: colors.textSecondary }}
                         aria-label="Delete product"
@@ -359,6 +407,59 @@ export default function ProductsList() {
       <div className="text-[11.5px]" style={{ color: '#5f7d73' }}>
         Showing {filtered.length} of {products.length} products across {activeOutletName}.
       </div>
+
+      {deleteTarget && (
+        <PortalModal onClose={closeDeleteModal} width={420} scrollable={false}>
+          <div className="p-6">
+            <div className="text-[17px] font-extrabold text-white mb-2">Delete product?</div>
+            <p className="text-[13px] leading-relaxed mb-1" style={{ color: colors.textSecondary }}>
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-white">{deleteTarget.name}</span>?
+            </p>
+            <p className="text-[12px]" style={{ color: colors.textDim }}>
+              This action cannot be undone.
+            </p>
+            {deleteError && (
+              <div className="mt-3 text-[12px] font-bold text-red-400">{deleteError}</div>
+            )}
+            <div className="flex justify-end gap-2.5 mt-5">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="text-[12.5px] font-bold px-[18px] py-2 rounded-[10px] cursor-pointer disabled:opacity-60"
+                style={{
+                  color: colors.textHighlight,
+                  background: 'rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.16)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                className="text-[12.5px] font-extrabold px-5 py-2 rounded-[10px] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                style={{
+                  color: '#fff',
+                  background: '#c0392b',
+                  boxShadow: '0 6px 18px rgba(192,57,43,0.35)',
+                }}
+              >
+                {deleting ? (
+                  <>
+                    <Spinner />
+                    Deleting…
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </PortalModal>
+      )}
     </div>
   )
 }

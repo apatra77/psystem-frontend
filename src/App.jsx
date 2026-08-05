@@ -5,6 +5,7 @@ import DashboardView from './owner/views/DashboardView'
 import OrdersView from './owner/views/OrdersView'
 import ProductsLayout from './owner/views/products/ProductsLayout'
 import ProductFormModal from './owner/views/products/ProductFormModal'
+import MyProfileView from './owner/views/MyProfileView'
 import {
   CategoriesView,
   DiscountsView,
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="discounts" element={<DiscountsView />} />
           <Route path="staff" element={<StaffView />} />
           <Route path="store" element={<StoreView />} />
+          <Route path="profile" element={<MyProfileView />} />
           <Route path="*" element={<Navigate to="/owner" replace />} />
         </Route>
       </Routes>

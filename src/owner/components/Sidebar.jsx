@@ -1,8 +1,6 @@
-import { ChevronLeft, ChevronDown, LayoutGrid, Package, Percent, Store, Truck, Users, ClipboardList, BarChart3, Archive } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { ChevronLeft, LayoutGrid, Package, Percent, Store, Truck, Users, ClipboardList, BarChart3, Archive } from 'lucide-react'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
 import { useOwnerPage } from '../routes'
-import { clearAuthSession, getEmailInitials } from '../../services/auth'
 import { colors } from '../../theme/colors'
 
 const NAV = [
@@ -74,36 +72,21 @@ function NavItem({ id, label, icon: Icon, badgeKey, badgeStyle, expanded, active
 }
 
 export default function Sidebar() {
-  const navigate = useNavigate()
   const page = useOwnerPage()
   const {
     goToPage,
     sidebarCollapsed,
     setSidebarCollapsed,
-    profileMenuOpen,
-    setProfileMenuOpen,
     incomingCount,
     lowStockCount,
-    authUser,
   } = useOwnerPortal()
 
   const expanded = !sidebarCollapsed
   const badges = { incomingCount, lowStockCount }
-  const displayEmail = authUser?.email ?? ''
-  const displayRole = authUser?.role ?? 'USER'
-  const initials = getEmailInitials(displayEmail)
-
-  const handleLogout = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    clearAuthSession()
-    setProfileMenuOpen(false)
-    navigate('/', { replace: true })
-  }
 
   return (
     <aside
-      className={`flex-shrink-0 h-full overflow-y-auto overflow-x-hidden flex flex-col transition-[width] duration-200${profileMenuOpen ? ' relative z-50' : ''}`}
+      className="flex-shrink-0 h-full overflow-y-auto overflow-x-hidden flex flex-col transition-[width] duration-200"
       style={{
         width: expanded ? 260 : 84,
         background: 'linear-gradient(180deg,#071008,#0a1712)',
@@ -176,73 +159,6 @@ export default function Sidebar() {
       ))}
 
       <div className="flex-1" />
-
-      <div
-        className="relative border-t mt-3 pt-3.5 px-2 pb-10 flex items-center gap-3 flex-shrink-0 sticky bottom-0"
-        style={{
-          borderColor: colors.borderSubtle,
-          background: colors.bgElevated,
-          justifyContent: expanded ? 'flex-start' : 'center',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-          className="w-[42px] h-[42px] rounded-full flex items-center justify-center font-extrabold text-sm flex-shrink-0 cursor-pointer"
-          style={{
-            background: 'linear-gradient(135deg,#d4bcff,#8f6fd1)',
-            color: '#1c1030',
-          }}
-        >
-          {initials}
-        </button>
-        {expanded && (
-          <>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-bold text-white truncate">{displayEmail}</div>
-              <div className="text-[11.5px] font-bold mt-0.5" style={{ color: colors.purpleLight }}>
-                {displayRole}
-              </div>
-            </div>
-            <button type="button" onClick={() => setProfileMenuOpen(!profileMenuOpen)} className="p-1.5 flex-shrink-0" style={{ color: colors.textDim }}>
-              <ChevronDown size={14} />
-            </button>
-          </>
-        )}
-        {profileMenuOpen && (
-          <>
-            <div
-              className="fixed inset-0 z-[55]"
-              onClick={() => setProfileMenuOpen(false)}
-              aria-hidden="true"
-            />
-            <div
-              className="absolute bottom-[calc(100%+8px)] left-0 w-[220px] z-[60] rounded-[14px] p-2"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: 'rgba(10,28,22,0.97)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255,255,255,0.13)',
-                boxShadow: '0 30px 70px rgba(0,0,0,0.6)',
-                animation: 'dropIn 0.18s ease',
-              }}
-            >
-              <div className="px-3 py-2 text-xs font-bold rounded-[9px] cursor-pointer hover:bg-white/6" style={{ color: colors.textHighlight }}>
-                My profile
-              </div>
-              <div className="border-t my-1.5" style={{ borderColor: colors.borderSubtle }} />
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full text-left px-3 py-2 text-xs font-bold rounded-[9px] cursor-pointer hover:bg-white/6"
-                style={{ color: colors.textHighlight }}
-              >
-                Log out
-              </button>
-            </div>
-          </>
-        )}
-      </div>
     </aside>
   )
 }

@@ -114,13 +114,23 @@ export async function fetchPurchaseTaxGroups({ force = false } = {}) {
   return inFlightPurchaseTaxRequest
 }
 
+let inFlightTaxGroupsRequest = null
+
 export async function fetchTaxGroups({ force = false } = {}) {
-  const [salesTaxGroups, purchaseTaxGroups] = await Promise.all([
+  if (!force && inFlightTaxGroupsRequest) {
+    return inFlightTaxGroupsRequest
+  }
+
+  inFlightTaxGroupsRequest = Promise.all([
     fetchSalesTaxGroups({ force }),
     fetchPurchaseTaxGroups({ force }),
   ])
+    .then(([salesTaxGroups, purchaseTaxGroups]) => ({ salesTaxGroups, purchaseTaxGroups }))
+    .finally(() => {
+      inFlightTaxGroupsRequest = null
+    })
 
-  return { salesTaxGroups, purchaseTaxGroups }
+  return inFlightTaxGroupsRequest
 }
 
 // --- Products ---
@@ -217,6 +227,7 @@ export function mapProductFromApi(item, categories = []) {
 }
 
 let inFlightProductsRequest = null
+const inFlightProductsByCategoryRequests = new Map()
 
 export async function fetchProducts(categories = [], { force = false } = {}) {
   if (!force && inFlightProductsRequest) {
@@ -232,6 +243,40 @@ export async function fetchProducts(categories = [], { force = false } = {}) {
     })
 
   return inFlightProductsRequest
+}
+
+export async function fetchProductsByCategory(categoryId, categories = [], { force = false } = {}) {
+  const key = String(categoryId)
+  if (!force && inFlightProductsByCategoryRequests.has(key)) {
+    return inFlightProductsByCategoryRequests.get(key)
+  }
+
+  const request = authFetch(
+    `/api/products/by-category/${encodeURIComponent(categoryId)}`,
+    {},
+    PRODUCT_API_BASE,
+  )
+    .then((payload) =>
+      extractApiList(payload, ['products']).map((item) => mapProductFromApi(item, categories)),
+    )
+    .finally(() => {
+      inFlightProductsByCategoryRequests.delete(key)
+    })
+
+  inFlightProductsByCategoryRequests.set(key, request)
+  return request
+}
+
+export async function fetchProductsSearch(query, categories = []) {
+  const trimmed = query.trim()
+  if (!trimmed) return []
+
+  const payload = await authFetch(
+    `/api/products/search?query=${encodeURIComponent(trimmed)}`,
+    {},
+    PRODUCT_API_BASE,
+  )
+  return extractApiList(payload, ['products']).map((item) => mapProductFromApi(item, categories))
 }
 
 export function buildCreateProductPayload({
@@ -264,6 +309,17 @@ export function buildCreateProductPayload({
   }
 }
 
+export function buildUpdateProductPayload(basePayload, { packingId } = {}) {
+  const packing = { ...basePayload.packings[0] }
+  if (packingId != null && packingId !== '') {
+    packing.packingId = packingId
+  }
+  return {
+    ...basePayload,
+    packings: [packing],
+  }
+}
+
 export async function createProduct(payload) {
   return authFetch(
     '/api/products',
@@ -273,4 +329,81 @@ export async function createProduct(payload) {
     },
     PRODUCT_API_BASE,
   )
+}
+
+export async function updateProduct(productId, payload) {
+  return authFetch(
+    `/api/products/${encodeURIComponent(productId)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    },
+    PRODUCT_API_BASE,
+  )
+}
+
+export async function deleteProductById(productId) {
+  return authFetch(
+    `/api/products/${encodeURIComponent(productId)}`,
+    { method: 'DELETE' },
+    PRODUCT_API_BASE,
+  )
+}
+
+const inFlightProductByIdRequests = new Map()
+
+export async function fetchProductById(productId, { force = false } = {}) {
+  const key = String(productId)
+  if (!force && inFlightProductByIdRequests.has(key)) {
+    return inFlightProductByIdRequests.get(key)
+  }
+
+  const request = authFetch(
+    `/api/products/${encodeURIComponent(productId)}`,
+    {},
+    PRODUCT_API_BASE,
+  ).finally(() => {
+    inFlightProductByIdRequests.delete(key)
+  })
+
+  inFlightProductByIdRequests.set(key, request)
+  return request
+}
+
+export function mapProductDetailToFormDraft(detail, categories = []) {
+  const d = detail?.data ?? detail ?? {}
+  const packings = Array.isArray(d.packings) ? d.packings : []
+  const primary = packings[0] ?? {}
+
+  const categoryId = d.categoryId != null ? String(d.categoryId) : ''
+  const categoryById = categories.find((c) => c.id === categoryId)
+  const categoryByName = categories.find(
+    (c) => c.name.toLowerCase() === String(d.categoryName ?? '').toLowerCase(),
+  )
+  const cat = categoryById?.id ?? categoryByName?.id ?? categoryId
+
+  const mrp = Number(d.mrp) || 0
+  const price = Number(d.price) || 0
+  const discountAmount = mrp > 0 && price > 0 && price < mrp ? mrp - price : 0
+  const discountPercent =
+    mrp > 0 && discountAmount > 0
+      ? String(Number(((discountAmount / mrp) * 100).toFixed(2)))
+      : ''
+
+  return {
+    id: String(pick(d, 'productId', 'id') ?? ''),
+    name: pick(d, 'productName', 'name') ?? '',
+    genericName: d.genericName ?? '',
+    description: d.description ?? '',
+    cat,
+    purchaseTax: d.purchTaxCode ?? '',
+    salesTax: d.salesTaxCode ?? '',
+    sku: pick(d, 'sku', 'productSku') ?? '',
+    price: d.price != null ? String(d.price) : '',
+    mrp: d.mrp != null ? String(d.mrp) : '',
+    discountPercent,
+    discountPrice: discountAmount > 0 ? String(Number(discountAmount.toFixed(2))) : '',
+    stock: primary.quantity != null ? String(Number(primary.quantity)) : '',
+    stockUnit: primary.unit ?? '',
+  }
 }

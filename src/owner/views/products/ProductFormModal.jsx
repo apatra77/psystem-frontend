@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import PortalModal, { ModalFieldLabel, ModalInput, ModalSelect, ModalTextarea } from '../../components/PortalModal'
+import Spinner from '../../../components/ui/Spinner'
 import { useOwnerPortal } from '../../context/OwnerPortalContext'
-import { buildCreateProductPayload, createProduct, fetchTaxGroups, toTaxSelectOptions } from '../../../services/products'
+import {
+  buildCreateProductPayload,
+  buildUpdateProductPayload,
+  createProduct,
+  fetchProductById,
+  fetchTaxGroups,
+  mapProductDetailToFormDraft,
+  toTaxSelectOptions,
+  updateProduct,
+} from '../../../services/products'
 import { colors } from '../../../theme/colors'
 
 const EMPTY_DRAFT = {
@@ -21,28 +31,76 @@ const EMPTY_DRAFT = {
   stockUnit: '',
 }
 
-function calcDiscountPrice(mrp, discountPercent) {
+function formatAmount(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return ''
+  return String(Number(n.toFixed(2)))
+}
+
+function applyPricingFromPercent(mrp, discountPercent) {
   const m = Number(mrp) || 0
   const pct = Number(discountPercent) || 0
-  if (m <= 0) return ''
-  return String(Number((m * (1 - pct / 100)).toFixed(2)))
+  if (m <= 0 || discountPercent === '') return { discountPrice: '', price: '' }
+  const discountAmount = m * (pct / 100)
+  return {
+    discountPrice: formatAmount(discountAmount),
+    price: formatAmount(m - discountAmount),
+  }
+}
+
+function applyPricingFromDiscountAmount(mrp, discountAmount) {
+  const m = Number(mrp) || 0
+  const amount = Number(discountAmount) || 0
+  if (m <= 0 || discountAmount === '') return { discountPercent: '', price: '' }
+  return {
+    discountPercent: formatAmount((amount / m) * 100),
+    price: formatAmount(m - amount),
+  }
+}
+
+function applyPricingFromSellingPrice(mrp, sellingPrice) {
+  const m = Number(mrp) || 0
+  const sell = Number(sellingPrice) || 0
+  if (m <= 0 || sellingPrice === '') return { discountPercent: '', discountPrice: '' }
+  const discountAmount = m - sell
+  return {
+    discountPercent: formatAmount((discountAmount / m) * 100),
+    discountPrice: formatAmount(discountAmount),
+  }
+}
+
+function recalcPricingOnMrpChange(mrp, prev) {
+  if (mrp === '' || Number.isNaN(Number(mrp))) {
+    return { discountPercent: '', discountPrice: '', price: '' }
+  }
+  if (prev.discountPercent !== '') {
+    return applyPricingFromPercent(mrp, prev.discountPercent)
+  }
+  if (prev.discountPrice !== '') {
+    return applyPricingFromDiscountAmount(mrp, prev.discountPrice)
+  }
+  if (prev.price !== '') {
+    return applyPricingFromSellingPrice(mrp, prev.price)
+  }
+  return {}
 }
 
 export default function ProductFormModal() {
   const navigate = useNavigate()
-  const { id } = useParams()
-  const isEdit = Boolean(id)
-  const { products, categories, categoriesLoading, saveProduct, reloadProducts } = useOwnerPortal()
-  const product = isEdit ? products.find((p) => p.id === id) : null
+  const { id: routeId } = useParams()
+  const isEdit = Boolean(routeId)
+  const { categories, categoriesLoading, reloadProducts } = useOwnerPortal()
 
   const [draft, setDraft] = useState(EMPTY_DRAFT)
+  const [productDetail, setProductDetail] = useState(null)
+  const [productLoading, setProductLoading] = useState(isEdit)
+  const [productLoadError, setProductLoadError] = useState(null)
   const [purchaseTaxOptions, setPurchaseTaxOptions] = useState([])
   const [salesTaxOptions, setSalesTaxOptions] = useState([])
   const [taxGroupsLoading, setTaxGroupsLoading] = useState(true)
   const [taxGroupsError, setTaxGroupsError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
-  const [successMessage, setSuccessMessage] = useState(null)
 
   const categoryOptions = useMemo(
     () => categories.map((c) => ({ value: c.id, label: c.name })),
@@ -81,41 +139,55 @@ export default function ProductFormModal() {
   }, [])
 
   useEffect(() => {
-    if (isEdit && product) {
-      setDraft({
-        id: product.id,
-        name: product.name ?? '',
-        genericName: product.genericName ?? '',
-        description: product.description ?? '',
-        cat: product.cat ?? '',
-        purchaseTax: product.purchaseTax != null ? String(product.purchaseTax) : '',
-        salesTax: product.salesTax != null ? String(product.salesTax) : '',
-        sku: product.sku ?? '',
-        price: product.price != null ? String(product.price) : '',
-        mrp: product.mrp != null ? String(product.mrp) : '',
-        discountPercent: product.discountPercent != null ? String(product.discountPercent) : '',
-        discountPrice: product.discountPrice != null ? String(product.discountPrice) : '',
-        stock: product.stock != null ? String(product.stock) : '',
-        stockUnit: product.stockUnit ?? '',
-      })
-    }
-  }, [isEdit, product])
+    if (!isEdit || !routeId) return undefined
 
-  if (isEdit && !product) {
-    return <Navigate to="/owner/products" replace />
-  }
+    let cancelled = false
+
+    const loadProduct = async () => {
+      setProductLoading(true)
+      setProductLoadError(null)
+      setProductDetail(null)
+      try {
+        const data = await fetchProductById(routeId)
+        if (cancelled) return
+        setProductDetail(data)
+      } catch (err) {
+        if (!cancelled) {
+          setProductLoadError(err?.message ?? 'Failed to load product')
+        }
+      } finally {
+        if (!cancelled) setProductLoading(false)
+      }
+    }
+
+    loadProduct()
+    return () => {
+      cancelled = true
+    }
+  }, [isEdit, routeId])
+
+  useEffect(() => {
+    if (!productDetail) return
+    setDraft(mapProductDetailToFormDraft(productDetail, categories))
+  }, [productDetail, categories])
 
   const close = () => navigate('/owner/products')
 
   const setField = (field, value) => {
     setDraft((prev) => {
       const next = { ...prev, [field]: value }
-      if (field === 'mrp' || field === 'discountPercent') {
-        next.discountPrice = calcDiscountPrice(
-          field === 'mrp' ? value : prev.mrp,
-          field === 'discountPercent' ? value : prev.discountPercent,
-        )
+      const mrp = field === 'mrp' ? value : prev.mrp
+
+      if (field === 'mrp') {
+        Object.assign(next, recalcPricingOnMrpChange(value, prev))
+      } else if (field === 'discountPercent') {
+        Object.assign(next, applyPricingFromPercent(mrp, value))
+      } else if (field === 'discountPrice') {
+        Object.assign(next, applyPricingFromDiscountAmount(mrp, value))
+      } else if (field === 'price') {
+        Object.assign(next, applyPricingFromSellingPrice(mrp, value))
       }
+
       return next
     })
   }
@@ -123,11 +195,18 @@ export default function ProductFormModal() {
   const handleSave = async () => {
     if (saving) return
 
+    const detail = productDetail?.data ?? productDetail ?? {}
+    const packings = Array.isArray(detail.packings) ? detail.packings : []
+    const packingId = packings[0]?.packingId ?? packings[0]?.id ?? null
+    const productId = draft.id || routeId
+
     const productName = draft.name.trim()
     const genericName = draft.genericName.trim()
     const description = draft.description.trim()
-    const categoryName = categories.find((c) => c.id === draft.cat)?.name ?? ''
+    const categoryName =
+      categories.find((c) => c.id === draft.cat)?.name ?? detail.categoryName ?? ''
     const stockUnit = draft.stockUnit.trim()
+    const sellingPrice = draft.price
 
     if (!productName) {
       setSaveError('Product name is required')
@@ -157,7 +236,7 @@ export default function ProductFormModal() {
       setSaveError('MRP is required')
       return
     }
-    if (draft.price === '' || Number.isNaN(Number(draft.price))) {
+    if (sellingPrice === '' || Number.isNaN(Number(sellingPrice))) {
       setSaveError('Price is required')
       return
     }
@@ -170,65 +249,62 @@ export default function ProductFormModal() {
       return
     }
 
-    if (isEdit) {
-      saveProduct({
-        ...draft,
-        name: productName,
-        genericName,
-        description,
-        id: draft.id || `p${Date.now()}`,
-        price: Number(draft.price),
-        mrp: Number(draft.mrp),
-        stock: Number(draft.stock),
-        stockUnit,
-        discountPercent: Number(draft.discountPercent) || 0,
-        discountPrice: Number(draft.discountPrice) || 0,
-        purchaseTax: draft.purchaseTax,
-        salesTax: draft.salesTax,
-      })
-      close()
-      return
-    }
+    const basePayload = buildCreateProductPayload({
+      productName,
+      description,
+      mrp: draft.mrp,
+      price: sellingPrice,
+      genericName,
+      categoryName,
+      purchTaxCode: draft.purchaseTax,
+      salesTaxCode: draft.salesTax,
+      stockQty: draft.stock,
+      stockUnit,
+    })
 
     setSaving(true)
     setSaveError(null)
 
     try {
-      await createProduct(
-        buildCreateProductPayload({
-          productName,
-          description,
-          mrp: draft.mrp,
-          price: draft.price,
-          genericName,
-          categoryName,
-          purchTaxCode: draft.purchaseTax,
-          salesTaxCode: draft.salesTax,
-          stockQty: draft.stock,
-          stockUnit,
-        }),
-      )
+      if (isEdit) {
+        if (!productId) {
+          throw new Error('Product id is missing')
+        }
+        const payload = buildUpdateProductPayload(basePayload, { packingId })
+        await updateProduct(productId, payload)
+        await reloadProducts()
+        close()
+        return
+      }
 
+      await createProduct(basePayload)
       await reloadProducts()
-      setSuccessMessage(`Product ${productName} added successfully`)
+      close()
     } catch (err) {
-      setSaveError(err?.message ?? 'Failed to add product')
+      setSaveError(err?.message ?? `Failed to ${isEdit ? 'update' : 'add'} product`)
     } finally {
       setSaving(false)
     }
   }
 
-  if (successMessage) {
+  if (isEdit && productLoading) {
     return (
-      <PortalModal onClose={close} width={420} scrollable={false}>
-        <div className="p-6 flex flex-col items-center gap-4 text-center">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
-            style={{ background: 'rgba(64,222,170,0.15)', color: colors.accent }}
-          >
-            ✓
+      <PortalModal onClose={close} width={420} scrollable={false} closeOnBackdrop={false}>
+        <div className="p-8 flex flex-col items-center justify-center gap-3">
+          <Spinner />
+          <div className="text-[13px] font-bold" style={{ color: colors.textSecondary }}>
+            Loading product…
           </div>
-          <div className="text-[15px] font-extrabold text-white">{successMessage}</div>
+        </div>
+      </PortalModal>
+    )
+  }
+
+  if (isEdit && productLoadError) {
+    return (
+      <PortalModal onClose={close} width={420} scrollable={false} closeOnBackdrop={false}>
+        <div className="p-6 flex flex-col items-center gap-4 text-center">
+          <div className="text-[13px] font-bold text-red-400">{productLoadError}</div>
           <button
             type="button"
             onClick={close}
@@ -236,10 +312,9 @@ export default function ProductFormModal() {
             style={{
               color: colors.accentText,
               background: colors.primaryBtn,
-              boxShadow: '0 6px 18px rgba(64,222,170,0.35)',
             }}
           >
-            OK
+            Close
           </button>
         </div>
       </PortalModal>
@@ -247,7 +322,7 @@ export default function ProductFormModal() {
   }
 
   return (
-    <PortalModal onClose={close} width={760} scrollable={false}>
+    <PortalModal onClose={close} width={760} scrollable={false} closeOnBackdrop={false}>
       <div className="flex flex-col max-h-[88vh]">
         <div className="flex-shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
           <div className="text-[16px] font-extrabold text-white">
@@ -374,17 +449,6 @@ export default function ProductFormModal() {
 
         <div className="grid grid-cols-4 gap-2">
           <div>
-            <ModalFieldLabel>Price (₹)</ModalFieldLabel>
-            <ModalInput
-              type="number"
-              min="0"
-              step="0.01"
-              value={draft.price}
-              onChange={(e) => setField('price', e.target.value)}
-              placeholder="0"
-            />
-          </div>
-          <div>
             <ModalFieldLabel>MRP (₹)</ModalFieldLabel>
             <ModalInput
               type="number"
@@ -415,6 +479,17 @@ export default function ProductFormModal() {
               step="0.01"
               value={draft.discountPrice}
               onChange={(e) => setField('discountPrice', e.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <ModalFieldLabel>Price (₹)</ModalFieldLabel>
+            <ModalInput
+              type="number"
+              min="0"
+              step="0.01"
+              value={draft.price}
+              disabled
               placeholder="0"
             />
           </div>

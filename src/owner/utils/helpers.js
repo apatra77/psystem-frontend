@@ -86,4 +86,5 @@ export const PAGE_META = {
   logistics: { title: 'Logistics', subtitle: 'Riders, couriers and live deliveries' },
   staff: { title: 'Staff & Roles', subtitleKey: 'staffOutlet' },
   store: { title: 'Store Profile', subtitle: 'Hours, location and delivery radius' },
+  profile: { title: 'My Profile', subtitle: 'Manage your personal information' },
 }
