@@ -2,32 +2,21 @@ import { memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Star } from 'lucide-react'
 import { PATHS } from '@/app/router/paths'
-import { useCartStore } from '@/app/store/cartStore'
 import { useCatalogStore } from '@/app/store/catalogStore'
 import { fmtINR } from '@/app/utils/format'
 import { colors } from '@/app/themes/colors'
+import CartAddControl from '@/modules/customer/components/CartAddControl'
 
 /**
- * One product tile inside a merchandising rail.
- *
- * Memoised because a rail renders five of these and the parent re-renders on
- * every cart change. ADD is a real cart action; the card body drops the shopper
- * into search pre-filtered to this product, since rail items are merchandising
- * entries rather than catalogue ids.
+ * One product tile inside a merchandising rail on the customer landing page.
  */
 function RailProductCard({ product, accent = colors.accent }) {
   const navigate = useNavigate()
-  const addItem = useCartStore((s) => s.addItem)
   const setFilter = useCatalogStore((s) => s.setFilter)
 
   const openProduct = () => {
     setFilter({ query: product.name })
     navigate(PATHS.customer.search)
-  }
-
-  const add = (e) => {
-    e.stopPropagation()
-    addItem(product, 1)
   }
 
   return (
@@ -60,7 +49,7 @@ function RailProductCard({ product, accent = colors.accent }) {
       <p className="flex items-center gap-1.5 text-[11px] font-bold">
         <Star size={11} fill={colors.gold} style={{ color: colors.gold }} aria-hidden="true" />
         <span style={{ color: colors.gold }}>{product.rating}</span>
-        <span style={{ color: '#5f7d73' }}>({product.reviews})</span>
+        <span style={{ color: colors.textDim }}>({product.reviews})</span>
         <span className="ml-auto" style={{ color: colors.accentSoft }}>{product.eta}</span>
       </p>
 
@@ -96,16 +85,10 @@ function RailProductCard({ product, accent = colors.accent }) {
         <span className="text-[15px] font-extrabold tabular-nums" style={{ color: colors.textBright }}>
           {fmtINR(product.price)}
         </span>
-        <span className="text-[11px] line-through" style={{ color: '#5f7d73' }}>{fmtINR(product.mrp)}</span>
-        <button
-          type="button"
-          onClick={add}
-          className="ml-auto rounded-full px-4 py-2 text-[11px] font-extrabold tracking-[0.12em]"
-          style={{ background: colors.primaryBtn, color: colors.accentText }}
-          aria-label={`Add ${product.name} to cart`}
-        >
-          ADD
-        </button>
+        <span className="text-[11px] line-through" style={{ color: colors.textDim }}>
+          {fmtINR(product.mrp)}
+        </span>
+        <CartAddControl product={product} className="ml-auto shrink-0" />
       </div>
     </article>
   )
