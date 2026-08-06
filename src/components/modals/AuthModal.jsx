@@ -17,7 +17,7 @@ import PasswordStrength from '../ui/PasswordStrength'
 import Spinner from '../ui/Spinner'
 import PrimaryBtn, { SuccessState, AuthTermsNotice } from '../auth/AuthFormParts'
 import { isValidEmail } from '../../utils/validation'
-import { requestLoginOtp, verifyLoginOtp, saveAuthSession } from '../../services/auth'
+import { requestLoginOtp, verifyLoginOtp, saveAuthSession, getPostLoginPath } from '../../services/auth'
 import { colors } from '../../theme/colors'
 
 const RESEND_SECONDS = 30
@@ -121,9 +121,9 @@ export default function AuthModal({ onClose }) {
     setOtpError('')
     try {
       const data = await verifyLoginOtp(lEmail.trim(), otp)
-      saveAuthSession(data, lEmail.trim())
+      const user = saveAuthSession(data, lEmail.trim())
       onClose()
-      navigate('/owner')
+      navigate(getPostLoginPath(user))
     } catch (error) {
       setOtpError(
         error instanceof Error ? error.message : 'Invalid OTP. Please try again.',
@@ -287,7 +287,7 @@ export default function AuthModal({ onClose }) {
         {mode === 'otp' && (
           <div className="px-7 pt-6 pb-7" style={{ animation: 'slideIn 0.22s ease both' }}>
             {otpDone ? (
-              <SuccessState title="Verified!" sub="Opening your owner portal…" green />
+              <SuccessState title="Verified!" sub="Opening your portal…" green />
             ) : (
               <form onSubmit={submitOtp} noValidate>
                 <div className="mb-6">

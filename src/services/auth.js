@@ -1,4 +1,5 @@
 import { API_BASE, parseJsonResponse, getErrorMessage } from './api'
+import { syncAuthStoreFromStoredUser, clearSyncedAuthStore } from '@/app/syncAuthSession'
 
 const AUTH_TOKEN_KEY = 'authToken'
 const AUTH_USER_KEY = 'authUser'
@@ -180,6 +181,7 @@ export function saveAuthSession(apiResponse, identifier) {
   user.profileComplete = user.hasAddress || isProfileComplete(user)
   if (token) localStorage.setItem(AUTH_TOKEN_KEY, token)
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
+  syncAuthStoreFromStoredUser(user)
   return user
 }
 
@@ -224,6 +226,7 @@ export function updateStoredUserProfile({ fullName, email, mobile, countryCode, 
   }
   updated.profileComplete = updated.hasAddress || isProfileComplete(updated)
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updated))
+  syncAuthStoreFromStoredUser(updated)
   return updated
 }
 
@@ -249,4 +252,15 @@ export function getStoredAuthUser() {
 export function clearAuthSession() {
   localStorage.removeItem(AUTH_TOKEN_KEY)
   localStorage.removeItem(AUTH_USER_KEY)
+  clearSyncedAuthStore()
+}
+
+const OWNER_ROLES = new Set(['ADMIN', 'OWNER', 'STORE_ADMIN', 'STORE_OWNER', 'SUPER_ADMIN'])
+
+export function isOwnerRole(role) {
+  return OWNER_ROLES.has(String(role ?? '').toUpperCase())
+}
+
+export function getPostLoginPath(user) {
+  return isOwnerRole(user?.role) ? '/owner' : '/customer'
 }
