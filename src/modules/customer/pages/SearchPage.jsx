@@ -1,12 +1,14 @@
 import { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { SlidersHorizontal } from 'lucide-react'
 import ProductCard from '@/modules/customer/components/ProductCard'
 import SearchInput from '@/shared/ui/SearchInput'
 import Button from '@/shared/ui/Button'
 import EmptyState from '@/shared/ui/EmptyState'
 import PageHeader from '@/shared/ui/PageHeader'
+import { ShimmerBar, ShimmerCard } from '@/shared/components/shimmer/primitives'
 import { useCatalogStore } from '@/app/store/catalogStore'
+import { fetchCustomerProducts } from '@/services/products'
 import { BRANDS, SORT_OPTIONS } from '@/shared/mocks/catalog'
 import { colors } from '@/app/themes/colors'
 
@@ -21,17 +23,50 @@ function FilterBlock({ title, children }) {
 
 export default function SearchPage() {
   const { slug } = useParams()
-  const { filters, setFilter, resetFilters, toggleBrand, categories } = useCatalogStore()
+  const { state } = useLocation()
+  const { filters, setFilter, resetFilters, toggleBrand, categories, loading } = useCatalogStore()
   const results = useCatalogStore((s) => s.results())
+  const fromDeals = state?.fromDeals === true
 
   useEffect(() => {
-    if (slug) setFilter({ category: slug })
-  }, [slug, setFilter])
+    let cancelled = false
+
+    ;(async () => {
+      useCatalogStore.getState().setLoading(true)
+      try {
+        const items = await fetchCustomerProducts()
+        if (cancelled) return
+        useCatalogStore.getState().setProductsFromApi(items)
+      } catch {
+        /* Keep existing catalog on failure. */
+      } finally {
+        if (!cancelled) useCatalogStore.getState().setLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (slug) {
+      setFilter({ category: slug })
+      return
+    }
+    resetFilters()
+  }, [slug, setFilter, resetFilters])
+
+  const pageTitle = fromDeals
+    ? 'Deals of the day'
+    : slug
+      ? categories.find((c) => c.slug === slug)?.name ?? 'Browse'
+      : 'Search'
 
   return (
     <div>
       <PageHeader
-        title={slug ? categories.find((c) => c.slug === slug)?.name ?? 'Browse' : 'Search'}
+        title={pageTitle}
         subtitle={`${results.length} product(s) available near you`}
         actions={
           <select
@@ -120,7 +155,22 @@ export default function SearchPage() {
         </aside>
 
         <section>
-          {results.length === 0 ? (
+          {loading ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }, (_, i) => (
+                <ShimmerCard key={i} padding={16} className="flex flex-col gap-3">
+                  <ShimmerBar width="40%" height={20} />
+                  <ShimmerBar height={16} />
+                  <ShimmerBar width="70%" height={12} />
+                  <ShimmerBar width="50%" height={12} />
+                  <div className="mt-2 flex items-end justify-between">
+                    <ShimmerBar width={72} height={20} />
+                    <ShimmerBar width={64} height={32} radius={99} />
+                  </div>
+                </ShimmerCard>
+              ))}
+            </div>
+          ) : results.length === 0 ? (
             <EmptyState title="No products match those filters" description="Try widening the price range or clearing a filter." action={<Button onClick={resetFilters}>Reset filters</Button>} />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

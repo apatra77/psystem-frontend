@@ -68,6 +68,23 @@ export const useCatalogStore = create((set, get) => ({
 
   getProduct: (id) => get().products.find((p) => p.id === id) ?? null,
 
+  mergeProducts: (incoming) =>
+    set((s) => {
+      if (!incoming?.length) return s
+      const byId = new Map(s.products.map((p) => [String(p.id), p]))
+      incoming.forEach((p) => byId.set(String(p.id), p))
+      return { products: [...byId.values()] }
+    }),
+
+  /** Replace the catalog with live API products (used on search / browse). */
+  setProductsFromApi: (incoming) =>
+    set((s) => {
+      if (!incoming?.length) return s
+      return { products: incoming, apiCatalogLoaded: true }
+    }),
+
+  setLoading: (loading) => set({ loading }),
+
   results: () => computeResults(get().products, get().filters),
 }))
 

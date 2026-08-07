@@ -1,5 +1,6 @@
 export const API_BASE = 'http://66.116.246.58:8080'
 export const PRODUCT_API_BASE = 'http://66.116.246.58:8081'
+export const CART_API_BASE = 'http://66.116.246.58:8083'
 const AUTH_TOKEN_KEY = 'authToken'
 
 export async function parseJsonResponse(res) {

@@ -38,12 +38,14 @@ function RailProductCard({ product, accent = colors.accent }) {
         >
           {product.name.charAt(0)}
         </div>
-        <span
-          className="absolute left-2 top-2 rounded-full px-2.5 py-1 text-[10px] font-extrabold tracking-[0.05em]"
-          style={{ background: 'rgba(255,255,255,.92)', color: colors.accentText }}
-        >
-          -{product.off}%
-        </span>
+        {product.off > 0 && (
+          <span
+            className="absolute left-2 top-2 rounded-full px-2.5 py-1 text-[10px] font-extrabold tracking-[0.05em]"
+            style={{ background: 'rgba(255,255,255,.92)', color: colors.accentText }}
+          >
+            -{product.off}%
+          </span>
+        )}
       </div>
 
       <p className="flex items-center gap-1.5 text-[11px] font-bold">
@@ -85,9 +87,11 @@ function RailProductCard({ product, accent = colors.accent }) {
         <span className="text-[15px] font-extrabold tabular-nums" style={{ color: colors.textBright }}>
           {fmtINR(product.price)}
         </span>
-        <span className="text-[11px] line-through" style={{ color: colors.textDim }}>
-          {fmtINR(product.mrp)}
-        </span>
+        {product.mrp > product.price && (
+          <span className="text-[11px] line-through" style={{ color: colors.textDim }}>
+            {fmtINR(product.mrp)}
+          </span>
+        )}
         <CartAddControl product={product} className="ml-auto shrink-0" />
       </div>
     </article>

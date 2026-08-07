@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Minus, Plus, ShoppingCart, Tag, Trash2 } from 'lucide-react'
 import Button from '@/shared/ui/Button'
 import Badge from '@/shared/ui/Badge'
 import EmptyState from '@/shared/ui/EmptyState'
 import PageHeader from '@/shared/ui/PageHeader'
+import CartShimmer from '@/shared/components/shimmer/pages/CartShimmer'
+import PortalModal from '@/shared/ui/PortalModal'
+import Spinner from '@/shared/ui/Spinner'
 import { useCartStore } from '@/app/store/cartStore'
 import { PATHS } from '@/app/router/paths'
 import { fmtINR } from '@/app/utils/format'
@@ -14,9 +17,41 @@ import { colors } from '@/app/themes/colors'
 export default function CartPage() {
   const navigate = useNavigate()
   const [code, setCode] = useState('')
-  const { items, coupon, setQty, removeItem, clear, applyCoupon, removeCoupon } = useCartStore()
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const { items, coupon, loading, setQty, removeItem, clear, applyCoupon, removeCoupon } =
+    useCartStore()
   const totals = useCartStore((s) => s.totals())
   const needsRx = useCartStore((s) => s.requiresPrescription())
+
+  useEffect(() => {
+    useCartStore.getState().loadCart()
+  }, [])
+
+  const closeDeleteModal = () => {
+    if (deleting) return
+    setDeleteTarget(null)
+    setDeleteError('')
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await removeItem(deleteTarget.id)
+      setDeleteTarget(null)
+    } catch (error) {
+      setDeleteError(error?.message ?? 'Failed to remove item. Please try again.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  if (loading) {
+    return <CartShimmer rows={Math.max(items.length, 3)} />
+  }
 
   if (items.length === 0) {
     return (
@@ -40,11 +75,15 @@ export default function CartPage() {
       <div className="grid gap-6" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,340px)' }}>
         <div className="space-y-3">
           {items.map((item) => (
-            <div key={item.id} className="flex items-center gap-4 p-4 rounded-[16px]" style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}>
-              <span className="w-14 h-14 rounded-[12px] flex items-center justify-center text-2xl" style={{ background: 'rgba(255,255,255,0.05)' }}>💊</span>
+            <div key={item.cartItemId ?? item.id} className="flex items-center gap-4 p-4 rounded-[16px]" style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}>
+              <span className="w-14 h-14 rounded-[12px] flex items-center justify-center text-2xl font-extrabold" style={{ background: 'rgba(255,255,255,0.05)', color: colors.accent }}>
+                {item.name.charAt(0).toUpperCase()}
+              </span>
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-extrabold truncate" style={{ color: colors.textBright }}>{item.name}</p>
-                <p className="text-[12px] mt-0.5" style={{ color: colors.textDim }}>{item.pack}</p>
+                <p className="text-[12px] mt-0.5" style={{ color: colors.textDim }}>
+                  {item.pack || fmtINR(item.price)}
+                </p>
                 {item.rx && <Badge tone="purple" className="mt-1.5">Rx</Badge>}
               </div>
               <div className="flex items-center rounded-[11px]" style={{ border: `1px solid ${colors.border}` }}>
@@ -53,7 +92,7 @@ export default function CartPage() {
                 <button type="button" className="px-2.5 py-2" onClick={() => setQty(item.id, item.qty + 1)} aria-label="Increase"><Plus size={13} /></button>
               </div>
               <p className="w-[86px] text-right text-[14px] font-extrabold" style={{ color: colors.textBright }}>{fmtINR(item.price * item.qty)}</p>
-              <button type="button" onClick={() => removeItem(item.id)} aria-label="Remove" style={{ color: colors.textDim }}><Trash2 size={16} /></button>
+              <button type="button" onClick={() => setDeleteTarget(item)} aria-label="Remove" style={{ color: colors.textDim }}><Trash2 size={16} /></button>
             </div>
           ))}
 
@@ -100,6 +139,62 @@ export default function CartPage() {
           <Button className="w-full mt-5" size="lg" onClick={() => navigate(PATHS.customer.checkout)}>Proceed to checkout</Button>
         </aside>
       </div>
+
+      {deleteTarget && (
+        <PortalModal onClose={closeDeleteModal} width={420}>
+          <div className="p-6">
+            <div className="text-[17px] font-extrabold mb-2" style={{ color: colors.textBright }}>
+              Remove item?
+            </div>
+            <p className="text-[13px] leading-relaxed mb-1" style={{ color: colors.textSecondary }}>
+              Are you sure you want to remove{' '}
+              <span className="font-semibold" style={{ color: colors.textBright }}>{deleteTarget.name}</span>{' '}
+              from your cart?
+            </p>
+            <p className="text-[12px]" style={{ color: colors.textDim }}>
+              This action cannot be undone.
+            </p>
+            {deleteError && (
+              <div className="mt-3 text-[12px] font-bold text-red-400">{deleteError}</div>
+            )}
+            <div className="flex justify-end gap-2.5 mt-5">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="text-[12.5px] font-bold px-[18px] py-2 rounded-[10px] cursor-pointer disabled:opacity-60"
+                style={{
+                  color: colors.textBright,
+                  background: 'rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.16)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                className="text-[12.5px] font-extrabold px-5 py-2 rounded-[10px] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                style={{
+                  color: '#fff',
+                  background: '#c0392b',
+                  boxShadow: '0 6px 18px rgba(192,57,43,0.35)',
+                }}
+              >
+                {deleting ? (
+                  <>
+                    <Spinner />
+                    Removing…
+                  </>
+                ) : (
+                  'Remove'
+                )}
+              </button>
+            </div>
+          </div>
+        </PortalModal>
+      )}
     </div>
   )
 }

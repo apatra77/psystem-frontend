@@ -226,6 +226,91 @@ export function mapProductFromApi(item, categories = []) {
   }
 }
 
+function formatPackingLabel(packing) {
+  if (!packing) return '—'
+  const qty = Number(packing.quantity)
+  const unit = String(packing.unit ?? 'units').toUpperCase()
+  if (!Number.isFinite(qty) || qty <= 0) return unit
+  if (unit === 'TAB' || unit === 'TABLET') {
+    return qty === 15 ? 'Strip of 15' : qty === 10 ? 'Strip of 10' : `${qty} tabs`
+  }
+  return `${qty} ${unit.toLowerCase()}`
+}
+
+/** Maps an API product into the customer catalog / rail shape. */
+export function mapProductToCustomerCatalog(item, categories = []) {
+  const base = mapProductFromApi(item, categories)
+  const packings = Array.isArray(item.packings) ? item.packings : []
+  const idNum = Number(base.id) || 0
+  const mrp = base.mrp || base.price
+  const price = base.price
+  const off = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0
+
+  return {
+    ...base,
+    brand: pick(item, 'genericName', 'brand') ?? 'MEDIQ',
+    pack: formatPackingLabel(packings[0]),
+    rating: Math.round((4.4 + (idNum % 5) * 0.1) * 10) / 10,
+    reviews: 800 + ((idNum * 137) % 24000),
+    eta: idNum % 4 === 0 ? 'Tomorrow' : '2 hrs',
+    desc: pick(item, 'description', 'desc') ?? '',
+    off,
+  }
+}
+
+/** Maps a customer catalog product into a landing-page rail tile. */
+export function mapProductToRailItem(product) {
+  const mrp = product.mrp || product.price
+  const price = product.price
+  const off = product.off ?? (mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0)
+  const genericName = product.brand && product.brand !== 'MEDIQ' ? product.brand : null
+
+  return {
+    id: product.id,
+    name: product.name,
+    pack: product.pack ?? '—',
+    price,
+    mrp,
+    off,
+    rating: String(typeof product.rating === 'number' ? product.rating.toFixed(1) : product.rating),
+    reviews:
+      typeof product.reviews === 'number'
+        ? product.reviews.toLocaleString('en-IN')
+        : String(product.reviews ?? ''),
+    eta: product.eta ?? '2 hrs',
+    chip: genericName && off >= 20 ? `GENERIC — SAVE ${off}%` : off >= 20 ? `SAVE ${off}%` : null,
+    stock: product.stock,
+  }
+}
+
+let inFlightCustomerProductsRequest = null
+let cachedCustomerProducts = null
+
+/** Fetches products and maps them for the customer catalog / landing rails. */
+export async function fetchCustomerProducts(categories = [], { force = false } = {}) {
+  if (inFlightCustomerProductsRequest) {
+    return inFlightCustomerProductsRequest
+  }
+
+  if (!force && cachedCustomerProducts) {
+    return cachedCustomerProducts
+  }
+
+  inFlightCustomerProductsRequest = authFetch('/api/products', {}, PRODUCT_API_BASE)
+    .then((payload) => {
+      const items = extractApiList(payload, ['products']).map((item) =>
+        mapProductToCustomerCatalog(item, categories),
+      )
+      cachedCustomerProducts = items
+      return items
+    })
+    .finally(() => {
+      inFlightCustomerProductsRequest = null
+    })
+
+  return inFlightCustomerProductsRequest
+}
+
 let inFlightProductsRequest = null
 const inFlightProductsByCategoryRequests = new Map()
 

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { useCartStore } from '@/app/store/cartStore'
 import { fmtINR } from '@/app/utils/format'
@@ -17,10 +18,12 @@ export default function CartAddControl({
 }) {
   const addItem = useCartStore((s) => s.addItem)
   const setQty = useCartStore((s) => s.setQty)
-  const cartQty = useCartStore((s) => s.items.find((i) => i.id === product.id)?.qty ?? 0)
+  const cartQty =
+    useCartStore((s) => s.items.find((i) => String(i.id) === String(product.id))?.qty ?? 0)
+  const [pending, setPending] = useState(false)
 
   const stock = product.stock ?? 999
-  const disabled = stock <= 0
+  const disabled = stock <= 0 || pending
   const off = product.mrp > product.price ? Math.round(((product.mrp - product.price) / product.mrp) * 100) : 0
   const isLarge = size === 'lg'
 
@@ -36,19 +39,29 @@ export default function CartAddControl({
     onInteract?.(e)
   }
 
+  const run = async (action) => {
+    if (pending) return
+    setPending(true)
+    try {
+      await action()
+    } finally {
+      setPending(false)
+    }
+  }
+
   const decrease = (e) => {
     stop(e)
-    setQty(product.id, cartQty - 1)
+    run(() => setQty(product.id, cartQty - 1))
   }
 
   const increase = (e) => {
     stop(e)
-    setQty(product.id, cartQty + 1)
+    run(() => setQty(product.id, cartQty + 1))
   }
 
   const add = (e) => {
     stop(e)
-    addItem(product, 1)
+    run(() => addItem(product, 1))
   }
 
   const widthClass = fullWidth ? 'w-full' : ''
@@ -100,7 +113,8 @@ export default function CartAddControl({
           <button
             type="button"
             onClick={decrease}
-            className="flex shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-80"
+            disabled={pending}
+            className="flex shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-45"
             style={{ width: btnSize, height: btnSize, marginLeft: 3, color: colors.accent }}
             aria-label="Decrease quantity"
           >
@@ -117,7 +131,7 @@ export default function CartAddControl({
           <button
             type="button"
             onClick={increase}
-            disabled={cartQty >= stock}
+            disabled={pending || cartQty >= stock}
             className="flex shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-45"
             style={{ width: btnSize, height: btnSize, marginRight: 3, color: colors.accent }}
             aria-label="Increase quantity"

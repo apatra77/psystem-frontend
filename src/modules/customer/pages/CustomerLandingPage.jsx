@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import {
   AppTrustBand,
   CategoryAisles,
@@ -11,16 +12,53 @@ import {
 } from '@/modules/customer/components/home'
 import { RAILS } from '@/shared/mocks/customerHome'
 import { colors } from '@/app/themes/colors'
+import { useCatalogStore } from '@/app/store/catalogStore'
+import {
+  fetchCustomerProducts,
+  mapProductToRailItem,
+} from '@/services/products'
+
+const DEALS_RAIL = RAILS.find((rail) => rail.id === 'deals') ?? RAILS[0]
 
 /**
  * Landing page for a signed-in customer.
- *
- * Rendered by HomePage on "/" whenever `isAuthenticated` is true — there is no
- * separate route and no redirect after login. Section order follows the
- * approved design: ticker, header, hero, aisles, rails, Rx band, services,
- * app/trust band, footer.
+ * Deals rail loads live products from the product API on mount.
  */
 export default function CustomerLandingPage() {
+  const [dealsItems, setDealsItems] = useState(DEALS_RAIL.items)
+  const [dealsLoading, setDealsLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const catalogItems = await fetchCustomerProducts()
+        if (cancelled) return
+
+        useCatalogStore.getState().mergeProducts(catalogItems)
+
+        const railItems = catalogItems.slice(0, 5).map(mapProductToRailItem)
+        if (railItems.length > 0) {
+          setDealsItems(railItems)
+        }
+      } catch {
+        /* Keep mock deals on failure — rest of the page still works. */
+      } finally {
+        if (!cancelled) setDealsLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const rails = useMemo(
+    () => [{ ...DEALS_RAIL, items: dealsItems }, ...RAILS.filter((rail) => rail.id !== 'deals')],
+    [dealsItems],
+  )
+
   return (
     <div style={{ background: colors.pageBg, color: colors.text, overflowX: 'clip' }}>
       <OfferTicker />
@@ -30,8 +68,8 @@ export default function CustomerLandingPage() {
         <HomeHero />
         <CategoryAisles />
 
-        {RAILS.map((rail) => (
-          <ProductRail key={rail.id} rail={rail} />
+        {rails.map((rail) => (
+          <ProductRail key={rail.id} rail={rail} loading={rail.id === 'deals' && dealsLoading} />
         ))}
 
         <PrescriptionBand />

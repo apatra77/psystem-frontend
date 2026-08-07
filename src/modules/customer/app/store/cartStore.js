@@ -2,9 +2,48 @@ import { create } from 'zustand'
 import { msg } from '@/shared/messages/messages'
 import { toast } from './uiStore'
 import { COUPONS, DELIVERY_FEE, FREE_DELIVERY_ABOVE, PACKAGING_FEE, TAX_RATE } from '@/shared/mocks/pricing'
+import { addCartItem, deleteCartItem, fetchMyCart, mapCartFromApi, mapCartItemFromApi, resolveCartItemId, updateCartItem } from '@/services/cart'
 import { memoizeDerived } from './memoize'
 
 const round = (n) => Math.round(n * 100) / 100
+
+const buildLocalItem = (product, qty, cartItemId = null) => ({
+  id: String(product.id),
+  cartItemId: cartItemId ? String(cartItemId) : null,
+  name: product.name,
+  price: product.price,
+  mrp: product.mrp ?? product.price,
+  image: product.image ?? product.imageUrl ?? null,
+  rx: !!product.rx,
+  pack: product.pack ?? '',
+  qty,
+})
+
+async function resolveLineItemId(productId, postResponse = null) {
+  if (postResponse) {
+    const mapped = await resolveCartItemId(productId, postResponse)
+    if (mapped.cartItemId) return mapped
+  }
+
+  const cart = await fetchMyCart()
+  return mapCartItemFromApi(cart, productId)
+}
+
+function patchCartItemId(set, productId, cartItemId, quantity) {
+  if (!cartItemId) return
+
+  set((s) => ({
+    items: s.items.map((i) =>
+      String(i.id) === String(productId)
+        ? {
+            ...i,
+            cartItemId: String(cartItemId),
+            qty: quantity ?? i.qty,
+          }
+        : i,
+    ),
+  }))
+}
 
 /**
  * Bill maths, memoised on (items, coupon) so `totals()` returns the same object
@@ -35,46 +74,129 @@ const computeTotals = memoizeDerived((items, coupon) => {
   }
 })
 
-/** Cart lives in memory for the session. Persist server-side via /api/cart when the endpoint exists. */
+/** Cart synced with GET/POST/PUT /api/carts/me on load and quantity changes. */
 export const useCartStore = create((set, get) => ({
   items: [],
   coupon: null,
   scheduledFor: null,
   prescriptionId: null,
+  loading: false,
 
-  addItem: (product, qty = 1) => {
-    set((s) => {
-      const existing = s.items.find((i) => i.id === product.id)
-      return {
-        items: existing
-          ? s.items.map((i) => (i.id === product.id ? { ...i, qty: i.qty + qty } : i))
-          : [
-              ...s.items,
-              {
-                id: product.id,
-                name: product.name,
-                price: product.price,
-                mrp: product.mrp ?? product.price,
-                image: product.image ?? null,
-                rx: !!product.rx,
-                pack: product.pack ?? '',
-                qty,
-              },
-            ],
+  loadCart: async () => {
+    set({ loading: true })
+    try {
+      const payload = await fetchMyCart()
+      set({ items: mapCartFromApi(payload), loading: false })
+    } catch (error) {
+      set({ loading: false })
+      const message = error?.message ?? 'Could not load cart'
+      if (/404|not found|empty/i.test(message)) {
+        set({ items: [] })
+        return
       }
-    })
-    toast.success(msg('customer.addedToCart', { name: product.name }))
+      toast.error(message)
+    }
   },
 
-  setQty: (id, qty) =>
-    set((s) => ({
-      items: qty <= 0 ? s.items.filter((i) => i.id !== id) : s.items.map((i) => (i.id === id ? { ...i, qty } : i)),
-    })),
+  addItem: async (product, qty = 1) => {
+    const productId = String(product.id)
+    const existing = get().items.find((i) => String(i.id) === productId)
+    if (existing) {
+      await get().setQty(productId, existing.qty + qty)
+      return
+    }
 
-  removeItem: (id) => {
-    const item = get().items.find((i) => i.id === id)
-    set((s) => ({ items: s.items.filter((i) => i.id !== id) }))
-    if (item) toast.info(msg('customer.removedFromCart', { name: item.name }))
+    const previousItems = get().items
+    set({ items: [...previousItems, buildLocalItem(product, qty)] })
+
+    try {
+      const response = await addCartItem({
+        productId: product.id,
+        quantity: qty,
+        price: product.price,
+      })
+      const { cartItemId, quantity } = await resolveLineItemId(productId, response)
+
+      if (!cartItemId) {
+        throw new Error('Cart item id missing from server response')
+      }
+
+      patchCartItemId(set, productId, cartItemId, quantity ?? qty)
+      toast.success(msg('customer.addedToCart', { name: product.name }))
+    } catch (error) {
+      set({ items: previousItems })
+      toast.error(error?.message ?? 'Could not add item to cart')
+    }
+  },
+
+  setQty: async (id, qty) => {
+    const productId = String(id)
+    const item = get().items.find((i) => String(i.id) === productId)
+    if (!item) return
+
+    const previousItems = get().items
+    const nextQty = qty
+
+    set((s) => ({
+      items:
+        nextQty <= 0
+          ? s.items.filter((i) => String(i.id) !== productId)
+          : s.items.map((i) => (String(i.id) === productId ? { ...i, qty: nextQty } : i)),
+    }))
+
+    try {
+      let cartItemId = item.cartItemId
+
+      if (!cartItemId) {
+        const resolved = await resolveLineItemId(productId)
+        cartItemId = resolved.cartItemId
+        if (cartItemId) {
+          patchCartItemId(set, productId, cartItemId, resolved.quantity ?? nextQty)
+        }
+      }
+
+      if (!cartItemId) {
+        throw new Error('Cart item id missing — could not update quantity')
+      }
+
+      if (nextQty <= 0) {
+        await updateCartItem(cartItemId, 0)
+        return
+      }
+
+      await updateCartItem(cartItemId, nextQty)
+    } catch (error) {
+      set({ items: previousItems })
+      toast.error(error?.message ?? 'Could not update cart quantity')
+    }
+  },
+
+  removeItem: async (id) => {
+    const productId = String(id)
+    const item = get().items.find((i) => String(i.id) === productId)
+    if (!item) return
+
+    let cartItemId = item.cartItemId
+    if (!cartItemId) {
+      const resolved = await resolveLineItemId(productId)
+      cartItemId = resolved.cartItemId
+    }
+
+    if (!cartItemId) {
+      throw new Error('Cart item id missing — could not remove item')
+    }
+
+    const previousItems = get().items
+    set((s) => ({ items: s.items.filter((i) => String(i.id) !== productId) }))
+
+    try {
+      await deleteCartItem(cartItemId)
+      toast.info(msg('customer.removedFromCart', { name: item.name }))
+    } catch (error) {
+      set({ items: previousItems })
+      toast.error(error?.message ?? 'Could not remove item from cart')
+      throw error
+    }
   },
 
   clear: () => set({ items: [], coupon: null, scheduledFor: null, prescriptionId: null }),

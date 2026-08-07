@@ -1,15 +1,13 @@
 import { Link } from 'react-router-dom'
 import { Heart, Star } from 'lucide-react'
 import Badge from '@/shared/ui/Badge'
-import Button from '@/shared/ui/Button'
+import CartAddControl from '@/modules/customer/components/CartAddControl'
 import { PATHS, buildPath } from '@/app/router/paths'
-import { useCartStore } from '@/app/store/cartStore'
 import { useCatalogStore } from '@/app/store/catalogStore'
 import { fmtINR } from '@/app/utils/format'
 import { colors } from '@/app/themes/colors'
 
 export default function ProductCard({ product }) {
-  const addItem = useCartStore((s) => s.addItem)
   const wishlist = useCatalogStore((s) => s.wishlist)
   const toggleWishlist = useCatalogStore((s) => s.toggleWishlist)
   const wished = wishlist.includes(product.id)
@@ -35,7 +33,14 @@ export default function ProductCard({ product }) {
 
       <div className="flex items-center gap-1.5 mt-2 text-[12px]" style={{ color: colors.textMuted }}>
         <Star size={12} fill={colors.gold} style={{ color: colors.gold }} />
-        {product.rating} <span style={{ color: colors.textDim }}>({product.reviews})</span>
+        {product.rating}{' '}
+        <span style={{ color: colors.textDim }}>
+          (
+          {typeof product.reviews === 'number'
+            ? product.reviews.toLocaleString('en-IN')
+            : product.reviews}
+          )
+        </span>
         <span className="ml-auto" style={{ color: colors.accentSoft }}>{product.eta}</span>
       </div>
 
@@ -44,9 +49,7 @@ export default function ProductCard({ product }) {
           <span className="text-[16px] font-extrabold" style={{ color: colors.textBright }}>{fmtINR(product.price)}</span>
           {off > 0 && <span className="text-[12px] line-through ml-2" style={{ color: colors.textDim }}>{fmtINR(product.mrp)}</span>}
         </div>
-        <Button size="sm" disabled={product.stock <= 0} onClick={() => addItem(product)}>
-          Add
-        </Button>
+        <CartAddControl product={product} className="shrink-0" />
       </div>
     </article>
   )
