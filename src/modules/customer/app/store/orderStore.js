@@ -70,6 +70,7 @@ export const useOrderStore = create((set, get) => ({
     toast.success(msg('customer.addressSaved'))
     return record
   },
+  setAddressesFromApi: (incoming) => set({ addresses: Array.isArray(incoming) ? incoming : [] }),
   deleteAddress: (id) => {
     set((s) => ({ addresses: s.addresses.filter((a) => a.id !== id) }))
     toast.info(msg('customer.addressDeleted'))

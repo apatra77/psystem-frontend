@@ -163,6 +163,13 @@ export function mapUserProfileFromApi(payload) {
     return {
       id,
       label,
+      name: pick(item, 'recipientName', 'name', 'fullName') ?? pick(d, 'fullName') ?? '',
+      phone: pick(item, 'contactMobile', 'mobile', 'phone') ?? pick(d, 'mobile') ?? '',
+      line1: pick(item, 'addressLine1', 'line1') ?? '',
+      line2: pick(item, 'addressLine2', 'line2') ?? '',
+      city: pick(item, 'city') ?? '',
+      state: pick(item, 'state') ?? '',
+      pincode: String(pick(item, 'postalCode', 'pincode') ?? ''),
       isDefault,
       lines: formatAddressLines(item),
       raw: item,
@@ -211,7 +218,30 @@ export function mapUserProfileFromApi(payload) {
   }
 }
 
-export async function fetchUserProfile() {
-  const payload = await authFetch('/api/user/profile')
-  return mapUserProfileFromApi(payload)
+let inFlightProfileRequest = null
+let cachedProfile = null
+let cachedProfileAt = 0
+const PROFILE_CACHE_MS = 30_000
+
+export async function fetchUserProfile({ force = false } = {}) {
+  if (!force && inFlightProfileRequest) {
+    return inFlightProfileRequest
+  }
+
+  if (!force && cachedProfile && Date.now() - cachedProfileAt < PROFILE_CACHE_MS) {
+    return cachedProfile
+  }
+
+  inFlightProfileRequest = authFetch('/api/user/profile')
+    .then((payload) => {
+      const mapped = mapUserProfileFromApi(payload)
+      cachedProfile = mapped
+      cachedProfileAt = Date.now()
+      return mapped
+    })
+    .finally(() => {
+      inFlightProfileRequest = null
+    })
+
+  return inFlightProfileRequest
 }

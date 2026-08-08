@@ -61,11 +61,13 @@ export const checkoutSchema = yup.object({
     then: () => rules.futureDateTime(),
     otherwise: (schema) => schema.nullable(),
   }),
-  upiId: yup.string().when('paymentMethod', {
-    is: 'upi',
-    then: () => rules.upiId(),
-    otherwise: (schema) => schema.nullable(),
-  }),
+  // UPI ID validation — commented out while UPI ID input is hidden on checkout
+  // upiId: yup.string().when('paymentMethod', {
+  //   is: 'upi',
+  //   then: () => rules.upiId(),
+  //   otherwise: (schema) => schema.nullable(),
+  // }),
+  upiId: yup.string().nullable(),
   cardNumber: yup.string().when('paymentMethod', {
     is: 'card',
     then: () => rules.cardNumber(),

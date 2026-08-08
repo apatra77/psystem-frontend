@@ -5,7 +5,6 @@ import { useAuthStore } from '@/app/store/authStore'
 import { toast } from '@/app/store/uiStore'
 import { msg } from '@/shared/messages/messages'
 import { getUserInitials } from '@/services/auth'
-import { fetchUserProfile } from '@/services/user'
 import { PATHS } from '@/app/router/paths'
 import { colors } from '@/app/themes/colors'
 
@@ -28,18 +27,14 @@ function formatPhone(mobile, countryCode = '+91') {
 export default function CustomerProfileMenu({ variant = 'landing', onNavigate }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const [profile, setProfile] = useState(null)
   const menuRef = useRef(null)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
 
-  const displayName = profile?.fullName || user?.fullName?.trim() || user?.email || 'User'
-  const displayEmail = profile?.email || user?.email || ''
-  const displayPhone = formatPhone(
-    profile?.mobile || user?.mobile,
-    profile?.countryCode || user?.countryCode,
-  )
-  const displayRole = formatRole(profile?.role || user?.role || 'Customer')
+  const displayName = user?.fullName?.trim() || user?.email || 'User'
+  const displayEmail = user?.email || ''
+  const displayPhone = formatPhone(user?.mobile, user?.countryCode)
+  const displayRole = formatRole(user?.role || 'Customer')
   const initials = getUserInitials({ ...user, fullName: displayName, email: displayEmail })
   const isLanding = variant === 'landing'
 
@@ -53,23 +48,6 @@ export default function CustomerProfileMenu({ variant = 'landing', onNavigate })
 
     document.addEventListener('mousedown', handleOutsideClick)
     return () => document.removeEventListener('mousedown', handleOutsideClick)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return undefined
-
-    let cancelled = false
-    fetchUserProfile()
-      .then((data) => {
-        if (!cancelled) setProfile(data)
-      })
-      .catch(() => {
-        /* Fall back to auth user fields already in the dropdown. */
-      })
-
-    return () => {
-      cancelled = true
-    }
   }, [open])
 
   const handleLogout = async () => {

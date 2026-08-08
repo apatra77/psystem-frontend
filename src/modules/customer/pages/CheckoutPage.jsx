@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useFormContext } from 'react-hook-form'
+import { Bike, QrCode } from 'lucide-react'
 import PageHeader from '@/shared/ui/PageHeader'
 import EmptyState from '@/shared/ui/EmptyState'
 import Button from '@/shared/ui/Button'
@@ -8,28 +9,40 @@ import { checkoutSchema } from '@/app/validations/schemas/customer.schema'
 import { useCartStore } from '@/app/store/cartStore'
 import { useOrderStore } from '@/app/store/orderStore'
 import { PATHS, buildPath } from '@/app/router/paths'
-import { PAYMENT_METHODS } from '@/shared/mocks/pricing'
 import { fmtINR } from '@/app/utils/format'
 import { msg } from '@/shared/messages/messages'
 import { colors } from '@/app/themes/colors'
 
-/** Payment fields depend on the selected method — this watches the radio group. */
+/** Shown below the payment method cards. */
 function PaymentDetails() {
-  const { watch } = useFormContext()
-  const method = watch('paymentMethod')
-  if (method === 'upi') return <TextField name="upiId" label="UPI ID" placeholder="name@bank" required />
-  if (method === 'card') {
-    return (
-      <div className="grid gap-3 sm:grid-cols-3">
-        <TextField name="cardNumber" label="Card number" placeholder="4111111111111111" className="sm:col-span-3" required />
-        <TextField name="cardExpiry" label="Expiry (MM/YY)" placeholder="08/28" required />
-        <TextField name="cardCvv" label="CVV" type="password" maxLength={3} required />
-      </div>
-    )
-  }
-  if (method === 'wallet') return <p className="text-[12.5px]" style={{ color: colors.textMuted }}>Wallet balance will be applied at payment.</p>
-  return <p className="text-[12.5px]" style={{ color: colors.textMuted }}>Pay the delivery partner in cash or UPI on arrival.</p>
+  return (
+    <p className="text-[12.5px]" style={{ color: colors.textMuted }}>
+      Pay the delivery partner in cash or by scanning the QR code on arrival.
+    </p>
+  )
 }
+
+/** Checkout payment options — card & wallet entries commented out below. */
+const CHECKOUT_PAYMENT_OPTIONS = [
+  {
+    value: 'upi',
+    label: 'Generate QR',
+    hint: 'Scan and pay using any UPI app',
+    icon: QrCode,
+    badge: 'Instant payment',
+  },
+  {
+    value: 'cod',
+    label: 'Cash on delivery',
+    hint: 'Pay the rider',
+    icon: Bike,
+  },
+]
+
+// Commented out payment methods (from PAYMENT_METHODS in @/shared/mocks/pricing):
+// { id: 'upi', label: 'UPI', hint: 'GPay, PhonePe, Paytm' },
+// { id: 'card', label: 'Credit / Debit card', hint: 'Visa, Mastercard, RuPay' },
+// { id: 'wallet', label: 'MEDIQ wallet', hint: 'Balance ₹340' },
 
 function ScheduleFields() {
   const { watch } = useFormContext()
@@ -104,7 +117,7 @@ export default function CheckoutPage() {
 
             <section className="rounded-[18px] p-5 space-y-4" style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}>
               <h2 className="text-[14px] font-extrabold" style={{ color: colors.textBright }}>Payment</h2>
-              <RadioCardGroup name="paymentMethod" options={PAYMENT_METHODS.map((p) => ({ value: p.id, label: p.label, hint: p.hint }))} columns={2} />
+              <RadioCardGroup name="paymentMethod" options={CHECKOUT_PAYMENT_OPTIONS} columns={2} />
               <PaymentDetails />
             </section>
           </div>

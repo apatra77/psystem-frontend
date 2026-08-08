@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react'
 import PageHeader from '@/shared/ui/PageHeader'
 import Button from '@/shared/ui/Button'
 import Badge from '@/shared/ui/Badge'
 import Modal from '@/shared/ui/Modal'
 import EmptyState from '@/shared/ui/EmptyState'
+import Spinner from '@/shared/ui/Spinner'
 import { Form, TextField, CheckboxField, SubmitButton } from '@/shared/components/form'
 import { addressSchema } from '@/app/validations/schemas/customer.schema'
 import { useOrderStore } from '@/app/store/orderStore'
 import { useUiStore } from '@/app/store/uiStore'
+import { fetchUserProfile } from '@/services/user'
 import { msg } from '@/shared/messages/messages'
 import { colors } from '@/app/themes/colors'
 
@@ -16,14 +18,46 @@ const EMPTY = { label: '', name: '', phone: '', line1: '', line2: '', city: '', 
 
 export default function AddressesPage() {
   const [editing, setEditing] = useState(null)
+  const [loading, setLoading] = useState(true)
   const addresses = useOrderStore((s) => s.addresses)
   const saveAddress = useOrderStore((s) => s.saveAddress)
+  const setAddressesFromApi = useOrderStore((s) => s.setAddressesFromApi)
   const deleteAddress = useOrderStore((s) => s.deleteAddress)
   const askConfirm = useUiStore((s) => s.askConfirm)
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const profile = await fetchUserProfile()
+        if (!cancelled) {
+          setAddressesFromApi(profile?.addresses ?? [])
+        }
+      } catch {
+        if (!cancelled) setAddressesFromApi([])
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [setAddressesFromApi])
 
   const onSubmit = (values) => {
     saveAddress({ ...values, id: editing?.id })
     setEditing(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-3 py-24 text-[13px]" style={{ color: colors.textMuted }}>
+        <Spinner />
+        Loading addresses…
+      </div>
+    )
   }
 
   return (
