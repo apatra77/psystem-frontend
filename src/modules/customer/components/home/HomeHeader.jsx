@@ -22,7 +22,7 @@ export default function HomeHeader({ pincode = '560001' }) {
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const cartCount = useCartStore((s) => s.count())
+  const cartCount = useCartStore((s) => s.items.reduce((sum, item) => sum + item.qty, 0))
   const setFilter = useCatalogStore((s) => s.setFilter)
 
   const submitSearch = (e) => {

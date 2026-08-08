@@ -1,36 +1,22 @@
-import { useCallback, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, ChevronDown } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { PATHS, buildPath } from '@/app/router/paths'
-import { AISLES } from '@/shared/mocks/customerHome'
+import { ShimmerBar, ShimmerCircle } from '@/shared/components/shimmer/primitives'
+import { useCatalogStore } from '@/app/store/catalogStore'
 import { colors } from '@/app/themes/colors'
 import { SECTION_MAX, SECTION_X } from './layout'
 
+/** Same cell width as the old responsive grid (3 / 4 / 6 / 8 columns). */
+const CATEGORY_ITEM_WIDTH =
+  'w-[calc((100%-2*0.75rem)/3)] flex-shrink-0 snap-start sm:w-[calc((100%-3*0.75rem)/4)] lg:w-[calc((100%-5*0.75rem)/6)] xl:w-[calc((100%-7*0.75rem)/8)]'
+
 /**
- * "Shop by category" grid with hover/focus sub-category dropdowns.
- *
- * The grid steps 3 -> 4 -> 6 -> 8 columns, and the dropdown is suppressed below
- * `lg` where there is no hover and no room: on touch the tile is a plain link
- * into the category page, which is where the same sub-categories live.
+ * "Shop by category" row on the customer landing page.
+ * Categories are loaded from GET /api/categories on page mount.
  */
 export default function CategoryAisles() {
-  const navigate = useNavigate()
-  const [openSlug, setOpenSlug] = useState(null)
-
-  const close = useCallback(() => setOpenSlug(null), [])
+  const categories = useCatalogStore((s) => s.categories)
+  const categoriesLoaded = useCatalogStore((s) => s.categoriesLoaded)
   const categoryPath = (slug) => buildPath(PATHS.customer.category, { slug })
-
-  /**
-   * The dropdown only exists at `xl`, where the grid really is 8 columns — so
-   * column position can be derived from the index. First and last column anchor
-   * to their own edge; everything between is centred on the tile.
-   */
-  const dropdownAnchor = (index) => {
-    const column = index % 8
-    if (column === 0) return { left: 0 }
-    if (column === 7) return { right: 0 }
-    return { left: '50%', transform: 'translateX(-50%)' }
-  }
 
   return (
     <section className={`${SECTION_MAX} ${SECTION_X} relative z-10 pt-11`} aria-labelledby="aisles-title">
@@ -39,7 +25,7 @@ export default function CategoryAisles() {
           Shop by category
         </h2>
         <Link
-          to={PATHS.customer.search}
+          to={PATHS.customer.categories}
           className="whitespace-nowrap text-[11px] font-extrabold tracking-[0.16em]"
           style={{ color: colors.accent }}
         >
@@ -47,92 +33,60 @@ export default function CategoryAisles() {
         </Link>
       </div>
 
-      <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-        {AISLES.map((cat, index) => {
-          const open = openSlug === cat.slug
+      {!categoriesLoaded ? (
+        <ul
+          className="rail-scroll -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0"
+          aria-hidden="true"
+        >
+          {Array.from({ length: 8 }, (_, i) => (
+            <li
+              key={i}
+              className={`flex flex-col items-center gap-2.5 rounded-[18px] px-2.5 py-4 ${CATEGORY_ITEM_WIDTH}`}
+            >
+              <ShimmerCircle size={68} />
+              <ShimmerBar width="72%" height={12} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="rail-scroll -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+        {categories.map((cat) => {
+          const accent = cat.accent ?? colors.accent
 
           return (
-            <li
-              key={cat.slug}
-              className="relative"
-              onMouseEnter={() => setOpenSlug(cat.slug)}
-              onMouseLeave={close}
-            >
+            <li key={cat.id} className={CATEGORY_ITEM_WIDTH}>
               <Link
                 to={categoryPath(cat.slug)}
-                onFocus={() => setOpenSlug(cat.slug)}
-                onBlur={close}
-                className="flex flex-col items-center gap-2.5 rounded-[18px] px-2.5 py-4 transition-colors"
+                className="flex h-full w-full flex-col items-center gap-2.5 rounded-[18px] px-2.5 py-4 transition-colors hover:-translate-y-[2px]"
                 style={{
                   background: colors.cardBg,
-                  border: `1px solid ${open ? 'rgba(64,222,170,.5)' : 'rgba(255,255,255,.11)'}`,
+                  border: '1px solid rgba(255,255,255,.11)',
                 }}
               >
                 <span
-                  className="flex h-[68px] w-[68px] items-center justify-center rounded-full text-[26px]"
+                  className="flex h-[68px] w-[68px] items-center justify-center rounded-full text-[22px] font-extrabold"
                   style={{
-                    background: `radial-gradient(circle at 32% 28%, ${cat.accent}33, rgba(255,255,255,0.04) 70%)`,
-                    border: `1px solid ${cat.accent}44`,
+                    background: `radial-gradient(circle at 32% 28%, ${accent}33, rgba(255,255,255,0.04) 70%)`,
+                    border: `1px solid ${accent}44`,
                     boxShadow: '0 14px 26px rgba(0,0,0,.5)',
+                    color: accent,
                   }}
                   aria-hidden="true"
                 >
-                  <span style={{ color: cat.accent, fontWeight: 800, fontSize: 22 }}>{cat.name.charAt(0)}</span>
+                  {cat.icon ?? cat.name.charAt(0).toUpperCase()}
                 </span>
                 <span
-                  className="flex items-center gap-1.5 text-center text-[12px] font-bold leading-tight"
+                  className="min-h-[32px] text-center text-[12px] font-bold leading-tight"
                   style={{ color: '#cfe6dc' }}
                 >
                   {cat.name}
-                  <ChevronDown size={11} className="hidden xl:block" style={{ color: colors.textDim }} aria-hidden="true" />
                 </span>
               </Link>
-
-              {open && (
-                <div
-                  className="absolute z-40 hidden pt-3 xl:block"
-                  style={{ top: 'calc(100% - 6px)', ...dropdownAnchor(index) }}
-                >
-                  <div
-                    className="aisle-dropdown w-[236px] rounded-[16px] p-2.5"
-                    style={{
-                      background: 'rgba(10,28,22,.94)',
-                      backdropFilter: 'blur(20px)',
-                      WebkitBackdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(64,222,170,.28)',
-                      boxShadow: '0 30px 70px rgba(0,0,0,.65)',
-                    }}
-                  >
-                    <p className="px-3 pb-1.5 pt-2 text-[10px] font-extrabold tracking-[0.18em]" style={{ color: colors.accentSoft }}>
-                      {cat.name.toUpperCase()}
-                    </p>
-                    {cat.subs.map((sub) => (
-                      <button
-                        key={sub}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => navigate(categoryPath(cat.slug))}
-                        className="flex w-full items-center justify-between rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold"
-                        style={{ color: '#cfe6dc' }}
-                      >
-                        {sub}
-                        <ArrowRight size={12} style={{ color: colors.textDim }} aria-hidden="true" />
-                      </button>
-                    ))}
-                    <Link
-                      to={categoryPath(cat.slug)}
-                      className="mt-1.5 block px-3 py-3 text-[11px] font-extrabold tracking-[0.14em]"
-                      style={{ borderTop: '1px solid rgba(255,255,255,.09)', color: colors.accent }}
-                    >
-                      VIEW ALL →
-                    </Link>
-                  </div>
-                </div>
-              )}
             </li>
           )
         })}
-      </ul>
+        </ul>
+      )}
     </section>
   )
 }

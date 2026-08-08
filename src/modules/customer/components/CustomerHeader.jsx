@@ -25,7 +25,7 @@ export default function CustomerHeader() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const token = useAuthStore((s) => s.token)
-  const cartCount = useCartStore((s) => s.count())
+  const cartCount = useCartStore((s) => s.items.reduce((sum, item) => sum + item.qty, 0))
   const setFilter = useCatalogStore((s) => s.setFilter)
   const unread = useOrderStore((s) => s.unreadCount())
 

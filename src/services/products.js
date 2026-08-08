@@ -33,10 +33,19 @@ function slugify(value) {
 
 // --- Categories ---
 
-export function mapCategoryFromApi(item) {
+const CATEGORY_ACCENTS = ['#40deaa', '#ffd58f', '#6fc2ff', '#b287ff']
+
+export function mapCategoryFromApi(item, index = 0) {
+  const name = pick(item, 'name', 'categoryName') ?? 'Unnamed category'
+  const slug = slugify(name)
+
   return {
-    id: String(pick(item, 'id', 'categoryId') ?? ''),
-    name: pick(item, 'name', 'categoryName') ?? 'Unnamed category',
+    id: String(pick(item, 'id', 'categoryId') ?? slug),
+    slug,
+    name,
+    icon: name.charAt(0).toUpperCase(),
+    accent: CATEGORY_ACCENTS[index % CATEGORY_ACCENTS.length],
+    count: Number(pick(item, 'count', 'productCount')) || 0,
   }
 }
 
@@ -48,7 +57,11 @@ export async function fetchCategories({ force = false } = {}) {
   }
 
   inFlightCategoriesRequest = authFetch('/api/categories', {}, PRODUCT_API_BASE)
-    .then((payload) => extractApiList(payload, ['categories']).map(mapCategoryFromApi))
+    .then((payload) =>
+      extractApiList(payload, ['categories']).map((item, index) =>
+        mapCategoryFromApi(item, index),
+      ),
+    )
     .finally(() => {
       inFlightCategoriesRequest = null
     })

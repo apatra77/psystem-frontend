@@ -69,7 +69,6 @@ export default function CartPage() {
       <PageHeader
         title="Your cart"
         subtitle={`${items.length} item(s)`}
-        actions={<Button variant="ghost" size="sm" icon={Trash2} onClick={clear}>Clear cart</Button>}
       />
 
       <div className="grid gap-6" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,340px)' }}>

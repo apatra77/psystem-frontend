@@ -46,6 +46,7 @@ const computeResults = memoizeDerived((products, f) => {
 export const useCatalogStore = create((set, get) => ({
   products: PRODUCTS,
   categories: CATEGORIES,
+  categoriesLoaded: false,
   wishlist: [],
   filters: { ...DEFAULT_FILTERS },
   loading: false,
@@ -81,6 +82,13 @@ export const useCatalogStore = create((set, get) => ({
     set((s) => {
       if (!incoming?.length) return s
       return { products: incoming, apiCatalogLoaded: true }
+    }),
+
+  /** Replace mock categories with live API categories. */
+  setCategoriesFromApi: (incoming) =>
+    set((s) => {
+      if (!incoming?.length) return s
+      return { categories: incoming, categoriesLoaded: true }
     }),
 
   setLoading: (loading) => set({ loading }),

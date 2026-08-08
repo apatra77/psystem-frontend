@@ -13,7 +13,9 @@ import {
 import { RAILS } from '@/shared/mocks/customerHome'
 import { colors } from '@/app/themes/colors'
 import { useCatalogStore } from '@/app/store/catalogStore'
+import { useCartStore } from '@/app/store/cartStore'
 import {
+  fetchCategories,
   fetchCustomerProducts,
   mapProductToRailItem,
 } from '@/services/products'
@@ -33,19 +35,33 @@ export default function CustomerLandingPage() {
 
     ;(async () => {
       try {
-        const catalogItems = await fetchCustomerProducts()
+        const [categories, catalogItems] = await Promise.all([
+          fetchCategories().catch(() => []),
+          fetchCustomerProducts().catch(() => []),
+        ])
         if (cancelled) return
 
-        useCatalogStore.getState().mergeProducts(catalogItems)
+        if (categories.length > 0) {
+          useCatalogStore.getState().setCategoriesFromApi(categories)
+        }
 
-        const railItems = catalogItems.slice(0, 5).map(mapProductToRailItem)
-        if (railItems.length > 0) {
+        if (catalogItems.length > 0) {
+          useCatalogStore.getState().mergeProducts(catalogItems)
+
+          const railItems = catalogItems.slice(0, 5).map(mapProductToRailItem)
           setDealsItems(railItems)
         }
       } catch {
-        /* Keep mock deals on failure — rest of the page still works. */
-      } finally {
-        if (!cancelled) setDealsLoading(false)
+        /* Keep mock data on failure — rest of the page still works. */
+      }
+
+      if (!cancelled) {
+        try {
+          await useCartStore.getState().loadCart({ silent: true })
+        } catch {
+          /* Header badge falls back to empty/local cart on failure. */
+        }
+        setDealsLoading(false)
       }
     })()
 

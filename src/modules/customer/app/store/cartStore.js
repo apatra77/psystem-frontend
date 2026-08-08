@@ -82,8 +82,8 @@ export const useCartStore = create((set, get) => ({
   prescriptionId: null,
   loading: false,
 
-  loadCart: async () => {
-    set({ loading: true })
+  loadCart: async ({ silent = false } = {}) => {
+    if (!silent) set({ loading: true })
     try {
       const payload = await fetchMyCart()
       set({ items: mapCartFromApi(payload), loading: false })
@@ -94,7 +94,7 @@ export const useCartStore = create((set, get) => ({
         set({ items: [] })
         return
       }
-      toast.error(message)
+      if (!silent) toast.error(message)
     }
   },
 
