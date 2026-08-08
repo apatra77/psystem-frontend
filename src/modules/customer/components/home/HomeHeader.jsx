@@ -1,14 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { LogOut, MapPin, Menu, RotateCcw, Search, ShoppingCart, User, X, Zap } from 'lucide-react'
+import { MapPin, Menu, RotateCcw, Search, ShoppingCart, X, Zap } from 'lucide-react'
 import Logo from '@/shared/ui/Logo'
+import CustomerProfileMenu from '@/modules/customer/components/CustomerProfileMenu'
 import { PATHS, buildPath } from '@/app/router/paths'
-import { useAuthStore } from '@/app/store/authStore'
 import { useCartStore } from '@/app/store/cartStore'
 import { useCatalogStore } from '@/app/store/catalogStore'
-import { toast } from '@/app/store/uiStore'
-import { msg } from '@/shared/messages/messages'
-import { getInitials } from '@/app/utils/format'
 import { HOME_NAV } from '@/shared/mocks/customerHome'
 import { colors } from '@/app/themes/colors'
 import { SECTION_MAX, SECTION_X } from './layout'
@@ -25,8 +22,6 @@ export default function HomeHeader({ pincode = '560001' }) {
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const user = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
   const cartCount = useCartStore((s) => s.count())
   const setFilter = useCatalogStore((s) => s.setFilter)
 
@@ -35,18 +30,6 @@ export default function HomeHeader({ pincode = '560001' }) {
     setFilter({ query })
     setMenuOpen(false)
     navigate(PATHS.customer.search)
-  }
-
-  /**
-   * Signing out clears the session and returns the user to the public landing
-   * page. This header only renders on "/", so the navigate is a no-op in
-   * practice — HomePage swaps to the public page on the next render — but it
-   * keeps the behaviour identical wherever the component is reused.
-   */
-  const handleLogout = async () => {
-    await logout()
-    toast.success(msg('auth.logoutSuccess'))
-    navigate(PATHS.customer.home, { replace: true })
   }
 
   const categoryPath = (slug) => buildPath(PATHS.customer.category, { slug })
@@ -113,38 +96,7 @@ export default function HomeHeader({ pincode = '560001' }) {
               <ShoppingCart size={18} style={{ color: '#9ff0d4' }} />
             </IconAction>
 
-            <Link
-              to={PATHS.customer.profile}
-              className="flex flex-col items-center gap-[3px]"
-              title={user?.fullName || user?.email || 'Account'}
-            >
-              <span
-                className="flex h-10 w-10 items-center justify-center rounded-full text-[11px] font-extrabold"
-                style={{ background: colors.primaryBtn, color: colors.accentText }}
-              >
-                {getInitials(user?.fullName || user?.email) || <User size={18} />}
-              </span>
-              <span className="hidden text-[10px] font-bold tracking-wider sm:block" style={{ color: colors.textDim }}>
-                Account
-              </span>
-            </Link>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="hidden flex-col items-center gap-[3px] sm:flex"
-              aria-label="Sign out"
-            >
-              <span
-                className="flex h-10 w-10 items-center justify-center rounded-full"
-                style={{ background: 'rgba(255,255,255,.06)', border: `1px solid ${colors.border}` }}
-              >
-                <LogOut size={17} style={{ color: colors.textHighlight }} />
-              </span>
-              <span className="text-[10px] font-bold tracking-wider" style={{ color: colors.textDim }}>
-                Sign out
-              </span>
-            </button>
+            <CustomerProfileMenu variant="landing" onNavigate={() => setMenuOpen(false)} />
 
             <button
               type="button"
@@ -248,15 +200,6 @@ export default function HomeHeader({ pincode = '560001' }) {
               </Link>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-[10px] px-3 py-2.5 text-[13px] font-bold sm:hidden"
-            style={{ color: colors.textHighlight, background: 'rgba(255,255,255,.05)' }}
-          >
-            <LogOut size={15} aria-hidden="true" />
-            Sign out
-          </button>
         </div>
       )}
     </header>

@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Bell, FileUp, LogOut, Search, ShoppingCart, User } from 'lucide-react'
+import { Bell, FileUp, Search, ShoppingCart } from 'lucide-react'
 import Logo from '@/shared/ui/Logo'
 import Button from '@/shared/ui/Button'
+import CustomerProfileMenu from '@/modules/customer/components/CustomerProfileMenu'
 import { PATHS } from '@/app/router/paths'
 import { useAuthStore } from '@/app/store/authStore'
 import { useCartStore } from '@/app/store/cartStore'
 import { useCatalogStore } from '@/app/store/catalogStore'
 import { useOrderStore } from '@/app/store/orderStore'
-import { toast } from '@/app/store/uiStore'
-import { msg } from '@/shared/messages/messages'
-import { getInitials } from '@/app/utils/format'
 import { colors } from '@/app/themes/colors'
 
 const NAV = [
@@ -26,9 +24,7 @@ const NAV = [
 export default function CustomerHeader() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const user = useAuthStore((s) => s.user)
   const token = useAuthStore((s) => s.token)
-  const logout = useAuthStore((s) => s.logout)
   const cartCount = useCartStore((s) => s.count())
   const setFilter = useCatalogStore((s) => s.setFilter)
   const unread = useOrderStore((s) => s.unreadCount())
@@ -37,14 +33,6 @@ export default function CustomerHeader() {
     e.preventDefault()
     setFilter({ query })
     navigate(PATHS.customer.search)
-  }
-
-  /* Signing out is the one deliberate way to end a session: clear it, then land
-     the user on the public landing page rather than the sign-in form. */
-  const handleLogout = async () => {
-    await logout()
-    toast.success(msg('auth.logoutSuccess'))
-    navigate(PATHS.customer.home, { replace: true })
   }
 
   return (
@@ -95,18 +83,9 @@ export default function CustomerHeader() {
           </Link>
 
           {token ? (
-            <div className="flex items-center gap-2">
-              <Link to={PATHS.customer.profile} className="flex items-center gap-2 pl-1">
-                <span className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-extrabold" style={{ background: colors.primaryBtn, color: colors.accentText }}>
-                  {getInitials(user?.fullName || user?.email)}
-                </span>
-              </Link>
-              <button type="button" onClick={handleLogout} className="p-2" style={{ color: colors.textDim }} aria-label="Sign out">
-                <LogOut size={17} />
-              </button>
-            </div>
+            <CustomerProfileMenu variant="compact" />
           ) : (
-            <Button as={Link} to="/" size="sm" icon={User}>
+            <Button as={Link} to="/" size="sm">
               Sign in
             </Button>
           )}
