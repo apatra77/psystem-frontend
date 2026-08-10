@@ -1,14 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Calendar, Mail, MapPin, Phone, Shield, User } from 'lucide-react'
+import { Calendar, Camera, Mail, MapPin, Pencil, Phone, Shield, User } from 'lucide-react'
 import PageHeader from '@/shared/ui/PageHeader'
 import Spinner from '@/shared/ui/Spinner'
-import { Form, TextField, SelectField, SubmitButton } from '@/shared/components/form'
-import { profileSchema } from '@/app/validations/schemas/customer.schema'
 import { useAuthStore } from '@/app/store/authStore'
 import { getUserInitials } from '@/services/auth'
 import { fetchUserProfile } from '@/services/user'
-import { toast } from '@/app/store/uiStore'
-import { msg } from '@/shared/messages/messages'
 import { colors } from '@/app/themes/colors'
 
 function formatRole(role) {
@@ -45,7 +41,6 @@ function InfoRow({ icon: Icon, label, value }) {
 
 export default function ProfilePage() {
   const authUser = useAuthStore((s) => s.user)
-  const updateUser = useAuthStore((s) => s.updateUser)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -79,11 +74,6 @@ export default function ProfilePage() {
   const memberSince = profile?.memberSince || '—'
   const initials = getUserInitials({ ...authUser, fullName: displayName, email: profile?.email || authUser?.email })
 
-  const onSubmit = (values) => {
-    updateUser(values)
-    toast.success(msg('customer.profileUpdated'))
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-3 py-24 text-[13px]" style={{ color: colors.textMuted }}>
@@ -108,11 +98,28 @@ export default function ProfilePage() {
           className="rounded-[18px] p-5 flex flex-col items-center text-center h-fit"
           style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}
         >
-          <div
-            className="mb-4 flex h-[88px] w-[88px] items-center justify-center rounded-full text-[28px] font-extrabold"
-            style={{ background: colors.primaryBtn, color: colors.accentText }}
-          >
-            {initials}
+          <div className="relative mb-4">
+            <div
+              className="flex h-[88px] w-[88px] items-center justify-center rounded-full text-[28px] font-extrabold"
+              style={{
+                background: 'linear-gradient(135deg,#d4bcff,#8f6fd1)',
+                color: '#1c1030',
+              }}
+            >
+              {initials}
+            </div>
+            <button
+              type="button"
+              className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full cursor-pointer"
+              style={{
+                background: colors.primaryBtn,
+                color: colors.accentText,
+                border: `2px solid ${colors.bg}`,
+              }}
+              aria-label="Change photo"
+            >
+              <Camera size={13} strokeWidth={2} />
+            </button>
           </div>
 
           <div className="text-[18px] font-extrabold" style={{ color: colors.textBright }}>{displayName}</div>
@@ -145,6 +152,19 @@ export default function ProfilePage() {
               <span>Joined on {memberSince}</span>
             </div>
           </div>
+
+          <button
+            type="button"
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-[10px] px-4 py-2.5 text-[12.5px] font-extrabold cursor-pointer"
+            style={{
+              color: colors.accent,
+              background: 'rgba(64,222,170,0.08)',
+              border: '1px solid rgba(64,222,170,0.28)',
+            }}
+          >
+            <Pencil size={14} strokeWidth={1.8} />
+            Edit Profile
+          </button>
         </div>
 
         <div className="space-y-6">
@@ -158,39 +178,6 @@ export default function ProfilePage() {
             <InfoRow icon={Shield} label="Role" value={displayRole} />
             <InfoRow icon={MapPin} label="Location" value={location} />
             <InfoRow icon={Calendar} label="Member Since" value={memberSince} />
-          </div>
-
-          <div className="rounded-[18px] p-6" style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}>
-            <div className="mb-4 text-[15px] font-extrabold" style={{ color: colors.textBright }}>Edit contact details</div>
-            <Form
-              schema={profileSchema}
-              defaultValues={{
-                fullName: profile?.fullName || authUser?.fullName || '',
-                email: profile?.email || authUser?.email || '',
-                phone: profile?.mobile || authUser?.mobile || authUser?.phone || '',
-                dob: authUser?.dob ?? '',
-                gender: authUser?.gender ?? '',
-              }}
-              onSubmit={onSubmit}
-              className="space-y-4"
-            >
-              <TextField name="fullName" label="Full name" required />
-              <TextField name="email" label="Email" type="email" required />
-              <TextField name="phone" label="Mobile number" required />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <TextField name="dob" label="Date of birth" type="date" />
-                <SelectField
-                  name="gender"
-                  label="Gender"
-                  options={[
-                    { value: 'male', label: 'Male' },
-                    { value: 'female', label: 'Female' },
-                    { value: 'other', label: 'Prefer not to say' },
-                  ]}
-                />
-              </div>
-              <SubmitButton>Save changes</SubmitButton>
-            </Form>
           </div>
         </div>
       </div>

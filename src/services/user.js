@@ -83,16 +83,34 @@ export function buildAddressPayload({ fullName, email, mobile, address, country 
 }
 
 export async function saveUserAddress(profile) {
-  return authFetch('/api/user/addresses', {
+  const result = await authFetch('/api/user/addresses', {
     method: 'POST',
     body: JSON.stringify(buildAddressPayload(profile)),
   })
+  invalidateUserProfileCache()
+  return result
+}
+
+export async function updateUserAddress(addressId, profile) {
+  const result = await authFetch(`/api/user/addresses/${encodeURIComponent(addressId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(buildAddressPayload(profile)),
+  })
+  invalidateUserProfileCache()
+  return result
 }
 
 export async function deleteUserAddress(addressId) {
-  return authFetch(`/api/user/addresses/${encodeURIComponent(addressId)}`, {
+  const result = await authFetch(`/api/user/addresses/${encodeURIComponent(addressId)}`, {
     method: 'DELETE',
   })
+  invalidateUserProfileCache()
+  return result
+}
+
+function invalidateUserProfileCache() {
+  cachedProfile = null
+  cachedProfileAt = 0
 }
 
 function pick(obj, ...keys) {
@@ -173,6 +191,7 @@ export function mapUserProfileFromApi(payload) {
       phone: pick(item, 'contactMobile', 'mobile', 'phone') ?? pick(d, 'mobile') ?? '',
       line1: pick(item, 'addressLine1', 'line1') ?? '',
       line2: pick(item, 'addressLine2', 'line2') ?? '',
+      landmark: pick(item, 'landmark') ?? '',
       city: pick(item, 'city') ?? '',
       state: pick(item, 'state') ?? '',
       pincode: String(pick(item, 'postalCode', 'pincode') ?? ''),
