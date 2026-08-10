@@ -1,7 +1,21 @@
+import { notifyUnauthorized } from '@/shared/api/tokenBridge'
+
 export const API_BASE = 'http://66.116.246.58:8080'
 export const PRODUCT_API_BASE = 'http://66.116.246.58:8081'
 export const CART_API_BASE = 'http://66.116.246.58:8083'
 const AUTH_TOKEN_KEY = 'authToken'
+
+let handlingUnauthorized = false
+
+function handleUnauthorizedResponse() {
+  if (handlingUnauthorized) return
+  handlingUnauthorized = true
+  try {
+    notifyUnauthorized()
+  } finally {
+    handlingUnauthorized = false
+  }
+}
 
 export async function parseJsonResponse(res) {
   let data = null
@@ -43,6 +57,9 @@ export async function authFetch(path, options = {}, baseUrl = API_BASE) {
   })
 
   const data = await parseJsonResponse(res)
+  if (res.status === 401) {
+    handleUnauthorizedResponse()
+  }
   if (!res.ok) throw new Error(getErrorMessage(data, res.status))
   return data
 }

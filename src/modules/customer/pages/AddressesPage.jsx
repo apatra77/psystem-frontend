@@ -26,6 +26,11 @@ export default function AddressesPage() {
   const askConfirm = useUiStore((s) => s.askConfirm)
 
   useEffect(() => {
+    if (useOrderStore.getState().addressesLoadedFromApi) {
+      setLoading(false)
+      return undefined
+    }
+
     let cancelled = false
 
     ;(async () => {

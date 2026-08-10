@@ -33,7 +33,7 @@ export default function OrderSuccessPage() {
       )}
 
       <div className="flex gap-3 justify-center mt-7">
-        <Button as={Link} to={buildPath(PATHS.customer.orderTracking, { id })} size="lg">Track order</Button>
+        {/* <Button as={Link} to={buildPath(PATHS.customer.orderTracking, { id })} size="lg">Track order</Button> */}
         <Button as={Link} to={PATHS.customer.search} size="lg" variant="secondary">Keep shopping</Button>
       </div>
     </div>

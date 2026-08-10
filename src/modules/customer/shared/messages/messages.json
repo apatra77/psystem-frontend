@@ -71,7 +71,7 @@
     "roleUnknown": "Your account role is not recognised. Contact support.",
     "sessionOnlyNotice": "For security, your session lives in memory only and ends when you close the tab.",
     "passwordChanged": "Your password has been changed.",
-    "sessionExpired": "You were signed out after a period of inactivity. Please sign in again."
+    "sessionExpired": "Your session has expired. Please sign in again."
   },
   "customer": {
     "addedToCart": "{name} added to your cart.",

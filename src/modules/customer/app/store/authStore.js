@@ -173,7 +173,7 @@ export const useAuthStore = create((set, get) => ({
     if (isJwtExpired(token)) {
       clearAccessToken()
       clearPersistedSession()
-      set({ ...initialState, bootstrapped: true })
+      set({ ...initialState, bootstrapped: true, sessionExpired: true })
       return
     }
 

@@ -141,36 +141,36 @@ export const RAILS = [
 ]
 
 export const SERVICES = [
-  {
-    id: 'consult',
-    kicker: 'CONSULT',
-    title: 'A doctor on screen in 10 minutes',
-    desc: '22 specialities · prescriptions flow straight to your cart',
-    cta: 'FROM ₹199',
-    accent: '#9cc4ff',
-    bg: 'linear-gradient(172deg,rgba(90,162,255,.13),rgba(90,162,255,.04))',
-    border: 'rgba(90,162,255,.3)',
-  },
-  {
-    id: 'lab',
-    kicker: 'DIAGNOSTICS',
-    title: 'Full body checkup at home, ₹999',
-    desc: '89 tests · NABL labs · reports within 24 hours',
-    cta: 'BOOK A TEST',
-    accent: '#ffd58f',
-    bg: 'linear-gradient(172deg,rgba(255,181,71,.15),rgba(255,181,71,.04))',
-    border: 'rgba(255,181,71,.32)',
-  },
-  {
-    id: 'refill',
-    kicker: 'AUTO-REFILL',
-    title: 'Never run out of what matters',
-    desc: 'Scheduled refills, gentle reminders, 5% off every cycle',
-    cta: 'SET UP',
-    accent: '#d4bcff',
-    bg: 'linear-gradient(172deg,rgba(178,135,255,.14),rgba(178,135,255,.04))',
-    border: 'rgba(178,135,255,.32)',
-  },
+  // {
+  //   id: 'consult',
+  //   kicker: 'CONSULT',
+  //   title: 'A doctor on screen in 10 minutes',
+  //   desc: '22 specialities · prescriptions flow straight to your cart',
+  //   cta: 'FROM ₹199',
+  //   accent: '#9cc4ff',
+  //   bg: 'linear-gradient(172deg,rgba(90,162,255,.13),rgba(90,162,255,.04))',
+  //   border: 'rgba(90,162,255,.3)',
+  // },
+  // {
+  //   id: 'lab',
+  //   kicker: 'DIAGNOSTICS',
+  //   title: 'Full body checkup at home, ₹999',
+  //   desc: '89 tests · NABL labs · reports within 24 hours',
+  //   cta: 'BOOK A TEST',
+  //   accent: '#ffd58f',
+  //   bg: 'linear-gradient(172deg,rgba(255,181,71,.15),rgba(255,181,71,.04))',
+  //   border: 'rgba(255,181,71,.32)',
+  // },
+  // {
+  //   id: 'refill',
+  //   kicker: 'AUTO-REFILL',
+  //   title: 'Never run out of what matters',
+  //   desc: 'Scheduled refills, gentle reminders, 5% off every cycle',
+  //   cta: 'SET UP',
+  //   accent: '#d4bcff',
+  //   bg: 'linear-gradient(172deg,rgba(178,135,255,.14),rgba(178,135,255,.04))',
+  //   border: 'rgba(178,135,255,.32)',
+  // },
 ]
 
 export const TRUST_BADGES = [

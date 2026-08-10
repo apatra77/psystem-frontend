@@ -3,7 +3,6 @@ import { msg } from '@/shared/messages/messages'
 import { toast } from './uiStore'
 import {
   CANCEL_WINDOW_MINUTES,
-  INITIAL_ADDRESSES,
   INITIAL_COMPLAINTS,
   INITIAL_CUSTOMER_ORDERS,
   INITIAL_NOTIFICATIONS,
@@ -16,7 +15,8 @@ const uid = (prefix) => `${prefix}${Date.now().toString().slice(-6)}`
 /** Everything a signed-in customer owns: orders, addresses, payment methods, prescriptions, tickets. */
 export const useOrderStore = create((set, get) => ({
   orders: INITIAL_CUSTOMER_ORDERS,
-  addresses: INITIAL_ADDRESSES,
+  addresses: [],
+  addressesLoadedFromApi: false,
   paymentMethods: INITIAL_PAYMENT_METHODS,
   prescriptions: INITIAL_PRESCRIPTIONS,
   complaints: INITIAL_COMPLAINTS,
@@ -70,7 +70,11 @@ export const useOrderStore = create((set, get) => ({
     toast.success(msg('customer.addressSaved'))
     return record
   },
-  setAddressesFromApi: (incoming) => set({ addresses: Array.isArray(incoming) ? incoming : [] }),
+  setAddressesFromApi: (incoming) =>
+    set({
+      addresses: Array.isArray(incoming) ? incoming : [],
+      addressesLoadedFromApi: true,
+    }),
   deleteAddress: (id) => {
     set((s) => ({ addresses: s.addresses.filter((a) => a.id !== id) }))
     toast.info(msg('customer.addressDeleted'))

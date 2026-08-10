@@ -7,6 +7,8 @@ import { memoizeDerived } from './memoize'
 
 const round = (n) => Math.round(n * 100) / 100
 
+let inFlightLoadCart = null
+
 const buildLocalItem = (product, qty, cartItemId = null) => ({
   id: String(product.id),
   cartItemId: cartItemId ? String(cartItemId) : null,
@@ -83,19 +85,28 @@ export const useCartStore = create((set, get) => ({
   loading: false,
 
   loadCart: async ({ silent = false } = {}) => {
+    if (inFlightLoadCart) return inFlightLoadCart
+
     if (!silent) set({ loading: true })
-    try {
-      const payload = await fetchMyCart()
-      set({ items: mapCartFromApi(payload), loading: false })
-    } catch (error) {
-      set({ loading: false })
-      const message = error?.message ?? 'Could not load cart'
-      if (/404|not found|empty/i.test(message)) {
-        set({ items: [] })
-        return
+
+    inFlightLoadCart = (async () => {
+      try {
+        const payload = await fetchMyCart()
+        set({ items: mapCartFromApi(payload), loading: false })
+      } catch (error) {
+        set({ loading: false })
+        const message = error?.message ?? 'Could not load cart'
+        if (/404|not found|empty/i.test(message)) {
+          set({ items: [] })
+          return
+        }
+        if (!silent) toast.error(message)
+      } finally {
+        inFlightLoadCart = null
       }
-      if (!silent) toast.error(message)
-    }
+    })()
+
+    return inFlightLoadCart
   },
 
   addItem: async (product, qty = 1) => {

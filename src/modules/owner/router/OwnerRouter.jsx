@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { getStoredAuthUser } from '@/services/auth'
+import { isJwtExpired } from '@/shared/api/jwt'
+import useAuthStore from '@/app/store/authStore'
 import OwnerPortalPage from '../pages/OwnerPortalPage'
 import DashboardView from '../views/DashboardView'
 import OrdersView from '../views/OrdersView'
@@ -18,7 +20,8 @@ import {
 /** Owner portal routes mounted under `/owner/*`. */
 export default function OwnerRouter() {
   const user = getStoredAuthUser()
-  if (!user?.token) {
+  if (!user?.token || isJwtExpired(user.token)) {
+    if (user?.token) useAuthStore.getState().expireSession()
     return <Navigate to="/" replace />
   }
 
