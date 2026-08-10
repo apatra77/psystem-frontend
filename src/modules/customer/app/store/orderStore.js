@@ -24,9 +24,9 @@ export const useOrderStore = create((set, get) => ({
 
   getOrder: (id) => get().orders.find((o) => o.id === id) ?? null,
 
-  placeOrder: ({ items, totals, address, paymentMethod, scheduledFor, prescriptionId }) => {
+  placeOrder: ({ items, totals, address, paymentMethod, scheduledFor, prescriptionId, orderId, total }) => {
     const order = {
-      id: `MQ-${Math.floor(Math.random() * 90000 + 10000)}`,
+      id: orderId ?? `MQ-${Math.floor(Math.random() * 90000 + 10000)}`,
       placedAt: new Date().toISOString(),
       status: 'placed',
       paymentMethod,
@@ -35,7 +35,7 @@ export const useOrderStore = create((set, get) => ({
       prescriptionId: prescriptionId ?? null,
       rider: null,
       items: items.map((i) => ({ id: i.id, name: i.name, qty: i.qty, price: i.price })),
-      total: totals.total,
+      total: total ?? totals.total,
     }
     set((s) => ({ orders: [order, ...s.orders] }))
     toast.success(msg('customer.orderPlaced', { id: order.id }))

@@ -8,9 +8,15 @@ import Button from '@/shared/ui/Button'
 import Spinner from '@/shared/ui/Spinner'
 import { Form, RadioCardGroup, TextField, CheckboxField, SubmitButton } from '@/shared/components/form'
 import { checkoutSchema } from '@/app/validations/schemas/customer.schema'
+import { useAuthStore } from '@/app/store/authStore'
 import { useCartStore } from '@/app/store/cartStore'
 import { useOrderStore } from '@/app/store/orderStore'
+import { toast } from '@/app/store/uiStore'
 import { fetchUserProfile } from '@/services/user'
+import { createCodPayment } from '@/services/payments'
+import { getStoredAuthUser } from '@/services/auth'
+import { jwtSubject } from '@/shared/api/jwt'
+import { getAccessToken } from '@/shared/api/tokenBridge'
 import { PATHS, buildPath } from '@/app/router/paths'
 import { fmtINR } from '@/app/utils/format'
 import { msg } from '@/shared/messages/messages'
@@ -53,6 +59,19 @@ function ScheduleFields() {
   return <TextField name="scheduledFor" label="Deliver at" type="datetime-local" required />
 }
 
+function resolveUserId() {
+  const fromStore = useAuthStore.getState().user?.id
+  if (fromStore != null && fromStore !== '') return String(fromStore)
+
+  const stored = getStoredAuthUser()
+  if (stored?.userId != null && stored.userId !== '') return String(stored.userId)
+
+  const subject = jwtSubject(getAccessToken())
+  if (subject) return String(subject)
+
+  return null
+}
+
 function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, clear, placeOrder }) {
   const navigate = useNavigate()
 
@@ -64,18 +83,48 @@ function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, 
 
   const defaultAddressId = addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id ?? ''
 
-  const onSubmit = (values) => {
+  const onSubmit = async (values) => {
     const address = addresses.find((a) => a.id === values.addressId)
-    const order = placeOrder({
-      items,
-      totals,
-      address: `${address.label} · ${address.line1}, ${address.city}`,
-      paymentMethod: values.paymentMethod,
-      scheduledFor: values.scheduleLater ? values.scheduledFor : scheduledFor,
-      prescriptionId,
-    })
-    clear()
-    navigate(buildPath(PATHS.customer.orderSuccess, { id: order.id }), { replace: true })
+
+    try {
+      let apiOrderId = null
+      let apiOrderTotal = null
+
+      if (values.paymentMethod === 'cod') {
+        const userId = resolveUserId()
+        if (!userId) {
+          throw new Error('Could not resolve user id for payment')
+        }
+
+        const payment = await createCodPayment({
+          amount: Number(totals.total.toFixed(2)),
+          transactionNote: 'Cash On Delivery',
+          transactionRefId: `ORD-${userId}`,
+        })
+
+        if (!payment.orderId) {
+          throw new Error('Order id missing from payment response')
+        }
+
+        apiOrderId = payment.orderId
+        apiOrderTotal = payment.amount || totals.total
+      }
+
+      const order = placeOrder({
+        items,
+        totals,
+        address: `${address.label} · ${address.line1}, ${address.city}`,
+        paymentMethod: values.paymentMethod,
+        scheduledFor: values.scheduleLater ? values.scheduledFor : scheduledFor,
+        prescriptionId,
+        orderId: apiOrderId ?? undefined,
+        total: apiOrderTotal ?? undefined,
+      })
+      clear()
+      navigate(buildPath(PATHS.customer.orderSuccess, { id: order.id }), { replace: true })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not place order')
+    }
   }
 
   if (addresses.length === 0) {

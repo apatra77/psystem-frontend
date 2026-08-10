@@ -13,7 +13,7 @@ export default function OrderSuccessPage() {
   return (
     <div className="max-w-[560px] mx-auto text-center py-10">
       <CheckCircle2 size={54} style={{ color: colors.accent }} className="mx-auto" />
-      <h1 className="text-[26px] font-extrabold mt-5" style={{ color: colors.textBright }}>Order confirmed</h1>
+      <h1 className="text-[26px] font-extrabold mt-5" style={{ color: colors.textBright }}>Order placed</h1>
       <p className="text-[14px] mt-2" style={{ color: colors.textMuted }}>
         Order <strong style={{ color: colors.textBright }}>{id}</strong> is being prepared by the store.
       </p>
