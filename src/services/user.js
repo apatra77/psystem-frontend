@@ -89,6 +89,12 @@ export async function saveUserAddress(profile) {
   })
 }
 
+export async function deleteUserAddress(addressId) {
+  return authFetch(`/api/user/addresses/${encodeURIComponent(addressId)}`, {
+    method: 'DELETE',
+  })
+}
+
 function pick(obj, ...keys) {
   for (const key of keys) {
     const value = obj?.[key]

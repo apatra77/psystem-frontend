@@ -9,8 +9,8 @@ import Spinner from '@/shared/ui/Spinner'
 import { Form, TextField, CheckboxField, SubmitButton } from '@/shared/components/form'
 import { addressSchema } from '@/app/validations/schemas/customer.schema'
 import { useOrderStore } from '@/app/store/orderStore'
-import { useUiStore } from '@/app/store/uiStore'
-import { fetchUserProfile } from '@/services/user'
+import { useUiStore, toast } from '@/app/store/uiStore'
+import { deleteUserAddress, fetchUserProfile } from '@/services/user'
 import { msg } from '@/shared/messages/messages'
 import { colors } from '@/app/themes/colors'
 
@@ -56,6 +56,25 @@ export default function AddressesPage() {
     setEditing(null)
   }
 
+  const handleDeleteAddress = (address) => {
+    askConfirm({
+      title: 'Delete address',
+      message: msg('common.confirmDelete', { name: address.label }),
+      tone: 'danger',
+      confirmLabel: 'Delete',
+      loadingLabel: 'Removing address…',
+      onConfirm: async () => {
+        try {
+          await deleteUserAddress(address.id)
+          deleteAddress(address.id)
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : 'Could not delete address')
+          throw error
+        }
+      },
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-3 py-24 text-[13px]" style={{ color: colors.textMuted }}>
@@ -93,13 +112,7 @@ export default function AddressesPage() {
                   size="sm"
                   variant="danger"
                   icon={Trash2}
-                  onClick={() => askConfirm({
-                    title: 'Delete address',
-                    message: msg('common.confirmDelete', { name: a.label }),
-                    tone: 'danger',
-                    confirmLabel: 'Delete',
-                    onConfirm: () => deleteAddress(a.id),
-                  })}
+                  onClick={() => handleDeleteAddress(a)}
                 >
                   Delete
                 </Button>
