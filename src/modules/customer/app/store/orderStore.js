@@ -4,7 +4,6 @@ import { toast } from './uiStore'
 import {
   CANCEL_WINDOW_MINUTES,
   INITIAL_COMPLAINTS,
-  INITIAL_CUSTOMER_ORDERS,
   INITIAL_NOTIFICATIONS,
   INITIAL_PAYMENT_METHODS,
   INITIAL_PRESCRIPTIONS,
@@ -14,7 +13,8 @@ const uid = (prefix) => `${prefix}${Date.now().toString().slice(-6)}`
 
 /** Everything a signed-in customer owns: orders, addresses, payment methods, prescriptions, tickets. */
 export const useOrderStore = create((set, get) => ({
-  orders: INITIAL_CUSTOMER_ORDERS,
+  orders: [],
+  ordersLoadedFromApi: false,
   addresses: [],
   addressesLoadedFromApi: false,
   paymentMethods: INITIAL_PAYMENT_METHODS,
@@ -23,6 +23,12 @@ export const useOrderStore = create((set, get) => ({
   notifications: INITIAL_NOTIFICATIONS,
 
   getOrder: (id) => get().orders.find((o) => o.id === id) ?? null,
+
+  setOrdersFromApi: (incoming) =>
+    set({
+      orders: Array.isArray(incoming) ? incoming : [],
+      ordersLoadedFromApi: true,
+    }),
 
   placeOrder: ({ items, totals, address, addressDetails, paymentMethod, scheduledFor, prescriptionId, orderId, total }) => {
     const order = {

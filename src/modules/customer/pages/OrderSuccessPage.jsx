@@ -327,9 +327,9 @@ export default function OrderSuccessPage() {
       )}
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center mt-7">
-        <Button as={Link} to={buildPath(PATHS.customer.orderTracking, { id })} size="lg" icon={Package}>
+        {/* <Button as={Link} to={buildPath(PATHS.customer.orderTracking, { id })} size="lg" icon={Package}>
           Track Order
-        </Button>
+        </Button> */}
         <Button as={Link} to={PATHS.customer.search} size="lg" variant="secondary" icon={ShoppingBag}>
           Continue Shopping
         </Button>

@@ -60,10 +60,12 @@ export function buildUserDetailsPayload(profile) {
 
 export async function saveUserDetails(profile) {
   const payload = buildUserDetailsPayload(profile)
-  return authFetch('/api/user/details', {
+  const result = await authFetch('/api/user/details', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+  invalidateUserProfileCache()
+  return result
 }
 
 export function buildAddressPayload({ fullName, email, mobile, address, country = 'India' }) {

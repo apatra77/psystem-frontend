@@ -2,10 +2,44 @@ import { useEffect, useState } from 'react'
 import { Calendar, Camera, Mail, MapPin, Pencil, Phone, Shield, User } from 'lucide-react'
 import PageHeader from '@/shared/ui/PageHeader'
 import Spinner from '@/shared/ui/Spinner'
+import ProfileSetupModal from '@/components/modals/ProfileSetupModal'
 import { useAuthStore } from '@/app/store/authStore'
 import { getUserInitials } from '@/services/auth'
 import { fetchUserProfile } from '@/services/user'
+import { toast } from '@/app/store/uiStore'
+import { msg } from '@/shared/messages/messages'
 import { colors } from '@/app/themes/colors'
+
+function toModalAddress(profile, authUser) {
+  const primary =
+    profile?.addresses?.find((address) => address.isDefault) ??
+    profile?.addresses?.[0] ??
+    null
+
+  if (primary) {
+    return {
+      line1: primary.line1 ?? '',
+      line2: primary.line2 ?? '',
+      landmark: primary.landmark ?? primary.raw?.landmark ?? '',
+      city: primary.city ?? '',
+      state: primary.state ?? '',
+      pincode: primary.pincode ?? '',
+    }
+  }
+
+  const stored = authUser?.address
+  if (!stored) return null
+  if (typeof stored === 'string') return { line1: stored, line2: '', landmark: '', city: '', state: '', pincode: '' }
+
+  return {
+    line1: stored.line1 ?? '',
+    line2: stored.line2 ?? '',
+    landmark: stored.landmark ?? '',
+    city: stored.city ?? '',
+    state: stored.state ?? '',
+    pincode: stored.pincode ?? '',
+  }
+}
 
 function formatRole(role) {
   const value = String(role ?? 'Customer').replace(/_/g, ' ').toLowerCase()
@@ -41,9 +75,11 @@ function InfoRow({ icon: Icon, label, value }) {
 
 export default function ProfilePage() {
   const authUser = useAuthStore((s) => s.user)
+  const updateUser = useAuthStore((s) => s.updateUser)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showEditProfile, setShowEditProfile] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -73,6 +109,23 @@ export default function ProfilePage() {
   const location = profile?.location || '—'
   const memberSince = profile?.memberSince || '—'
   const initials = getUserInitials({ ...authUser, fullName: displayName, email: profile?.email || authUser?.email })
+
+  const handleProfileSaved = async () => {
+    try {
+      const data = await fetchUserProfile({ force: true })
+      setProfile(data)
+      updateUser({
+        fullName: data?.fullName ?? authUser?.fullName,
+        email: data?.email ?? authUser?.email,
+        mobile: data?.mobile ?? authUser?.mobile,
+        countryCode: data?.countryCode ?? authUser?.countryCode,
+      })
+      setShowEditProfile(false)
+      toast.success(msg('customer.profileUpdated'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not refresh profile')
+    }
+  }
 
   if (loading) {
     return (
@@ -155,6 +208,7 @@ export default function ProfilePage() {
 
           <button
             type="button"
+            onClick={() => setShowEditProfile(true)}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-[10px] px-4 py-2.5 text-[12.5px] font-extrabold cursor-pointer"
             style={{
               color: colors.accent,
@@ -181,6 +235,20 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {showEditProfile && (
+        <ProfileSetupModal
+          mode="editProfile"
+          initialFullName={profile?.fullName || authUser?.fullName || ''}
+          initialEmail={profile?.email || authUser?.email || ''}
+          initialMobile={profile?.mobile || authUser?.mobile || ''}
+          initialCountryCode={profile?.countryCode || authUser?.countryCode || '+91'}
+          initialAddress={toModalAddress(profile, authUser)}
+          onClose={() => setShowEditProfile(false)}
+          onComplete={handleProfileSaved}
+          onSkip={() => setShowEditProfile(false)}
+        />
+      )}
     </div>
   )
 }

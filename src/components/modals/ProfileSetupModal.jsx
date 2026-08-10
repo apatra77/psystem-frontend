@@ -395,7 +395,9 @@ export default function ProfileSetupModal({
 }) {
   const isAddAddress = mode === 'addAddress'
   const isEditAddress = mode === 'editAddress'
+  const isEditProfile = mode === 'editProfile'
   const isAddressForm = isAddAddress || isEditAddress
+  const usesCancelSave = isAddressForm || isEditProfile
   const [fullName, setFullName] = useState(initialFullName)
   const [email, setEmail] = useState(initialEmail)
   const [mobile, setMobile] = useState(initialMobile)
@@ -575,18 +577,22 @@ export default function ProfileSetupModal({
                 className="text-[22px] font-black text-white"
                 style={{ letterSpacing: '-0.025em' }}
               >
-                {isEditAddress
-                  ? 'Edit address'
-                  : isAddAddress
-                    ? 'Add new address'
-                    : 'Complete your profile'}
+                {isEditProfile
+                  ? 'Edit profile'
+                  : isEditAddress
+                    ? 'Edit address'
+                    : isAddAddress
+                      ? 'Add new address'
+                      : 'Complete your profile'}
               </h2>
               <p className="text-[13px] mt-1.5 leading-relaxed" style={{ color: colors.textSecondary }}>
-                {isEditAddress
+                {isEditProfile
                   ? 'Update your name and delivery address.'
-                  : isAddAddress
-                    ? 'Add your name and delivery address to save this location.'
-                    : "You're almost there. Add your name and delivery address to finish setting up your account."}
+                  : isEditAddress
+                    ? 'Update your name and delivery address.'
+                    : isAddAddress
+                      ? 'Add your name and delivery address to save this location.'
+                      : "You're almost there. Add your name and delivery address to finish setting up your account."}
               </p>
             </div>
 
@@ -726,7 +732,7 @@ export default function ProfileSetupModal({
               <div className="mb-3 text-[12px] font-bold text-red-400">{saveError}</div>
             )}
             <div className="flex gap-3">
-              {isAddressForm ? (
+              {usesCancelSave ? (
                 <>
                   <button
                     type="button"
@@ -756,6 +762,8 @@ export default function ProfileSetupModal({
                         <Spinner />
                         Saving…
                       </>
+                    ) : isEditProfile ? (
+                      'Save changes'
                     ) : (
                       'Save address'
                     )}
