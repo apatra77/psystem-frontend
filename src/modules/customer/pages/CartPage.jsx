@@ -128,7 +128,6 @@ export default function CartPage() {
             {totals.couponDiscount > 0 && <div className="flex justify-between" style={{ color: colors.accent }}><dt>Coupon</dt><dd>−{fmtINR(totals.couponDiscount)}</dd></div>}
             <div className="flex justify-between"><dt>Delivery</dt><dd>{totals.delivery === 0 ? 'Free' : fmtINR(totals.delivery)}</dd></div>
             <div className="flex justify-between"><dt>Packaging</dt><dd>{fmtINR(totals.packaging)}</dd></div>
-            <div className="flex justify-between"><dt>GST</dt><dd>{fmtINR(totals.tax)}</dd></div>
           </dl>
 
           <div className="flex justify-between items-center mt-4 pt-4 text-[16px] font-extrabold" style={{ borderTop: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}>

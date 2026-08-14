@@ -1,7 +1,6 @@
-export const DELIVERY_FEE = 29
-export const FREE_DELIVERY_ABOVE = 499
+export const DELIVERY_FEE = 49
+export const FREE_DELIVERY_ABOVE = 100
 export const PACKAGING_FEE = 9
-export const TAX_RATE = 0.05
 
 export const COUPONS = [
   { code: 'MEDIQ10', type: 'percent', value: 10, maxDiscount: 150, label: '10% off up to ₹150' },

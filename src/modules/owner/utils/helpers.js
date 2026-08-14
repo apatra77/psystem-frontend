@@ -21,9 +21,47 @@ export function orderStatusMeta(s) {
     ready: { label: 'Ready for pickup', color: '#40deaa', bg: 'rgba(64,222,170,.14)', border: 'rgba(64,222,170,.36)' },
     out: { label: 'Out for delivery', color: '#d4bcff', bg: 'rgba(178,135,255,.15)', border: 'rgba(178,135,255,.34)' },
     delivered: { label: 'Delivered', color: '#68d9b4', bg: 'rgba(64,222,170,.08)', border: 'rgba(64,222,170,.22)' },
+    rejected: { label: 'Rejected', ...danger },
     cancelled: { label: 'Cancelled', ...danger },
   }
   return map[s] || map.new
+}
+
+export function getReviewStatus(status) {
+  if (status === 'new') return 'pending'
+  if (status === 'rejected') return 'rejected'
+  return 'approved'
+}
+
+export function reviewStatusMeta(reviewStatus) {
+  const map = {
+    pending: { label: 'Pending', color: '#ffd58f', bg: 'rgba(255,181,71,.15)', border: 'rgba(255,181,71,.34)' },
+    approved: { label: 'Approved', color: '#40deaa', bg: 'rgba(64,222,170,.14)', border: 'rgba(64,222,170,.36)' },
+    rejected: { label: 'Rejected', color: '#ff8a80', bg: 'rgba(255,138,128,0.14)', border: 'rgba(255,138,128,0.34)' },
+  }
+  return map[reviewStatus] || map.pending
+}
+
+export function paymentStatusMeta(payment = '') {
+  const isCod = String(payment).toUpperCase() === 'COD'
+  return isCod
+    ? { label: 'COD', color: '#ffd58f', bg: 'rgba(255,181,71,.15)', border: 'rgba(255,181,71,.34)' }
+    : { label: 'Paid', color: '#40deaa', bg: 'rgba(64,222,170,.14)', border: 'rgba(64,222,170,.36)' }
+}
+
+export function formatOrderedOn(order) {
+  if (order.orderedAt) {
+    return new Date(order.orderedAt).toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+  if (order.date && order.time) return `${order.date} ${order.time}`
+  if (order.placedMinAgo != null) return `${order.placedMinAgo} min ago`
+  return '—'
 }
 
 export function stockMeta(stock) {
@@ -43,12 +81,25 @@ export function orderTotal(o) {
 export function mapOrder(o) {
   const sm = orderStatusMeta(o.status)
   const total = orderTotal(o)
+  const reviewStatus = getReviewStatus(o.status)
+  const orderedAtMs = o.orderedAt
+    ? new Date(o.orderedAt).getTime()
+    : o.placedMinAgo != null
+      ? Date.now() - o.placedMinAgo * 60_000
+      : 0
+
   return {
     ...o,
     itemsCount: o.items.length,
     total,
     totalFmt: fmtINR(total),
     statusMeta: sm,
+    reviewStatus,
+    reviewMeta: reviewStatusMeta(reviewStatus),
+    paymentMeta: paymentStatusMeta(o.payment),
+    orderedOn: formatOrderedOn(o),
+    orderedAtMs,
+    phone: o.phone ?? '—',
     placedLabel: o.placedMinAgo != null ? `${o.placedMinAgo} min ago` : `${o.date}, ${o.time}`,
   }
 }
@@ -78,7 +129,7 @@ export function buildRevenueChart(revValues) {
 
 export const PAGE_META = {
   dashboard: { title: 'Dashboard', subtitleKey: 'outlet' },
-  orders: { title: 'Orders', subtitle: 'Live queue and history' },
+  orders: { title: 'Orders', subtitle: 'Manage and review customer orders.' },
   products: { title: 'Products', subtitle: 'Catalog, pricing and stock' },
   categories: { title: 'Categories', subtitle: 'Organize your storefront aisles' },
   inventory: { title: 'Inventory', subtitle: 'Stock levels and price sync' },

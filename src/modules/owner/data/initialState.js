@@ -76,15 +76,60 @@ export const INITIAL_PRODUCTS = [
   { id: 'p12', name: 'Baby Diaper Pants M, 54pc', cat: 'baby', sku: 'MQ-BAB-7001', price: 649, mrp: 799, stock: 76, rx: false, status: 'active' },
 ]
 
-export const INITIAL_ORDERS = [
-  { id: '#MQ-18344', customer: 'Priya Sharma', address: 'Indiranagar 100ft Rd', status: 'new', payment: 'Card', placedMinAgo: 6, rx: true, coldChain: true, rider: null, items: [{ n: 'Insulin Glargine Pen', q: 2, p: 489 }, { n: 'Metformin 500mg SR', q: 3, p: 32 }] },
-  { id: '#MQ-18343', customer: 'Rohit Verma', address: 'Domlur', status: 'new', payment: 'COD', placedMinAgo: 4, rx: false, coldChain: false, rider: null, items: [{ n: 'Vitamin D3 60K', q: 1, p: 96 }] },
-  { id: '#MQ-18342', customer: 'Anita Rao', address: 'Indiranagar 12th Main', status: 'new', payment: 'UPI', placedMinAgo: 2, rx: true, coldChain: false, rider: null, items: [{ n: 'Multivitamin Daily', q: 1, p: 349 }] },
-  { id: '#MQ-18339', customer: 'Fatima Sheikh', address: 'Koramangala 5th Block', status: 'preparing', payment: 'UPI', placedMinAgo: 24, rx: true, coldChain: false, rider: null, items: [{ n: 'Metformin 500mg SR', q: 2, p: 32 }] },
-  { id: '#MQ-18336', customer: 'Meera Pillai', address: 'Indiranagar 80ft Rd', status: 'ready', payment: 'UPI', placedMinAgo: 38, rx: true, coldChain: false, rider: null, items: [{ n: 'Telmisartan 40mg', q: 1, p: 58 }] },
-  { id: '#MQ-18330', customer: 'Vikram Singh', address: 'HSR Layout 27th Main', status: 'out', payment: 'UPI', placedMinAgo: 55, rx: false, coldChain: false, rider: 'Manoj Toppo', eta: 8, items: [{ n: 'Glucometer Kit + 25 strips', q: 1, p: 899 }] },
-  { id: '#MQ-18328', customer: 'Sara Khan', address: 'Indiranagar', status: 'delivered', payment: 'UPI', date: '19 Jul', time: '9:12 PM', rx: false, coldChain: false, rider: 'Suresh Kumar', items: [{ n: 'Vitamin D3 60K', q: 1, p: 96 }] },
+const BASE_ORDERS = [
+  { id: '#MQ-18344', customer: 'Priya Sharma', phone: '+91 98765 43210', address: 'Indiranagar 100ft Rd', status: 'new', payment: 'Card', placedMinAgo: 6, orderedAt: '2026-05-10T12:42:00.000Z', rx: true, coldChain: true, rider: null, items: [{ n: 'Insulin Glargine Pen', q: 2, p: 489 }, { n: 'Metformin 500mg SR', q: 3, p: 32 }] },
+  { id: '#MQ-18343', customer: 'Rohit Verma', phone: '+91 91234 56789', address: 'Domlur', status: 'new', payment: 'COD', placedMinAgo: 4, orderedAt: '2026-05-10T12:44:00.000Z', rx: false, coldChain: false, rider: null, items: [{ n: 'Vitamin D3 60K', q: 1, p: 96 }] },
+  { id: '#MQ-18342', customer: 'Anita Rao', phone: '+91 99887 76655', address: 'Indiranagar 12th Main', status: 'new', payment: 'UPI', placedMinAgo: 2, orderedAt: '2026-05-10T12:46:00.000Z', rx: true, coldChain: false, rider: null, items: [{ n: 'Multivitamin Daily', q: 1, p: 349 }] },
+  { id: '#MQ-18341', customer: 'Karan Mehta', phone: '+91 98123 45678', address: 'Koramangala 4th Block', status: 'preparing', payment: 'UPI', placedMinAgo: 18, orderedAt: '2026-05-10T12:30:00.000Z', rx: false, coldChain: false, rider: null, items: [{ n: 'Ashwagandha 600mg', q: 1, p: 399 }] },
+  { id: '#MQ-18340', customer: 'Deepa Nair', phone: '+91 97654 32109', address: 'HSR Layout Sector 2', status: 'rejected', payment: 'Card', placedMinAgo: 32, orderedAt: '2026-05-10T12:16:00.000Z', rx: false, coldChain: false, rider: null, items: [{ n: 'Digital BP Monitor', q: 1, p: 1499 }] },
+  { id: '#MQ-18339', customer: 'Fatima Sheikh', phone: '+91 96543 21098', address: 'Koramangala 5th Block', status: 'preparing', payment: 'UPI', placedMinAgo: 24, orderedAt: '2026-05-10T12:24:00.000Z', rx: true, coldChain: false, rider: null, items: [{ n: 'Metformin 500mg SR', q: 2, p: 32 }] },
+  { id: '#MQ-18336', customer: 'Meera Pillai', phone: '+91 95432 10987', address: 'Indiranagar 80ft Rd', status: 'ready', payment: 'UPI', placedMinAgo: 38, orderedAt: '2026-05-10T12:10:00.000Z', rx: true, coldChain: false, rider: null, items: [{ n: 'Telmisartan 40mg', q: 1, p: 58 }] },
+  { id: '#MQ-18330', customer: 'Vikram Singh', phone: '+91 94321 09876', address: 'HSR Layout 27th Main', status: 'out', payment: 'UPI', placedMinAgo: 55, orderedAt: '2026-05-10T11:53:00.000Z', rx: false, coldChain: false, rider: 'Manoj Toppo', eta: 8, items: [{ n: 'Glucometer Kit + 25 strips', q: 1, p: 899 }] },
+  { id: '#MQ-18328', customer: 'Sara Khan', phone: '+91 93210 98765', address: 'Indiranagar', status: 'delivered', payment: 'UPI', date: '19 Jul', time: '9:12 PM', orderedAt: '2026-07-19T15:42:00.000Z', rx: false, coldChain: false, rider: 'Suresh Kumar', items: [{ n: 'Vitamin D3 60K', q: 1, p: 96 }] },
 ]
+
+function expandOrders(base, targetCount = 128) {
+  const payments = ['UPI', 'Card', 'COD']
+  const reviewStatuses = ['new', 'preparing', 'ready', 'out', 'delivered', 'rejected']
+  const customers = [
+    ['Arjun Desai', '+91 90123 45678', 'BTM Layout'],
+    ['Neha Kapoor', '+91 90234 56789', 'Whitefield'],
+    ['Imran Ali', '+91 90345 67890', 'Jayanagar'],
+    ['Lakshmi Iyer', '+91 90456 78901', 'Malleshwaram'],
+    ['Rahul Joshi', '+91 90567 89012', 'Yelahanka'],
+  ]
+
+  const result = [...base]
+  let index = 0
+
+  while (result.length < targetCount) {
+    const seed = base[index % base.length]
+    const [customer, phone, address] = customers[index % customers.length]
+    const status = reviewStatuses[index % reviewStatuses.length]
+    const minutesAgo = 60 + index * 17
+    const orderedAt = new Date(Date.now() - minutesAgo * 60_000).toISOString()
+
+    result.push({
+      ...seed,
+      id: `#MQ-${18300 - index}`,
+      customer,
+      phone,
+      address,
+      status,
+      payment: payments[index % payments.length],
+      placedMinAgo: minutesAgo,
+      orderedAt,
+      date: undefined,
+      time: undefined,
+      rider: status === 'out' ? 'Manoj Toppo' : status === 'delivered' ? 'Suresh Kumar' : null,
+    })
+    index += 1
+  }
+
+  return result
+}
+
+export const INITIAL_ORDERS = expandOrders(BASE_ORDERS)
 
 export const INITIAL_STAFF = [
   { id: 'st1', name: 'Neha Kulkarni', email: 'neha.kulkarni@mediq.co', role: 'Admin', status: 'active', lastActive: 'Active now' },

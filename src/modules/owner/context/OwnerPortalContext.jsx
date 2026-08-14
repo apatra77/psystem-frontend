@@ -90,6 +90,22 @@ export function OwnerPortalProvider({ children }) {
     })
   }
 
+  const acceptOrder = useCallback((id) => {
+    setOrders((prev) =>
+      prev.map((order) => (order.id === id && order.status === 'new' ? { ...order, status: 'preparing' } : order)),
+    )
+  }, [])
+
+  const rejectOrder = useCallback((id) => {
+    setOrders((prev) =>
+      prev.map((order) => (order.id === id && order.status === 'new' ? { ...order, status: 'rejected' } : order)),
+    )
+  }, [])
+
+  const updateOrderStatus = useCallback((id, status) => {
+    setOrders((prev) => prev.map((order) => (order.id === id ? { ...order, status } : order)))
+  }, [])
+
   const saveProduct = useCallback((draft) => {
     const rec = {
       id: draft.id || `p${Date.now()}`,
@@ -292,6 +308,9 @@ export function OwnerPortalProvider({ children }) {
         stockMeta: stockMeta(p.stock),
       })),
       ordersMapped,
+      acceptOrder,
+      rejectOrder,
+      updateOrderStatus,
       products,
       productsLoading,
       productsError,
@@ -321,6 +340,9 @@ export function OwnerPortalProvider({ children }) {
     notifOpen,
     profileMenuOpen,
     orders,
+    acceptOrder,
+    rejectOrder,
+    updateOrderStatus,
     products,
     productsLoading,
     productsError,

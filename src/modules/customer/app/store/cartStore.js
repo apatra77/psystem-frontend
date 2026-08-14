@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { msg } from '@/shared/messages/messages'
 import { toast } from './uiStore'
-import { COUPONS, DELIVERY_FEE, FREE_DELIVERY_ABOVE, PACKAGING_FEE, TAX_RATE } from '@/shared/mocks/pricing'
+import { COUPONS, DELIVERY_FEE, FREE_DELIVERY_ABOVE, PACKAGING_FEE } from '@/shared/mocks/pricing'
 import { addCartItem, deleteCartItem, fetchMyCart, mapCartFromApi, mapCartItemFromApi, resolveCartItemId, updateCartItem } from '@/services/cart'
 import { memoizeDerived } from './memoize'
 
@@ -61,9 +61,9 @@ const computeTotals = memoizeDerived((items, coupon) => {
       ? Math.min((subtotal * coupon.value) / 100, coupon.maxDiscount ?? Infinity)
       : Math.min(coupon.value, subtotal)
   const taxable = Math.max(subtotal - couponDiscount, 0)
-  const delivery = items.length === 0 || taxable >= FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE
+  const delivery =
+    items.length === 0 ? 0 : subtotal >= FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE
   const packaging = items.length === 0 ? 0 : PACKAGING_FEE
-  const tax = taxable * TAX_RATE
 
   return {
     subtotal: round(subtotal),
@@ -71,8 +71,7 @@ const computeTotals = memoizeDerived((items, coupon) => {
     couponDiscount: round(couponDiscount),
     delivery: round(delivery),
     packaging: round(packaging),
-    tax: round(tax),
-    total: round(taxable + delivery + packaging + tax),
+    total: round(taxable + delivery + packaging),
   }
 })
 
