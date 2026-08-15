@@ -316,7 +316,7 @@ export function StoreView() {
           </span>
         </div>
         <div className="mt-6">
-          <div className="text-[15px] font-extrabold text-white mb-3">Outlets in this chain</div>
+          <div className="text-[15px] font-extrabold text-white mb-3">Saved addresses</div>
           {outlets.map((o) => (
             <div
               key={o.id}
@@ -324,10 +324,24 @@ export function StoreView() {
               style={{ border: '1px solid rgba(255,255,255,0.09)' }}
             >
               <span className="w-2 h-2 rounded-full" style={{ background: o.status === 'open' ? colors.accent : colors.gold }} />
-              <div className="flex-1">
-                <div className="text-[12.5px] font-bold text-white">{o.name}</div>
-                <div className="text-[11px]" style={{ color: colors.textSecondary }}>
-                  {o.address} · {o.pincode}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[12.5px] font-bold text-white">{o.label}</span>
+                  {o.isDefault && (
+                    <span
+                      className="text-[9px] font-extrabold px-2 py-0.5 rounded-full"
+                      style={{
+                        color: colors.accent,
+                        background: 'rgba(64,222,170,0.12)',
+                        border: '1px solid rgba(64,222,170,0.28)',
+                      }}
+                    >
+                      Default
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] leading-relaxed" style={{ color: colors.textSecondary }}>
+                  {o.lines || '—'}
                 </div>
               </div>
               {o.id !== activeOutlet && (

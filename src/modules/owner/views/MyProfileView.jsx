@@ -54,7 +54,7 @@ function SummaryRow({ icon: Icon, value }) {
 }
 
 export default function MyProfileView() {
-  const { authUser, activeOutletName } = useOwnerPortal()
+  const { authUser, activeOutletName, reloadOutletAddresses } = useOwnerPortal()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -343,6 +343,7 @@ export default function MyProfileView() {
         onComplete={() => {
           setShowAddAddress(false)
           setReloadKey((k) => k + 1)
+          reloadOutletAddresses({ force: true })
         }}
         onSkip={() => setShowAddAddress(false)}
       />

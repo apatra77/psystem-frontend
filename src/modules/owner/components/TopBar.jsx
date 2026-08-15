@@ -12,6 +12,7 @@ export default function TopBar() {
   const page = useOwnerPage()
   const {
     activeOutletName,
+    activeOutletLines,
     outlets,
     activeOutlet,
     outletMenuOpen,
@@ -28,6 +29,7 @@ export default function TopBar() {
     incomingCount,
     incomingPreview,
     authUser,
+    addressesLoading,
   } = useOwnerPortal()
 
   const displayName = authUser?.fullName?.trim() || authUser?.email || 'User'
@@ -122,7 +124,8 @@ export default function TopBar() {
           <button
             type="button"
             onClick={toggleOutlet}
-            className="flex items-center gap-2 text-[12.5px] font-bold px-[13px] py-[9px] rounded-xl cursor-pointer whitespace-nowrap"
+            disabled={addressesLoading && outlets.length === 0}
+            className="flex items-center gap-2 text-[12.5px] font-bold px-[13px] py-[9px] rounded-xl cursor-pointer max-w-[280px] disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
               color: colors.textHighlight,
               background: 'rgba(255,255,255,0.06)',
@@ -133,12 +136,21 @@ export default function TopBar() {
               className="w-[7px] h-[7px] rounded-full flex-shrink-0"
               style={{ background: colors.accent, boxShadow: `0 0 8px ${colors.accent}` }}
             />
-            {activeOutletName}
-            <ChevronDown size={13} strokeWidth={2.2} style={{ color: colors.textDim }} />
+            <span className="min-w-0 text-left">
+              <span className="block truncate">
+                {addressesLoading ? 'Loading addresses…' : activeOutletName}
+              </span>
+              {!addressesLoading && activeOutletLines && (
+                <span className="block text-[10px] font-medium truncate mt-0.5" style={{ color: colors.textDim }}>
+                  {activeOutletLines}
+                </span>
+              )}
+            </span>
+            <ChevronDown size={13} strokeWidth={2.2} style={{ color: colors.textDim, flexShrink: 0 }} />
           </button>
           {outletMenuOpen && (
             <div
-              className="absolute top-[calc(100%+8px)] left-0 w-[260px] z-[60] rounded-[14px] p-2 owner-dropdown"
+              className="absolute top-[calc(100%+8px)] left-0 w-[320px] z-[60] rounded-[14px] p-2 owner-dropdown"
               style={{
                 background: 'rgba(10,28,22,0.97)',
                 backdropFilter: 'blur(20px)',
@@ -147,28 +159,48 @@ export default function TopBar() {
               }}
             >
               <div className="text-[10px] font-extrabold tracking-[0.14em] px-2.5 py-1.5" style={{ color: '#5f7d73' }}>
-                SWITCH OUTLET
+                SWITCH ADDRESS
               </div>
-              {outlets.map((o) => (
-                <button
-                  key={o.id}
-                  type="button"
-                  onClick={() => selectOutlet(o.id)}
-                  className="w-full flex items-center gap-2.5 p-2.5 rounded-[10px] cursor-pointer text-left hover:bg-[rgba(64,222,170,0.1)]"
-                  style={{ background: o.id === activeOutlet ? 'rgba(64,222,170,0.1)' : 'transparent' }}
-                >
-                  <span
-                    className="w-[7px] h-[7px] rounded-full flex-shrink-0"
-                    style={{ background: o.status === 'open' ? colors.accent : o.status === 'paused' ? colors.gold : '#5f7d73' }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12.5px] font-bold text-white">{o.name}</div>
-                    <div className="text-[10.5px] mt-px" style={{ color: colors.textDim }}>
-                      {o.pincode} · {o.status === 'open' ? 'Open' : o.status === 'paused' ? 'Paused' : 'Closed'}
+              {outlets.length > 0 ? (
+                outlets.map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => selectOutlet(o.id)}
+                    className="w-full flex items-start gap-2.5 p-2.5 rounded-[10px] cursor-pointer text-left hover:bg-[rgba(64,222,170,0.1)]"
+                    style={{ background: o.id === activeOutlet ? 'rgba(64,222,170,0.1)' : 'transparent' }}
+                  >
+                    <span
+                      className="w-[7px] h-[7px] rounded-full flex-shrink-0 mt-1.5"
+                      style={{ background: o.status === 'open' ? colors.accent : o.status === 'paused' ? colors.gold : '#5f7d73' }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[12.5px] font-bold text-white">{o.label}</span>
+                        {o.isDefault && (
+                          <span
+                            className="text-[9px] font-extrabold px-2 py-0.5 rounded-full"
+                            style={{
+                              color: colors.accent,
+                              background: 'rgba(64,222,170,0.12)',
+                              border: '1px solid rgba(64,222,170,0.28)',
+                            }}
+                          >
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] mt-1 leading-relaxed" style={{ color: colors.textSecondary }}>
+                        {o.lines || '—'}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))
+              ) : (
+                <div className="px-2.5 py-3 text-[11.5px] leading-relaxed" style={{ color: colors.textDim }}>
+                  No saved addresses yet. Add one from My Profile.
+                </div>
+              )}
             </div>
           )}
         </div>

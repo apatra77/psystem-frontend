@@ -1,9 +1,8 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { pageToPath } from '../routes'
 import {
   INITIAL_ORDERS,
-  INITIAL_OUTLETS,
   INITIAL_PROMOS,
   INITIAL_RIDERS,
   INITIAL_STAFF,
@@ -18,8 +17,34 @@ import {
   fetchProductsSearch,
   deleteProductById,
 } from '@/services/products'
+import { fetchUserProfile } from '@/services/user'
 
 const OwnerPortalContext = createContext(null)
+
+const DEFAULT_STORE_PROFILE = INITIAL_STORE_PROFILES.ind
+
+function mapAddressToOutlet(address, storeProfiles) {
+  const status = storeProfiles[address.id]?.status ?? 'open'
+  return {
+    id: address.id,
+    label: address.label,
+    lines: address.lines,
+    pincode: address.pincode,
+    isDefault: address.isDefault,
+    status,
+    name: address.label,
+    address: address.lines,
+  }
+}
+
+function createStoreProfileFromAddress(address) {
+  return {
+    ...DEFAULT_STORE_PROFILE,
+    name: address.label,
+    address: address.lines,
+    status: 'open',
+  }
+}
 
 const STORE_STATUS = {
   open: { label: 'Store open', color: '#40deaa', bg: 'rgba(64,222,170,.12)', border: 'rgba(64,222,170,.35)' },
@@ -29,11 +54,13 @@ const STORE_STATUS = {
 
 export function OwnerPortalProvider({ children }) {
   const navigate = useNavigate()
-  const [activeOutlet, setActiveOutlet] = useState('ind')
+  const [activeOutlet, setActiveOutlet] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [outletMenuOpen, setOutletMenuOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [profileAddresses, setProfileAddresses] = useState([])
+  const [addressesLoading, setAddressesLoading] = useState(true)
   const [orders, setOrders] = useState(INITIAL_ORDERS)
   const [products, setProducts] = useState([])
   const [productsLoading, setProductsLoading] = useState(false)
@@ -60,6 +87,48 @@ export function OwnerPortalProvider({ children }) {
     return updated
   }, [])
 
+  const loadOutletAddresses = useCallback(async ({ force = false } = {}) => {
+    setAddressesLoading(true)
+    try {
+      const profile = await fetchUserProfile({ force })
+      setProfileAddresses(Array.isArray(profile?.addresses) ? profile.addresses : [])
+    } catch {
+      setProfileAddresses([])
+    } finally {
+      setAddressesLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadOutletAddresses()
+  }, [loadOutletAddresses])
+
+  useEffect(() => {
+    if (profileAddresses.length === 0) return
+
+    setActiveOutlet((current) => {
+      if (current && profileAddresses.some((address) => address.id === current)) return current
+      const defaultAddress = profileAddresses.find((address) => address.isDefault) ?? profileAddresses[0]
+      return defaultAddress?.id ?? current
+    })
+
+    setStoreProfiles((prev) => {
+      const next = { ...prev }
+      profileAddresses.forEach((address) => {
+        if (!next[address.id]) {
+          next[address.id] = createStoreProfileFromAddress(address)
+          return
+        }
+        next[address.id] = {
+          ...next[address.id],
+          name: address.label,
+          address: address.lines,
+        }
+      })
+      return next
+    })
+  }, [profileAddresses])
+
   const closeMenus = () => {
     setOutletMenuOpen(false)
     setNotifOpen(false)
@@ -84,9 +153,10 @@ export function OwnerPortalProvider({ children }) {
   const cycleStoreStatus = () => {
     const order = ['open', 'busy', 'paused']
     setStoreProfiles((prev) => {
-      const cur = prev[activeOutlet].status
+      const currentProfile = prev[activeOutlet] ?? DEFAULT_STORE_PROFILE
+      const cur = currentProfile.status
       const next = order[(order.indexOf(cur) + 1) % order.length]
-      return { ...prev, [activeOutlet]: { ...prev[activeOutlet], status: next } }
+      return { ...prev, [activeOutlet]: { ...currentProfile, status: next } }
     })
   }
 
@@ -265,8 +335,12 @@ export function OwnerPortalProvider({ children }) {
   )
 
   const value = useMemo(() => {
-    const outlet = INITIAL_OUTLETS.find((o) => o.id === activeOutlet)
-    const storeProfile = storeProfiles[activeOutlet]
+    const outlets = profileAddresses.map((address) => mapAddressToOutlet(address, storeProfiles))
+    const activeAddress = profileAddresses.find((address) => address.id === activeOutlet) ?? profileAddresses[0] ?? null
+    const activeOutletMeta = outlets.find((outlet) => outlet.id === activeOutlet) ?? outlets[0] ?? null
+    const storeProfile =
+      storeProfiles[activeOutlet] ??
+      (activeAddress ? createStoreProfileFromAddress(activeAddress) : DEFAULT_STORE_PROFILE)
     const ordersMapped = orders.map(mapOrder)
     const incoming = ordersMapped.filter((o) => o.status === 'new')
     const lowStock = products.filter((p) => p.stock <= 20)
@@ -284,8 +358,11 @@ export function OwnerPortalProvider({ children }) {
     return {
       goToPage,
       activeOutlet,
-      activeOutletName: outlet?.name ?? 'Indiranagar',
-      outlets: INITIAL_OUTLETS,
+      activeOutletName: activeAddress?.label ?? activeOutletMeta?.label ?? 'Select address',
+      activeOutletLines: activeAddress?.lines ?? activeOutletMeta?.lines ?? '',
+      outlets,
+      addressesLoading,
+      reloadOutletAddresses: loadOutletAddresses,
       selectOutlet,
       sidebarCollapsed,
       setSidebarCollapsed,
@@ -339,6 +416,9 @@ export function OwnerPortalProvider({ children }) {
     outletMenuOpen,
     notifOpen,
     profileMenuOpen,
+    profileAddresses,
+    addressesLoading,
+    loadOutletAddresses,
     orders,
     acceptOrder,
     rejectOrder,

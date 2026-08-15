@@ -17,12 +17,23 @@ export const useOrderStore = create((set, get) => ({
   ordersLoadedFromApi: false,
   addresses: [],
   addressesLoadedFromApi: false,
+  selectedAddressId: null,
   paymentMethods: INITIAL_PAYMENT_METHODS,
   prescriptions: INITIAL_PRESCRIPTIONS,
   complaints: INITIAL_COMPLAINTS,
   notifications: INITIAL_NOTIFICATIONS,
 
   getOrder: (id) => get().orders.find((o) => o.id === id) ?? null,
+
+  getSelectedAddress: () => {
+    const { addresses, selectedAddressId } = get()
+    if (selectedAddressId) {
+      return addresses.find((address) => address.id === selectedAddressId) ?? null
+    }
+    return addresses.find((address) => address.isDefault) ?? addresses[0] ?? null
+  },
+
+  selectDeliveryAddress: (id) => set({ selectedAddressId: id }),
 
   setOrdersFromApi: (incoming) =>
     set({
@@ -85,12 +96,26 @@ export const useOrderStore = create((set, get) => ({
     return record
   },
   setAddressesFromApi: (incoming) =>
-    set({
-      addresses: Array.isArray(incoming) ? incoming : [],
-      addressesLoadedFromApi: true,
+    set((state) => {
+      const addresses = Array.isArray(incoming) ? incoming : []
+      const selectedStillValid = addresses.some((address) => address.id === state.selectedAddressId)
+      const defaultAddress = addresses.find((address) => address.isDefault) ?? addresses[0] ?? null
+
+      return {
+        addresses,
+        addressesLoadedFromApi: true,
+        selectedAddressId: selectedStillValid ? state.selectedAddressId : (defaultAddress?.id ?? null),
+      }
     }),
   deleteAddress: (id) => {
-    set((s) => ({ addresses: s.addresses.filter((a) => a.id !== id) }))
+    set((s) => {
+      const addresses = s.addresses.filter((a) => a.id !== id)
+      const defaultAddress = addresses.find((a) => a.isDefault) ?? addresses[0] ?? null
+      return {
+        addresses,
+        selectedAddressId: s.selectedAddressId === id ? (defaultAddress?.id ?? null) : s.selectedAddressId,
+      }
+    })
     toast.info(msg('customer.addressDeleted'))
   },
 
