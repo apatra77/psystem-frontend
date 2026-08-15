@@ -42,7 +42,7 @@ export default function OrdersPage() {
       setError('')
 
       try {
-        const payload = await fetchMyOrders({ force: true })
+        const payload = await fetchMyOrders()
         if (!cancelled) {
           setOrdersFromApi(mapOrdersFromApi(payload))
         }
@@ -106,7 +106,7 @@ export default function OrdersPage() {
                       <Badge tone={meta.tone}>{meta.label}</Badge>
                     </div>
                     <p className="text-[12.5px] mt-1" style={{ color: colors.textDim }}>
-                      {fmtDateTime(order.placedAt)} · {order.items.length} item(s) · {fmtINR(order.total)}
+                      {fmtDateTime(order.statusUpdatedAt)} · {order.items.length} item(s) · {fmtINR(order.total)}
                     </p>
                     <p className="text-[12.5px] mt-1.5" style={{ color: colors.textMuted }}>
                       {order.items.map((i) => `${i.name} × ${i.qty}`).join(', ')}

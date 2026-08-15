@@ -170,7 +170,8 @@ export const useCartStore = create((set, get) => ({
       }
 
       if (nextQty <= 0) {
-        await updateCartItem(cartItemId, 0)
+        await deleteCartItem(cartItemId)
+        toast.info(msg('customer.removedFromCart', { name: item.name }))
         return
       }
 

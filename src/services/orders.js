@@ -99,7 +99,11 @@ export function mapOrderFromApi(order, index = 0) {
   return {
     id: String(pick(order, 'orderId', 'id', 'orderNumber') ?? `ORD-${index + 1}`),
     placedAt:
-      pick(order, 'placedAt', 'createdAt', 'orderDate', 'date', 'orderedAt') ??
+      pick(order, 'placedAt', 'createdAt', 'orderDate', 'date', 'orderedAt', 'orderPlacedAt') ??
+      new Date().toISOString(),
+    statusUpdatedAt:
+      pick(order, 'statusUpdatedAT', 'statusUpdatedAt', 'status_updated_at', 'statusUpdatedOn') ??
+      pick(order, 'placedAt', 'createdAt', 'orderDate', 'date', 'orderedAt', 'orderPlacedAt') ??
       new Date().toISOString(),
     status: normalizeOrderStatus(pick(order, 'status', 'orderStatus')),
     paymentMethod: String(pick(order, 'paymentMethod', 'paymentMode', 'paymentStatus') ?? 'cod').toLowerCase(),
