@@ -33,7 +33,7 @@ export const ENDPOINTS = {
   },
   catalog: { products: '/api/products', categories: '/api/categories', brands: '/api/brands', search: '/api/search' },
   cart: { root: '/api/cart', coupon: '/api/cart/coupon' },
-  orders: { root: '/api/orders', track: (id) => `/api/orders/${id}/track`, invoice: (id) => `/api/orders/${id}/invoice` },
+  orders: { root: '/api/orders', track: (id) => `/api/orders/${id}/track`, invoice: (id) => `/api/orders/${id}/invoice/pdf` },
   payments: { root: '/api/payments', verify: '/api/payments/verify', methods: '/api/payments/methods' },
   user: { profile: '/api/users/me', addresses: '/api/users/me/addresses', wishlist: '/api/users/me/wishlist', reviews: '/api/users/me/reviews' },
   prescriptions: '/api/prescriptions',

@@ -1,4 +1,5 @@
-import { authFetch, CART_API_BASE } from './api'
+import { authFetch, authHeaders, CART_API_BASE, getErrorMessage } from './api'
+import { notifyUnauthorized } from '@/shared/api/tokenBridge'
 
 function pick(obj, ...keys) {
   for (const key of keys) {
@@ -372,6 +373,146 @@ export async function dispatchAdminOrder(orderId) {
 /** POST /api/admin/orders/{orderId}/deliver */
 export async function deliverAdminOrder(orderId) {
   return postAdminOrderAction(orderId, 'deliver')
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function buildInvoiceHtmlFromPayload(payload) {
+  const data = payload?.data ?? payload ?? {}
+  const orderId = pick(data, 'orderId', 'orderNumber', 'id') ?? 'Invoice'
+  const customer =
+    pick(data, 'customerName', 'customer', 'userName', 'name', 'fullName') ?? 'Customer'
+  const phone = pick(data, 'customerPhone', 'phone', 'mobile') ?? ''
+  const email = pick(data, 'customerEmail', 'email') ?? ''
+  const address = formatOrderAddress(
+    pick(data, 'deliveryAddress', 'shippingAddress', 'address') ?? data?.addressDetails,
+  )
+  const items = extractOrderItems(data)
+  const lines = items
+    .map((line, index) => {
+      const product = line?.product ?? line?.productDetails ?? line?.productInfo ?? {}
+      const name =
+        pick(line, 'productName', 'name', 'title') ??
+        pick(product, 'productName', 'name', 'title') ??
+        'Product'
+      const qty = Number(pick(line, 'quantity', 'qty')) || 1
+      const price =
+        Number(pick(line, 'price', 'unitPrice', 'sellingPrice', 'salePrice')) ||
+        Number(pick(product, 'price', 'sellingPrice')) ||
+        0
+      return `<tr><td>${escapeHtml(name)}</td><td>${qty}</td><td>₹${price * qty}</td></tr>`
+    })
+    .join('')
+  const total =
+    Number(pick(data, 'orderTotal', 'totalAmount', 'total', 'grandTotal', 'orderTotalAmount')) ||
+    items.reduce((sum, line) => {
+      const product = line?.product ?? {}
+      const qty = Number(pick(line, 'quantity', 'qty')) || 1
+      const price =
+        Number(pick(line, 'price', 'unitPrice', 'sellingPrice')) ||
+        Number(pick(product, 'price', 'sellingPrice')) ||
+        0
+      return sum + price * qty
+    }, 0)
+
+  return `<!DOCTYPE html><html><head><title>Invoice ${escapeHtml(orderId)}</title></head><body style="font-family:sans-serif;padding:24px">
+    <h2>Invoice ${escapeHtml(orderId)}</h2>
+    <p><strong>${escapeHtml(customer)}</strong><br/>${escapeHtml(phone)}${email ? `<br/>${escapeHtml(email)}` : ''}<br/>${escapeHtml(address)}</p>
+    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;margin-top:16px">
+      <thead><tr><th>Item</th><th>Qty</th><th>Amount</th></tr></thead>
+      <tbody>${lines || `<tr><td colspan="3">No line items</td></tr>`}</tbody>
+    </table>
+    <p style="margin-top:16px;font-size:18px"><strong>Total: ₹${Math.round(total).toLocaleString('en-IN')}</strong></p>
+  </body></html>`
+}
+
+async function fetchInvoiceFromPath(path) {
+  const res = await fetch(`${CART_API_BASE}${path}`, {
+    headers: authHeaders({ Accept: 'application/json, text/html, application/pdf, */*' }),
+  })
+
+  if (res.status === 401) {
+    notifyUnauthorized()
+  }
+
+  if (!res.ok) {
+    let message = getErrorMessage(null, res.status)
+    try {
+      message = getErrorMessage(await res.json(), res.status)
+    } catch {
+      try {
+        const text = await res.text()
+        if (text) message = text
+      } catch {
+        /* ignore */
+      }
+    }
+    throw new Error(message)
+  }
+
+  const contentType = res.headers.get('content-type') ?? ''
+
+  if (contentType.includes('application/pdf')) {
+    return { kind: 'pdf', blob: await res.blob() }
+  }
+
+  if (contentType.includes('text/html')) {
+    return { kind: 'html', html: await res.text() }
+  }
+
+  const text = await res.text()
+  try {
+    return { kind: 'json', data: JSON.parse(text)?.data ?? JSON.parse(text) }
+  } catch {
+    if (text.trim().startsWith('<')) {
+      return { kind: 'html', html: text }
+    }
+    throw new Error('Unexpected invoice response format')
+  }
+}
+
+/** GET /api/orders/{orderId}/invoice/pdf — customer portal */
+export async function fetchOrderInvoice(orderId) {
+  return fetchInvoiceFromPath(`/api/orders/${normalizeAdminOrderId(orderId)}/invoice/pdf`)
+}
+
+/** GET /api/admin/orders/{orderId}/invoice/pdf — admin portal */
+export async function fetchAdminOrderInvoice(orderId) {
+  return fetchInvoiceFromPath(`/api/admin/orders/${normalizeAdminOrderId(orderId)}/invoice/pdf`)
+}
+
+/** Open invoice document from API response in a printable window. */
+export function openOrderInvoiceDocument(result) {
+  const popup = window.open('', '_blank', 'width=720,height=840')
+  if (!popup) {
+    throw new Error('Pop-up blocked — allow pop-ups to print the invoice')
+  }
+
+  if (result.kind === 'pdf') {
+    const url = URL.createObjectURL(result.blob)
+    popup.location.href = url
+    popup.onload = () => {
+      popup.focus()
+      popup.print()
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    }
+    return
+  }
+
+  const html =
+    result.kind === 'html' ? result.html : buildInvoiceHtmlFromPayload(result.data)
+
+  popup.document.open()
+  popup.document.write(html)
+  popup.document.close()
+  popup.focus()
+  popup.print()
 }
 
 let inFlightOrdersRequest = null

@@ -6,6 +6,8 @@ import {
   deliverAdminOrder,
   dispatchAdminOrder,
   fetchAdminOrders,
+  fetchAdminOrderInvoice,
+  openOrderInvoiceDocument,
   parseAdminOrdersPage,
   rejectAdminOrder,
   startPackingAdminOrder,
@@ -176,6 +178,20 @@ export function useAdminOrdersQuery({ statusFilter, sortBy, searchQuery, page })
     [runOrderAction],
   )
 
+  const printInvoice = useCallback(async (order) => {
+    const apiOrderId = order.apiOrderId ?? order.id
+    setActionState({ id: order.id, type: 'print' })
+
+    try {
+      const invoice = await fetchAdminOrderInvoice(apiOrderId)
+      openOrderInvoiceDocument(invoice)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not load invoice')
+    } finally {
+      setActionState(null)
+    }
+  }, [])
+
   return {
     ordersMapped,
     totalElements,
@@ -186,5 +202,6 @@ export function useAdminOrdersQuery({ statusFilter, sortBy, searchQuery, page })
     acceptOrder,
     rejectOrder,
     updateOrderStatus,
+    printInvoice,
   }
 }

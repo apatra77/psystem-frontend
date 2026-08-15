@@ -32,13 +32,19 @@ function getOrderMenuOptions(reviewStatus) {
   return [{ id: 'print', label: 'Print Invoice', subtitle: 'Download / Print invoice', icon: Printer }]
 }
 
+function isOrderDelivered(order) {
+  const status = order.status
+  const desc = String(order.orderStatusDesc ?? order.statusDisplayMeta?.label ?? '').toLowerCase()
+  return status === 'delivered' || desc.includes('delivered')
+}
+
 function isOrderMenuOptionDisabled(order, optionId) {
-  if (optionId === 'print') return false
+  if (optionId === 'print') return !isOrderDelivered(order)
 
   const status = order.status
   const desc = String(order.orderStatusDesc ?? order.statusDisplayMeta?.label ?? '').toLowerCase()
 
-  const isDelivered = status === 'delivered' || desc.includes('delivered')
+  const isDelivered = isOrderDelivered(order)
   const isOutForDelivery = status === 'out' || desc.includes('out for deliver')
   const isPacked = status === 'ready' || desc.includes('packing') || desc.includes('packed')
 
@@ -48,34 +54,16 @@ function isOrderMenuOptionDisabled(order, optionId) {
   return false
 }
 
-function printOrderInvoice(order) {
-  const lines = order.items.map((item) => `<tr><td>${item.n}</td><td>${item.q}</td><td>₹${item.p * item.q}</td></tr>`).join('')
-  const html = `<!DOCTYPE html><html><head><title>Invoice ${order.id}</title></head><body style="font-family:sans-serif;padding:24px">
-    <h2>Invoice ${order.id}</h2>
-    <p><strong>${order.customer}</strong><br/>${order.phone}<br/>${order.address}</p>
-    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;margin-top:16px">
-      <thead><tr><th>Item</th><th>Qty</th><th>Amount</th></tr></thead>
-      <tbody>${lines}</tbody>
-    </table>
-    <p style="margin-top:16px;font-size:18px"><strong>Total: ${order.totalFmt}</strong></p>
-  </body></html>`
-  const popup = window.open('', '_blank', 'width=720,height=840')
-  if (!popup) return
-  popup.document.write(html)
-  popup.document.close()
-  popup.focus()
-  popup.print()
-}
-
-function OrderActionsMenu({ order, onMenuAction, disabled }) {
+function OrderActionsMenu({ order, onMenuAction, onPrintInvoice, actionState, disabled }) {
   const [open, setOpen] = useState(false)
   const menuOptions = getOrderMenuOptions(order.reviewStatus)
+  const rowBusy = actionState?.id === order.id
 
-  const handleSelect = (option) => {
+  const handleSelect = async (option) => {
     if (isOrderMenuOptionDisabled(order, option.id)) return
     setOpen(false)
     if (option.id === 'print') {
-      printOrderInvoice(order)
+      await onPrintInvoice(order)
       return
     }
     onMenuAction(order, option.id)
@@ -86,7 +74,7 @@ function OrderActionsMenu({ order, onMenuAction, disabled }) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        disabled={disabled}
+        disabled={disabled || rowBusy}
         className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer hover:bg-white/5 disabled:opacity-60 disabled:cursor-not-allowed"
         style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}`, background: 'rgba(255,255,255,0.03)' }}
         aria-label="More actions"
@@ -103,7 +91,12 @@ function OrderActionsMenu({ order, onMenuAction, disabled }) {
           >
             {menuOptions.map((option) => {
               const Icon = option.icon
-              const optionDisabled = isOrderMenuOptionDisabled(order, option.id)
+              const isPrintLoading =
+                option.id === 'print' && actionState?.id === order.id && actionState?.type === 'print'
+              const optionDisabled =
+                isOrderMenuOptionDisabled(order, option.id) ||
+                isPrintLoading ||
+                (rowBusy && option.id !== 'print')
               return (
                 <div key={option.id}>
                   {option.dividerBefore && (
@@ -126,7 +119,7 @@ function OrderActionsMenu({ order, onMenuAction, disabled }) {
                         className="block text-[13px] font-bold leading-tight"
                         style={{ color: optionDisabled ? colors.textDim : colors.textBright }}
                       >
-                        {option.label}
+                        {isPrintLoading ? 'Opening invoice…' : option.label}
                       </span>
                       {option.subtitle && (
                         <span className="block text-[11px] font-medium leading-snug mt-1" style={{ color: colors.textDim }}>
@@ -231,6 +224,7 @@ export default function OrdersView() {
     acceptOrder,
     rejectOrder,
     updateOrderStatus,
+    printInvoice,
   } = useAdminOrdersQuery({ statusFilter, sortBy, searchQuery, page })
 
   useEffect(() => {
@@ -400,6 +394,8 @@ export default function OrdersView() {
                       <OrderActionsMenu
                         order={order}
                         onMenuAction={updateOrderStatus}
+                        onPrintInvoice={printInvoice}
+                        actionState={actionState}
                         disabled={Boolean(actionState)}
                       />
                     </div>
