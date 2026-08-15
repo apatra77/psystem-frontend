@@ -1,16 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Package, Printer, Search, Truck, X } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
-import { useOwnerPortal } from '../context/OwnerPortalContext'
+import { useAdminOrdersQuery, ADMIN_ORDERS_PAGE_SIZE } from '../hooks/useAdminOrdersQuery'
 import { colors } from '@/theme/colors'
-
-const PAGE_SIZE = 10
 
 const STATUS_FILTERS = [
   { id: 'all', label: 'All' },
-  { id: 'approved', label: 'Approved' },
   { id: 'pending', label: 'Pending' },
+  { id: 'approved', label: 'Approved' },
+  { id: 'cancelled', label: 'Cancelled' },
   { id: 'rejected', label: 'Rejected' },
+  { id: 'packed', label: 'Order Packed' },
+  { id: 'out', label: 'Out For Delivery' },
+  { id: 'delivered', label: 'Delivered' },
 ]
 
 const SORT_OPTIONS = [
@@ -19,11 +21,32 @@ const SORT_OPTIONS = [
 ]
 
 const ORDER_MENU_OPTIONS = [
-  { id: 'ready', label: 'Order Packed', status: 'ready', icon: Package },
-  { id: 'out', label: 'Out for Deliver', status: 'out', icon: Truck },
-  { id: 'delivered', label: 'Delivered', status: 'delivered', icon: CheckCircle2 },
-  { id: 'print', label: 'Print Invoice', icon: Printer, dividerBefore: true },
+  { id: 'ready', label: 'Mark as Packed', subtitle: 'Order packed and ready', icon: Package },
+  { id: 'out', label: 'Mark as Out for Delivery', subtitle: 'Order is out for delivery', icon: Truck },
+  { id: 'delivered', label: 'Mark as Delivered', subtitle: 'Order delivered successfully', icon: CheckCircle2 },
+  { id: 'print', label: 'Print Invoice', subtitle: 'Download / Print invoice', icon: Printer, dividerBefore: true },
 ]
+
+function getOrderMenuOptions(reviewStatus) {
+  if (reviewStatus === 'approved') return ORDER_MENU_OPTIONS
+  return [{ id: 'print', label: 'Print Invoice', subtitle: 'Download / Print invoice', icon: Printer }]
+}
+
+function isOrderMenuOptionDisabled(order, optionId) {
+  if (optionId === 'print') return false
+
+  const status = order.status
+  const desc = String(order.orderStatusDesc ?? order.statusDisplayMeta?.label ?? '').toLowerCase()
+
+  const isDelivered = status === 'delivered' || desc.includes('delivered')
+  const isOutForDelivery = status === 'out' || desc.includes('out for deliver')
+  const isPacked = status === 'ready' || desc.includes('packing') || desc.includes('packed')
+
+  if (isDelivered) return optionId === 'ready' || optionId === 'out' || optionId === 'delivered'
+  if (isOutForDelivery) return optionId === 'ready' || optionId === 'out'
+  if (isPacked) return optionId === 'ready'
+  return false
+}
 
 function printOrderInvoice(order) {
   const lines = order.items.map((item) => `<tr><td>${item.n}</td><td>${item.q}</td><td>₹${item.p * item.q}</td></tr>`).join('')
@@ -44,16 +67,18 @@ function printOrderInvoice(order) {
   popup.print()
 }
 
-function OrderActionsMenu({ order, onStatusChange }) {
+function OrderActionsMenu({ order, onMenuAction, disabled }) {
   const [open, setOpen] = useState(false)
+  const menuOptions = getOrderMenuOptions(order.reviewStatus)
 
   const handleSelect = (option) => {
+    if (isOrderMenuOptionDisabled(order, option.id)) return
     setOpen(false)
     if (option.id === 'print') {
       printOrderInvoice(order)
       return
     }
-    if (option.status) onStatusChange(order.id, option.status)
+    onMenuAction(order, option.id)
   }
 
   return (
@@ -61,7 +86,8 @@ function OrderActionsMenu({ order, onStatusChange }) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer hover:bg-white/5"
+        disabled={disabled}
+        className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer hover:bg-white/5 disabled:opacity-60 disabled:cursor-not-allowed"
         style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}`, background: 'rgba(255,255,255,0.03)' }}
         aria-label="More actions"
         aria-expanded={open}
@@ -72,24 +98,42 @@ function OrderActionsMenu({ order, onStatusChange }) {
         <>
           <button type="button" className="fixed inset-0 z-20 cursor-default" aria-label="Close menu" onClick={() => setOpen(false)} />
           <div
-            className="absolute right-0 top-[calc(100%+6px)] z-30 min-w-[210px] rounded-[14px] py-1.5 shadow-2xl"
+            className="absolute right-0 top-[calc(100%+6px)] z-30 min-w-[268px] rounded-[14px] py-1.5 shadow-2xl"
             style={{ background: 'rgba(12,28,23,0.98)', border: `1px solid ${colors.borderStrong}` }}
           >
-            {ORDER_MENU_OPTIONS.map((option) => {
+            {menuOptions.map((option) => {
               const Icon = option.icon
+              const optionDisabled = isOrderMenuOptionDisabled(order, option.id)
               return (
                 <div key={option.id}>
                   {option.dividerBefore && (
-                    <div className="my-1.5 mx-2" style={{ borderTop: `1px solid ${colors.borderSubtle}` }} />
+                    <div className="my-1.5 mx-3" style={{ borderTop: `1px solid ${colors.borderSubtle}` }} />
                   )}
                   <button
                     type="button"
+                    disabled={optionDisabled}
                     onClick={() => handleSelect(option)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold cursor-pointer hover:bg-white/5"
-                    style={{ color: colors.textBright }}
+                    className="w-full flex items-start gap-3 px-3.5 py-3 text-left cursor-pointer hover:bg-white/5 disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                   >
-                    <Icon size={15} strokeWidth={1.9} style={{ color: colors.textMuted, flexShrink: 0 }} />
-                    {option.label}
+                    <Icon
+                      size={18}
+                      strokeWidth={1.85}
+                      className="mt-0.5"
+                      style={{ color: optionDisabled ? colors.textDim : colors.textMuted, flexShrink: 0 }}
+                    />
+                    <span className="min-w-0">
+                      <span
+                        className="block text-[13px] font-bold leading-tight"
+                        style={{ color: optionDisabled ? colors.textDim : colors.textBright }}
+                      >
+                        {option.label}
+                      </span>
+                      {option.subtitle && (
+                        <span className="block text-[11px] font-medium leading-snug mt-1" style={{ color: colors.textDim }}>
+                          {option.subtitle}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 </div>
               )
@@ -172,48 +216,38 @@ function Th({ children, align = 'left', className = '' }) {
 }
 
 export default function OrdersView() {
-  const { ordersMapped, acceptOrder, rejectOrder, updateOrderStatus } = useOwnerPortal()
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
 
-  const filtered = useMemo(() => {
-    let list = ordersMapped
+  const {
+    ordersMapped,
+    totalElements,
+    totalPages,
+    loading,
+    error,
+    actionState,
+    acceptOrder,
+    rejectOrder,
+    updateOrderStatus,
+  } = useAdminOrdersQuery({ statusFilter, sortBy, searchQuery, page })
 
-    if (statusFilter !== 'all') {
-      list = list.filter((order) => order.reviewStatus === statusFilter)
-    }
+  useEffect(() => {
+    if (page > totalPages) setPage(Math.max(1, totalPages))
+  }, [page, totalPages])
 
-    const query = searchQuery.trim().toLowerCase()
-    if (query) {
-      list = list.filter(
-        (order) =>
-          order.id.toLowerCase().includes(query) ||
-          order.customer.toLowerCase().includes(query) ||
-          order.phone.toLowerCase().includes(query),
-      )
-    }
-
-    list = [...list].sort((a, b) =>
-      sortBy === 'newest' ? b.orderedAtMs - a.orderedAtMs : a.orderedAtMs - b.orderedAtMs,
-    )
-
-    return list
-  }, [ordersMapped, searchQuery, sortBy, statusFilter])
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
-  const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
-  const rangeStart = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
-  const rangeEnd = Math.min(currentPage * PAGE_SIZE, filtered.length)
+  const pageItems = ordersMapped
+  const rangeStart = totalElements === 0 ? 0 : (currentPage - 1) * ADMIN_ORDERS_PAGE_SIZE + 1
+  const rangeEnd = Math.min(currentPage * ADMIN_ORDERS_PAGE_SIZE, totalElements)
 
-  const pageNumbers = useMemo(() => {
+  const pageNumbers = (() => {
     if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1)
     if (currentPage <= 3) return [1, 2, 3, '…', totalPages]
     if (currentPage >= totalPages - 2) return [1, '…', totalPages - 2, totalPages - 1, totalPages]
     return [1, '…', currentPage, '…', totalPages]
-  }, [currentPage, totalPages])
+  })()
 
   return (
     <div className="flex flex-col gap-4">
@@ -222,7 +256,7 @@ export default function OrdersView() {
           label="Status"
           value={statusFilter}
           options={STATUS_FILTERS}
-          minWidth={120}
+          minWidth={168}
           onChange={(value) => {
             setStatusFilter(value)
             setPage(1)
@@ -234,7 +268,10 @@ export default function OrdersView() {
           value={sortBy}
           options={SORT_OPTIONS}
           minWidth={200}
-          onChange={setSortBy}
+          onChange={(value) => {
+            setSortBy(value)
+            setPage(1)
+          }}
         />
 
         <div className="flex-1 min-w-[240px]">
@@ -258,9 +295,18 @@ export default function OrdersView() {
 
         <div className="ml-auto flex-shrink-0 text-[13px] font-semibold pb-2.5" style={{ color: colors.textBright }}>
           Total Orders:{' '}
-          <span style={{ color: colors.accent }}>{ordersMapped.length}</span>
+          <span style={{ color: colors.accent }}>{totalElements}</span>
         </div>
       </div>
+
+      {error && (
+        <div
+          className="rounded-[12px] px-4 py-3 text-[12px] font-bold text-red-400"
+          style={{ background: 'rgba(255,138,128,0.08)', border: '1px solid rgba(255,138,128,0.24)' }}
+        >
+          {error}
+        </div>
+      )}
 
       <GlassCard className="overflow-hidden">
         <div className="overflow-x-auto owner-scroll">
@@ -277,7 +323,14 @@ export default function OrdersView() {
               </tr>
             </thead>
             <tbody>
-              {pageItems.map((order) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-[13px]" style={{ color: colors.textDim }}>
+                    Loading orders…
+                  </td>
+                </tr>
+              ) : (
+                pageItems.map((order) => (
                 <tr key={order.id} style={{ borderBottom: `1px solid ${colors.borderSubtle}` }}>
                   <td className="px-4 py-4 align-top">
                     <div className="text-[13px] font-extrabold text-white">{order.id}</div>
@@ -300,7 +353,7 @@ export default function OrdersView() {
                     <Pill meta={order.paymentMeta} />
                   </td>
                   <td className="px-4 py-4 align-top">
-                    <Pill meta={order.reviewMeta} />
+                    <Pill meta={order.statusDisplayMeta} />
                   </td>
                   <td className="px-4 py-4 align-top">
                     <div className="text-[12px] font-semibold text-white whitespace-nowrap">{order.orderedOn}</div>
@@ -311,21 +364,23 @@ export default function OrdersView() {
                         <>
                           <button
                             type="button"
-                            onClick={() => acceptOrder(order.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[11.5px] font-extrabold cursor-pointer"
+                            disabled={Boolean(actionState)}
+                            onClick={() => acceptOrder(order)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[11.5px] font-extrabold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                             style={{ color: colors.accent, background: 'rgba(64,222,170,0.08)', border: '1px solid rgba(64,222,170,0.34)' }}
                           >
                             <Check size={13} strokeWidth={2.5} />
-                            Accept
+                            {actionState?.id === order.id && actionState.type === 'accept' ? 'Accepting…' : 'Accept'}
                           </button>
                           <button
                             type="button"
-                            onClick={() => rejectOrder(order.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[11.5px] font-extrabold cursor-pointer"
+                            disabled={Boolean(actionState)}
+                            onClick={() => rejectOrder(order)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[11.5px] font-extrabold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                             style={{ color: '#ff8a80', background: 'rgba(255,138,128,0.08)', border: '1px solid rgba(255,138,128,0.34)' }}
                           >
                             <X size={13} strokeWidth={2.5} />
-                            Reject
+                            {actionState?.id === order.id && actionState.type === 'reject' ? 'Rejecting…' : 'Reject'}
                           </button>
                         </>
                       ) : (
@@ -342,16 +397,21 @@ export default function OrdersView() {
                           {order.reviewMeta.label}
                         </button>
                       )}
-                      <OrderActionsMenu order={order} onStatusChange={updateOrderStatus} />
+                      <OrderActionsMenu
+                        order={order}
+                        onMenuAction={updateOrderStatus}
+                        disabled={Boolean(actionState)}
+                      />
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
-        {pageItems.length === 0 && (
+        {!loading && pageItems.length === 0 && (
           <div className="px-4 py-12 text-center text-[13px]" style={{ color: colors.textDim }}>
             No orders match this filter.
           </div>
@@ -362,13 +422,13 @@ export default function OrdersView() {
           style={{ borderTop: `1px solid ${colors.borderSubtle}` }}
         >
           <div className="text-[12px]" style={{ color: colors.textSecondary }}>
-            Showing {rangeStart} to {rangeEnd} of {filtered.length} orders
+            Showing {rangeStart} to {rangeEnd} of {totalElements} orders
           </div>
 
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              disabled={currentPage === 1}
+              disabled={loading || currentPage === 1}
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }}
@@ -401,7 +461,7 @@ export default function OrdersView() {
 
             <button
               type="button"
-              disabled={currentPage === totalPages}
+              disabled={loading || currentPage === totalPages}
               onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }}

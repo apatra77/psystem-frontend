@@ -80,8 +80,12 @@ export function orderTotal(o) {
 
 export function mapOrder(o) {
   const sm = orderStatusMeta(o.status)
-  const total = orderTotal(o)
+  const total =
+    o.orderTotal != null && o.orderTotal !== ''
+      ? Number(o.orderTotal)
+      : orderTotal(o)
   const reviewStatus = getReviewStatus(o.status)
+  const reviewMeta = reviewStatusMeta(reviewStatus)
   const orderedAtMs = o.orderedAt
     ? new Date(o.orderedAt).getTime()
     : o.placedMinAgo != null
@@ -90,12 +94,19 @@ export function mapOrder(o) {
 
   return {
     ...o,
-    itemsCount: o.items.length,
+    itemsCount:
+      o.itemCount != null && o.itemCount !== ''
+        ? Number(o.itemCount)
+        : o.items.length,
     total,
     totalFmt: fmtINR(total),
     statusMeta: sm,
     reviewStatus,
-    reviewMeta: reviewStatusMeta(reviewStatus),
+    reviewMeta,
+    statusDisplayMeta: {
+      ...reviewMeta,
+      label: o.orderStatusDesc?.trim() || reviewMeta.label,
+    },
     paymentMeta: paymentStatusMeta(o.payment),
     orderedOn: formatOrderedOn(o),
     orderedAtMs,
