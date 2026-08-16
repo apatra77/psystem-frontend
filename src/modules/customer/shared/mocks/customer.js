@@ -51,6 +51,7 @@ export const ORDER_STATUS = {
   out_for_delivery: { label: 'Out for delivery', tone: 'warn', step: 3 },
   delivered: { label: 'Delivered', tone: 'success', step: 4 },
   cancelled: { label: 'Cancelled', tone: 'danger', step: -1 },
+  rejected: { label: 'Rejected', tone: 'danger', step: -1 },
 }
 
 export const TRACKING_STEPS = ['placed', 'confirmed', 'packed', 'out_for_delivery', 'delivered']

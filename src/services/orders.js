@@ -10,20 +10,37 @@ function pick(obj, ...keys) {
 }
 
 function normalizeOrderStatus(status) {
-  const normalized = String(status ?? 'placed')
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, '_')
+  const raw = String(status ?? 'placed').trim()
+  if (raw.length === 1) {
+    const codeMap = {
+      I: 'placed',
+      A: 'confirmed',
+      P: 'packed',
+      O: 'out_for_delivery',
+      D: 'delivered',
+      C: 'cancelled',
+      R: 'rejected',
+    }
+    const mapped = codeMap[raw.toUpperCase()]
+    if (mapped) return mapped
+  }
+
+  const normalized = raw.toLowerCase().replace(/[\s-]+/g, '_')
 
   const map = {
     placed: 'placed',
     order_placed: 'placed',
     pending: 'placed',
     new: 'placed',
+    initiated: 'placed',
+    initiate: 'placed',
+    incoming: 'placed',
     confirmed: 'confirmed',
     processing: 'confirmed',
+    approved: 'confirmed',
+    accepted: 'confirmed',
+    preparing: 'confirmed',
     packed: 'packed',
-    preparing: 'packed',
     ready: 'packed',
     shipped: 'out_for_delivery',
     out_for_delivery: 'out_for_delivery',
@@ -33,6 +50,7 @@ function normalizeOrderStatus(status) {
     completed: 'delivered',
     cancelled: 'cancelled',
     canceled: 'cancelled',
+    rejected: 'rejected',
   }
 
   return map[normalized] ?? normalized
@@ -87,6 +105,10 @@ function mapOrderItemFromApi(line, index) {
       Number(pick(line, 'price', 'unitPrice', 'sellingPrice', 'salePrice')) ||
       Number(pick(product, 'price', 'sellingPrice')) ||
       0,
+    image:
+      pick(line, 'imageUrl', 'image', 'thumbnailUrl') ??
+      pick(product, 'imageUrl', 'image', 'thumbnailUrl', 'photoUrl') ??
+      null,
   }
 }
 
@@ -107,6 +129,8 @@ export function mapOrderFromApi(order, index = 0) {
       pick(order, 'placedAt', 'createdAt', 'orderDate', 'date', 'orderedAt', 'orderPlacedAt') ??
       new Date().toISOString(),
     status: normalizeOrderStatus(pick(order, 'status', 'orderStatus')),
+    orderStatusDesc:
+      pick(order, 'orderStatusDesc', 'statusDesc', 'statusDescription', 'orderStatusDescription') ?? '',
     paymentMethod: String(pick(order, 'paymentMethod', 'paymentMode', 'paymentStatus') ?? 'cod').toLowerCase(),
     address: formatOrderAddress(
       pick(order, 'deliveryAddress', 'shippingAddress', 'address') ?? order?.addressDetails,
@@ -513,6 +537,22 @@ export function openOrderInvoiceDocument(result) {
   popup.document.close()
   popup.focus()
   popup.print()
+}
+
+function normalizeCustomerOrderId(orderId) {
+  return encodeURIComponent(String(orderId).trim().replace(/^#/, ''))
+}
+
+/** POST /api/orders/{orderId}/cancel */
+export async function cancelCustomerOrder(orderId, reason) {
+  return authFetch(
+    `/api/orders/${normalizeCustomerOrderId(orderId)}/cancel`,
+    {
+      method: 'POST',
+      body: JSON.stringify(reason != null && reason !== '' ? { reason } : {}),
+    },
+    CART_API_BASE,
+  )
 }
 
 let inFlightOrdersRequest = null

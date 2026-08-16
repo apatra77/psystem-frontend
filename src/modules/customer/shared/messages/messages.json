@@ -89,6 +89,7 @@
     "orderPlaced": "Order {id} placed successfully.",
     "orderCancelled": "Order {id} has been cancelled.",
     "orderCancelWindowClosed": "This order can no longer be cancelled online. Please contact support.",
+    "confirmCancelOrder": "Are you sure you want to cancel {name}? This cannot be undone.",
     "reorderAdded": "Items from order {id} were added to your cart.",
     "scheduleSaved": "Delivery scheduled for {time}.",
     "complaintRaised": "Complaint {id} raised. We'll respond within 24 hours.",

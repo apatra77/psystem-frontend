@@ -85,6 +85,12 @@ function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, 
 
   const onSubmit = async (values) => {
     const address = addresses.find((a) => a.id === values.addressId)
+    if (!address) {
+      toast.error('Please select a delivery address')
+      return
+    }
+
+    const deliveryAddressId = address.raw?.addressId ?? address.id
 
     try {
       let apiOrderId = null
@@ -100,6 +106,7 @@ function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, 
           amount: Number(totals.total.toFixed(2)),
           transactionNote: 'Cash On Delivery',
           transactionRefId: `ORD-${userId}`,
+          deliveryAddressId,
         })
 
         if (!payment.orderId) {

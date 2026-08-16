@@ -21,7 +21,7 @@ export function mapCodPaymentFromApi(payload) {
 }
 
 /** POST /api/payments/cod — record a cash-on-delivery payment attempt. */
-export async function createCodPayment({ amount, transactionNote, transactionRefId }) {
+export async function createCodPayment({ amount, transactionNote, transactionRefId, deliveryAddressId }) {
   const payload = await authFetch(
     '/api/payments/cod',
     {
@@ -30,6 +30,7 @@ export async function createCodPayment({ amount, transactionNote, transactionRef
         amount: Number(amount),
         transactionNote,
         transactionRefId,
+        deliveryAddressId: String(deliveryAddressId),
       }),
     },
     PAYMENT_API_BASE,

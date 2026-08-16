@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { msg } from '@/shared/messages/messages'
 import { toast } from './uiStore'
+import { cancelCustomerOrder } from '@/services/orders'
+import { isOrderInitiated } from '@/modules/customer/utils/orderHelpers'
 import {
-  CANCEL_WINDOW_MINUTES,
   INITIAL_COMPLAINTS,
   INITIAL_NOTIFICATIONS,
   INITIAL_PAYMENT_METHODS,
@@ -67,21 +68,35 @@ export const useOrderStore = create((set, get) => ({
     return order
   },
 
-  canCancel: (order) => {
-    if (!order || ['delivered', 'cancelled', 'out_for_delivery'].includes(order.status)) return false
-    const minutes = (Date.now() - new Date(order.placedAt).getTime()) / 60000
-    return minutes <= CANCEL_WINDOW_MINUTES
-  },
+  canCancel: (order) => isOrderInitiated(order),
 
-  cancelOrder: (id) => {
+  cancelOrder: async (id) => {
     const order = get().getOrder(id)
-    if (!get().canCancel(order)) {
+    if (!isOrderInitiated(order)) {
       toast.error(msg('customer.orderCancelWindowClosed'))
-      return false
+      throw new Error(msg('customer.orderCancelWindowClosed'))
     }
-    set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, status: 'cancelled' } : o)) }))
-    toast.success(msg('customer.orderCancelled', { id }))
-    return true
+
+    try {
+      await cancelCustomerOrder(id)
+      set((s) => ({
+        orders: s.orders.map((o) =>
+          o.id === id
+            ? {
+                ...o,
+                status: 'cancelled',
+                orderStatusDesc: 'Cancelled',
+                statusUpdatedAt: new Date().toISOString(),
+              }
+            : o,
+        ),
+      }))
+      toast.success(msg('customer.orderCancelled', { id }))
+      return true
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not cancel order')
+      throw err
+    }
   },
 
   saveAddress: (draft) => {
