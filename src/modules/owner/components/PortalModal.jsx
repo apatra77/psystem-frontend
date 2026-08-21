@@ -8,6 +8,8 @@ export default function PortalModal({
   width = 520,
   scrollable = true,
   closeOnBackdrop = true,
+  minHeight,
+  maxHeight,
 }) {
   return (
     <div
@@ -17,9 +19,11 @@ export default function PortalModal({
       role="presentation"
     >
       <div
-        className={`max-w-[92vw] rounded-[22px] shadow-[0_40px_100px_rgba(0,0,0,0.6)] max-h-[88vh] ${scrollable ? 'overflow-y-auto' : 'overflow-hidden'}`}
+        className={`max-w-[92vw] rounded-[22px] shadow-[0_40px_100px_rgba(0,0,0,0.6)] ${scrollable ? 'overflow-y-auto' : 'overflow-hidden'}`}
         style={{
           width,
+          minHeight,
+          maxHeight: maxHeight ?? (scrollable ? '88vh' : undefined),
           background: '#0d211a',
           animation: 'modalIn 0.22s cubic-bezier(0.2,0.7,0.2,1)',
         }}

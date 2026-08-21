@@ -37,7 +37,7 @@ const ACTION_SUCCESS_MESSAGES = {
   deliver: (orderId) => `Order ${orderId} marked as delivered`,
 }
 
-export function useAdminOrdersQuery({ statusFilter, sortBy, searchQuery, page }) {
+export function useAdminOrdersQuery({ statusFilter, paymentFilter, sortBy, searchQuery, page }) {
   const [orders, setOrders] = useState([])
   const [totalElements, setTotalElements] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -61,12 +61,13 @@ export function useAdminOrdersQuery({ statusFilter, sortBy, searchQuery, page })
     () =>
       buildAdminOrdersParams({
         statusFilter,
+        paymentFilter,
         sortBy,
         search: debouncedSearch,
         page,
         pageSize: ADMIN_ORDERS_PAGE_SIZE,
       }),
-    [debouncedSearch, page, sortBy, statusFilter],
+    [debouncedSearch, page, paymentFilter, sortBy, statusFilter],
   )
 
   const applyOrdersResult = useCallback((result) => {

@@ -27,9 +27,50 @@ export function orderStatusMeta(s) {
   return map[s] || map.new
 }
 
-export function getReviewStatus(status) {
+const STATUS_STYLE = {
+  danger: { color: '#ff8a80', bg: 'rgba(255,138,128,0.14)', border: 'rgba(255,138,128,0.34)' },
+  delivered: { color: '#40deaa', bg: 'rgba(64,222,170,0.16)', border: 'rgba(64,222,170,0.42)' },
+  outForDelivery: { color: '#b287ff', bg: 'rgba(178,135,255,0.18)', border: 'rgba(178,135,255,0.4)' },
+  packing: { color: '#ffd58f', bg: 'rgba(255,181,71,0.18)', border: 'rgba(255,181,71,0.4)' },
+  accepted: { color: '#6fc2ff', bg: 'rgba(111,194,255,0.16)', border: 'rgba(111,194,255,0.38)' },
+  warn: { color: '#ffd58f', bg: 'rgba(255,181,71,.15)', border: 'rgba(255,181,71,.34)' },
+  info: { color: '#9cc4ff', bg: 'rgba(90,162,255,.14)', border: 'rgba(90,162,255,.32)' },
+  purple: { color: '#d4bcff', bg: 'rgba(178,135,255,.15)', border: 'rgba(178,135,255,.34)' },
+  mint: { color: '#40deaa', bg: 'rgba(64,222,170,.14)', border: 'rgba(64,222,170,.36)' },
+}
+
+export function getOrderStatusDisplayMeta({ status, orderStatusDesc }) {
+  const desc = String(orderStatusDesc ?? '').trim()
+  const descLower = desc.toLowerCase()
+  const fallback = orderStatusMeta(status)
+  const label = desc || fallback.label
+
+  if (descLower.includes('cancel')) return { label, ...STATUS_STYLE.danger }
+  if (descLower.includes('reject')) return { label, ...STATUS_STYLE.danger }
+  if (descLower.includes('out for deliver')) return { label, ...STATUS_STYLE.outForDelivery }
+  if (descLower.includes('delivered') || descLower.includes('order delivered')) {
+    return { label, ...STATUS_STYLE.delivered }
+  }
+  if (descLower.includes('pack')) return { label, ...STATUS_STYLE.packing }
+  if (descLower.includes('accept')) return { label, ...STATUS_STYLE.accepted }
+  if (descLower.includes('prepar') || descLower.includes('approv')) return { label, ...STATUS_STYLE.warn }
+  if (descLower.includes('initiat') || descLower.includes('pending') || descLower.includes('incoming')) {
+    return { label, ...STATUS_STYLE.info }
+  }
+
+  if (status === 'out') return { label, ...STATUS_STYLE.outForDelivery }
+  if (status === 'delivered') return { label, ...STATUS_STYLE.delivered }
+  if (status === 'ready') return { label, ...STATUS_STYLE.packing }
+  if (status === 'preparing') return { label, ...STATUS_STYLE.accepted }
+
+  return { label, color: fallback.color, bg: fallback.bg, border: fallback.border }
+}
+
+export function getReviewStatus(status, orderStatusDesc = '') {
+  const desc = String(orderStatusDesc).toLowerCase()
   if (status === 'new') return 'pending'
-  if (status === 'rejected') return 'rejected'
+  if (status === 'rejected' || desc.includes('reject')) return 'rejected'
+  if (status === 'cancelled' || desc.includes('cancel')) return 'cancelled'
   return 'approved'
 }
 
@@ -38,6 +79,7 @@ export function reviewStatusMeta(reviewStatus) {
     pending: { label: 'Pending', color: '#ffd58f', bg: 'rgba(255,181,71,.15)', border: 'rgba(255,181,71,.34)' },
     approved: { label: 'Approved', color: '#40deaa', bg: 'rgba(64,222,170,.14)', border: 'rgba(64,222,170,.36)' },
     rejected: { label: 'Rejected', color: '#ff8a80', bg: 'rgba(255,138,128,0.14)', border: 'rgba(255,138,128,0.34)' },
+    cancelled: { label: 'Cancelled', color: '#ff8a80', bg: 'rgba(255,138,128,0.14)', border: 'rgba(255,138,128,0.34)' },
   }
   return map[reviewStatus] || map.pending
 }
@@ -84,8 +126,13 @@ export function mapOrder(o) {
     o.orderTotal != null && o.orderTotal !== ''
       ? Number(o.orderTotal)
       : orderTotal(o)
-  const reviewStatus = getReviewStatus(o.status)
-  const reviewMeta = reviewStatusMeta(reviewStatus)
+  const reviewStatus = getReviewStatus(o.status, o.orderStatusDesc)
+  const reviewMeta = {
+    ...reviewStatusMeta(reviewStatus),
+    ...(reviewStatus === 'cancelled' && o.orderStatusDesc?.trim()
+      ? { label: o.orderStatusDesc.trim() }
+      : {}),
+  }
   const orderedAtMs = o.orderedAt
     ? new Date(o.orderedAt).getTime()
     : o.placedMinAgo != null
@@ -103,10 +150,10 @@ export function mapOrder(o) {
     statusMeta: sm,
     reviewStatus,
     reviewMeta,
-    statusDisplayMeta: {
-      ...reviewMeta,
-      label: o.orderStatusDesc?.trim() || reviewMeta.label,
-    },
+    statusDisplayMeta: getOrderStatusDisplayMeta({
+      status: o.status,
+      orderStatusDesc: o.orderStatusDesc,
+    }),
     paymentMeta: paymentStatusMeta(o.payment),
     orderedOn: formatOrderedOn(o),
     orderedAtMs,

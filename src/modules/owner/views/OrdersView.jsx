@@ -20,6 +20,12 @@ const SORT_OPTIONS = [
   { id: 'oldest', label: 'Date: Oldest First' },
 ]
 
+const PAYMENT_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'cod', label: 'COD' },
+  { id: 'online', label: 'Online' },
+]
+
 const ORDER_MENU_OPTIONS = [
   { id: 'ready', label: 'Mark as Packed', subtitle: 'Order packed and ready', icon: Package },
   { id: 'out', label: 'Mark as Out for Delivery', subtitle: 'Order is out for delivery', icon: Truck },
@@ -210,6 +216,7 @@ function Th({ children, align = 'left', className = '' }) {
 
 export default function OrdersView() {
   const [statusFilter, setStatusFilter] = useState('all')
+  const [paymentFilter, setPaymentFilter] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
@@ -225,7 +232,7 @@ export default function OrdersView() {
     rejectOrder,
     updateOrderStatus,
     printInvoice,
-  } = useAdminOrdersQuery({ statusFilter, sortBy, searchQuery, page })
+  } = useAdminOrdersQuery({ statusFilter, paymentFilter, sortBy, searchQuery, page })
 
   useEffect(() => {
     if (page > totalPages) setPage(Math.max(1, totalPages))
@@ -253,6 +260,17 @@ export default function OrdersView() {
           minWidth={168}
           onChange={(value) => {
             setStatusFilter(value)
+            setPage(1)
+          }}
+        />
+
+        <FilterSelect
+          label="Payment"
+          value={paymentFilter}
+          options={PAYMENT_FILTERS}
+          minWidth={140}
+          onChange={(value) => {
+            setPaymentFilter(value)
             setPage(1)
           }}
         />
@@ -377,6 +395,28 @@ export default function OrdersView() {
                             {actionState?.id === order.id && actionState.type === 'reject' ? 'Rejecting…' : 'Reject'}
                           </button>
                         </>
+                      ) : order.reviewStatus === 'approved' ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled
+                            className="px-3 py-2 rounded-[10px] text-[11.5px] font-extrabold opacity-70 cursor-default"
+                            style={{
+                              color: order.reviewMeta.color,
+                              background: order.reviewMeta.bg,
+                              border: `1px solid ${order.reviewMeta.border}`,
+                            }}
+                          >
+                            {order.reviewMeta.label}
+                          </button>
+                          <OrderActionsMenu
+                            order={order}
+                            onMenuAction={updateOrderStatus}
+                            onPrintInvoice={printInvoice}
+                            actionState={actionState}
+                            disabled={Boolean(actionState)}
+                          />
+                        </>
                       ) : (
                         <button
                           type="button"
@@ -391,13 +431,6 @@ export default function OrdersView() {
                           {order.reviewMeta.label}
                         </button>
                       )}
-                      <OrderActionsMenu
-                        order={order}
-                        onMenuAction={updateOrderStatus}
-                        onPrintInvoice={printInvoice}
-                        actionState={actionState}
-                        disabled={Boolean(actionState)}
-                      />
                     </div>
                   </td>
                 </tr>

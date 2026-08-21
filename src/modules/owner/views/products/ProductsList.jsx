@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import PortalModal from '../../components/PortalModal'
+import BulkUploadModal from './BulkUploadModal'
 import Spinner from '@/components/ui/Spinner'
 import { ModalSelect } from '../../components/PortalModal'
 import { useOwnerPortal } from '../../context/OwnerPortalContext'
@@ -72,6 +73,7 @@ export default function ProductsList() {
   })
   const [stockFilter, setStockFilter] = useState('all')
   const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
@@ -243,7 +245,10 @@ export default function ProductsList() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAddMenuOpen(false)}
+                  onClick={() => {
+                    setAddMenuOpen(false)
+                    setBulkUploadOpen(true)
+                  }}
                   className="w-full flex items-center gap-2 px-2.5 py-2 text-[12.5px] font-bold rounded-[9px] cursor-pointer hover:bg-white/6 text-left"
                   style={{ color: colors.textHighlight }}
                 >
@@ -407,6 +412,8 @@ export default function ProductsList() {
       <div className="text-[11.5px]" style={{ color: '#5f7d73' }}>
         Showing {filtered.length} of {products.length} products across {activeOutletName}.
       </div>
+
+      {bulkUploadOpen && <BulkUploadModal onClose={() => setBulkUploadOpen(false)} />}
 
       {deleteTarget && (
         <PortalModal onClose={closeDeleteModal} width={420} scrollable={false}>

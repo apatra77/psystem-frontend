@@ -177,6 +177,14 @@ export function mapUiSortToApi(sortBy) {
   return sortBy === 'oldest' ? 'orderPlacedAt,asc' : 'orderPlacedAt,desc'
 }
 
+/** Map owner-portal UI payment filter to API paymentMethod (omit for all). */
+export function mapUiPaymentFilterToApi(paymentFilter) {
+  if (!paymentFilter || paymentFilter === 'all') return undefined
+  if (paymentFilter === 'cod') return 'COD'
+  if (paymentFilter === 'online') return 'ONLINE'
+  return undefined
+}
+
 function mapAdminApiStatus(status) {
   const raw = String(status ?? '').trim()
   if (!raw) return 'new'
@@ -280,9 +288,10 @@ export function parseAdminOrdersPage(payload) {
 let inFlightAdminOrdersRequest = null
 let inFlightAdminOrdersKey = null
 
-function buildAdminOrdersQuery({ status, fromDate, toDate, search, page, size, sort } = {}) {
+function buildAdminOrdersQuery({ status, paymentMethod, fromDate, toDate, search, page, size, sort } = {}) {
   const params = new URLSearchParams()
   if (status) params.set('status', status)
+  if (paymentMethod) params.set('paymentMethod', paymentMethod)
   if (fromDate) params.set('fromDate', fromDate)
   if (toDate) params.set('toDate', toDate)
   if (search?.trim()) params.set('search', search.trim())
@@ -295,6 +304,7 @@ function buildAdminOrdersQuery({ status, fromDate, toDate, search, page, size, s
 /** Build query params only for active (non-default) filters. */
 export function buildAdminOrdersParams({
   statusFilter = 'all',
+  paymentFilter = 'all',
   sortBy = 'newest',
   search = '',
   page = 1,
@@ -304,9 +314,11 @@ export function buildAdminOrdersParams({
 } = {}) {
   const params = {}
   const apiStatus = mapUiStatusFilterToApi(statusFilter)
+  const apiPaymentMethod = mapUiPaymentFilterToApi(paymentFilter)
   const trimmedSearch = search.trim()
 
   if (apiStatus) params.status = apiStatus
+  if (apiPaymentMethod) params.paymentMethod = apiPaymentMethod
   if (fromDate) params.fromDate = fromDate
   if (toDate) params.toDate = toDate
   if (trimmedSearch) params.search = trimmedSearch
@@ -323,6 +335,7 @@ export function buildAdminOrdersParams({
 export async function fetchAdminOrders(
   {
     status,
+    paymentMethod,
     fromDate,
     toDate,
     search,
@@ -333,7 +346,7 @@ export async function fetchAdminOrders(
     signal,
   } = {},
 ) {
-  const query = buildAdminOrdersQuery({ status, fromDate, toDate, search, page, size, sort })
+  const query = buildAdminOrdersQuery({ status, paymentMethod, fromDate, toDate, search, page, size, sort })
   const path = query ? `/api/admin/orders?${query}` : '/api/admin/orders'
   const requestKey = path
 
