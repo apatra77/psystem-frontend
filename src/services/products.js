@@ -1,4 +1,5 @@
-import { authFetch, PRODUCT_API_BASE } from './api'
+import { authFetch, authHeaders, getErrorMessage, parseJsonResponse, PRODUCT_API_BASE } from './api'
+import { notifyUnauthorized } from '@/shared/api/tokenBridge'
 
 function pick(obj, ...keys) {
   for (const key of keys) {
@@ -326,6 +327,70 @@ export async function fetchCustomerProducts(categories = [], { force = false } =
 
 let inFlightProductsRequest = null
 const inFlightProductsByCategoryRequests = new Map()
+const inFlightProductsPageRequests = new Map()
+
+export const OWNER_PRODUCTS_PAGE_SIZE = 20
+
+function buildProductsPageQuery({ page = 0, size = OWNER_PRODUCTS_PAGE_SIZE } = {}) {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('size', String(size))
+  return params.toString()
+}
+
+/** Parse paginated GET /api/products response. */
+export function parseProductsPage(payload, categories = []) {
+  const data = payload?.data ?? payload
+  const content = extractApiList(payload, ['products'])
+
+  return {
+    products: content.map((item) => mapProductFromApi(item, categories)),
+    totalElements: Number(data?.totalElements ?? data?.total ?? content.length) || 0,
+    totalPages: Math.max(1, Number(data?.totalPages) || 1),
+    page: Number(data?.number ?? data?.page ?? 0) || 0,
+    size: Number(data?.size ?? content.length) || 0,
+  }
+}
+
+export async function fetchProductsPage(categories = [], { page = 0, size = OWNER_PRODUCTS_PAGE_SIZE, force = false } = {}) {
+  const query = buildProductsPageQuery({ page, size })
+  const path = `/api/products?${query}`
+
+  if (!force && inFlightProductsPageRequests.has(path)) {
+    return inFlightProductsPageRequests.get(path)
+  }
+
+  const request = authFetch(path, {}, PRODUCT_API_BASE)
+    .then((payload) => parseProductsPage(payload, categories))
+    .finally(() => {
+      inFlightProductsPageRequests.delete(path)
+    })
+
+  inFlightProductsPageRequests.set(path, request)
+  return request
+}
+
+export async function fetchProductsByCategoryPage(
+  categoryId,
+  categories = [],
+  { page = 0, size = OWNER_PRODUCTS_PAGE_SIZE, force = false } = {},
+) {
+  const query = buildProductsPageQuery({ page, size })
+  const path = `/api/products/by-category/${encodeURIComponent(categoryId)}?${query}`
+
+  if (!force && inFlightProductsPageRequests.has(path)) {
+    return inFlightProductsPageRequests.get(path)
+  }
+
+  const request = authFetch(path, {}, PRODUCT_API_BASE)
+    .then((payload) => parseProductsPage(payload, categories))
+    .finally(() => {
+      inFlightProductsPageRequests.delete(path)
+    })
+
+  inFlightProductsPageRequests.set(path, request)
+  return request
+}
 
 export async function fetchProducts(categories = [], { force = false } = {}) {
   if (!force && inFlightProductsRequest) {
@@ -503,5 +568,120 @@ export function mapProductDetailToFormDraft(detail, categories = []) {
     discountPrice: discountAmount > 0 ? String(Number(discountAmount.toFixed(2))) : '',
     stock: primary.quantity != null ? String(Number(primary.quantity)) : '',
     stockUnit: primary.unit ?? '',
+  }
+}
+
+function parseFilenameFromDisposition(header) {
+  if (!header) return null
+  const match = header.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)
+  return match ? decodeURIComponent(match[1].replace(/"/g, '')) : null
+}
+
+function triggerBlobDownload(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+async function readProductApiError(res) {
+  const text = await res.text()
+  if (!text) return getErrorMessage(null, res.status)
+  try {
+    return getErrorMessage(JSON.parse(text), res.status)
+  } catch {
+    return text
+  }
+}
+
+/** GET /api/products/upload-product-info/template */
+export async function downloadProductUploadTemplate() {
+  const res = await fetch(`${PRODUCT_API_BASE}/api/products/upload-product-info/template`, {
+    headers: authHeaders({ Accept: '*/*' }),
+  })
+
+  if (res.status === 401) {
+    notifyUnauthorized()
+  }
+
+  if (!res.ok) {
+    throw new Error(await readProductApiError(res))
+  }
+
+  const blob = await res.blob()
+  const filename =
+    parseFilenameFromDisposition(res.headers.get('content-disposition')) ??
+    'product-upload-template.xlsx'
+  triggerBlobDownload(blob, filename)
+}
+
+/** POST /api/products/upload-product-info */
+export function uploadProductBulkFile(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${PRODUCT_API_BASE}/api/products/upload-product-info`)
+
+    const headers = authHeaders({ Accept: '*/*' })
+    Object.entries(headers).forEach(([key, value]) => {
+      xhr.setRequestHeader(key, value)
+    })
+
+    xhr.upload.addEventListener('progress', (event) => {
+      if (!onProgress) return
+      const percent = event.lengthComputable
+        ? Math.round((event.loaded * 100) / event.total)
+        : Math.min(99, Math.round((event.loaded / Math.max(file.size, 1)) * 100))
+      onProgress(percent)
+    })
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 401) {
+        notifyUnauthorized()
+      }
+
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(readXhrProductApiError(xhr)))
+        return
+      }
+
+      onProgress?.(100)
+
+      const contentType = xhr.getResponseHeader('content-type') ?? ''
+      if (contentType.includes('application/json')) {
+        try {
+          resolve(JSON.parse(xhr.responseText))
+        } catch {
+          resolve(null)
+        }
+        return
+      }
+
+      resolve(null)
+    })
+
+    xhr.addEventListener('error', () => {
+      reject(new Error('Could not upload file. Please check your connection and try again.'))
+    })
+
+    xhr.addEventListener('abort', () => {
+      reject(new Error('Upload cancelled.'))
+    })
+
+    xhr.send(formData)
+  })
+}
+
+function readXhrProductApiError(xhr) {
+  const text = xhr.responseText
+  if (!text) return getErrorMessage(null, xhr.status)
+  try {
+    return getErrorMessage(JSON.parse(text), xhr.status)
+  } catch {
+    return text
   }
 }

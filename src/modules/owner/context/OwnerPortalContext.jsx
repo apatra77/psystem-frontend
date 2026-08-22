@@ -12,9 +12,6 @@ import { mapOrder, stockMeta } from '../utils/helpers'
 import { getStoredAuthUser, updateStoredUserProfile, skipProfileSetup as skipStoredProfileSetup } from '@/services/auth'
 import {
   fetchCategories,
-  fetchProducts,
-  fetchProductsByCategory,
-  fetchProductsSearch,
   deleteProductById,
 } from '@/services/products'
 import { fetchUserProfile } from '@/services/user'
@@ -69,6 +66,7 @@ export function OwnerPortalProvider({ children }) {
   const [categoriesLoading, setCategoriesLoading] = useState(false)
   const [categoriesError, setCategoriesError] = useState(null)
   const [catalogLoaded, setCatalogLoaded] = useState(false)
+  const [productsRefreshKey, setProductsRefreshKey] = useState(0)
   const [staff] = useState(INITIAL_STAFF)
   const [riders] = useState(INITIAL_RIDERS)
   const [promos] = useState(INITIAL_PROMOS)
@@ -214,125 +212,32 @@ export function OwnerPortalProvider({ children }) {
     )
   }, [])
 
-  const loadProductCatalog = useCallback(async ({ force = false } = {}) => {
-    if (!force && catalogLoaded) return
+  const loadCategories = useCallback(async ({ force = false } = {}) => {
+    if (!force && catalogLoaded && categories.length > 0) return categories
 
-    setProductsLoading(true)
     setCategoriesLoading(true)
-    setProductsError(null)
     setCategoriesError(null)
 
-    let cats = []
-
     try {
-      cats = await fetchCategories({ force })
+      const cats = await fetchCategories({ force })
       setCategories(cats)
+      setCategoriesError(null)
+      setCatalogLoaded(true)
+      return cats
     } catch (err) {
       setCategoriesError(err?.message ?? 'Failed to load categories')
       setCategories([])
+      return []
     } finally {
       setCategoriesLoading(false)
     }
+  }, [catalogLoaded, categories.length])
 
-    try {
-      const list = await fetchProducts(cats, { force })
-      setProducts(list)
-      setProductsError(null)
-      setCatalogLoaded(true)
-    } catch (err) {
-      setProductsError(err?.message ?? 'Failed to load products')
-      setProducts([])
-    } finally {
-      setProductsLoading(false)
-    }
-  }, [catalogLoaded])
+  const loadProductCatalog = loadCategories
 
-  const loadProductsByCategory = useCallback(
-    async (categoryId = 'all', { force = false } = {}) => {
-      setProductsLoading(true)
-      setProductsError(null)
-
-      let cats = categories
-      if (cats.length === 0) {
-        setCategoriesLoading(true)
-        setCategoriesError(null)
-        try {
-          cats = await fetchCategories({ force })
-          setCategories(cats)
-        } catch (err) {
-          setCategoriesError(err?.message ?? 'Failed to load categories')
-          setCategories([])
-        } finally {
-          setCategoriesLoading(false)
-        }
-      }
-
-      try {
-        const list =
-          categoryId === 'all'
-            ? await fetchProducts(cats, { force })
-            : await fetchProductsByCategory(categoryId, cats, { force })
-        setProducts(list)
-        setProductsError(null)
-        setCatalogLoaded(true)
-      } catch (err) {
-        setProductsError(err?.message ?? 'Failed to load products')
-        setProducts([])
-      } finally {
-        setProductsLoading(false)
-      }
-    },
-    [categories],
-  )
-
-  const searchProducts = useCallback(
-    async (query, { force = false } = {}) => {
-      const trimmed = query.trim()
-      if (!trimmed) {
-        return loadProductsByCategory('all', { force })
-      }
-
-      setProductsLoading(true)
-      setProductsError(null)
-
-      let cats = categories
-      if (cats.length === 0) {
-        setCategoriesLoading(true)
-        setCategoriesError(null)
-        try {
-          cats = await fetchCategories({ force })
-          setCategories(cats)
-        } catch (err) {
-          setCategoriesError(err?.message ?? 'Failed to load categories')
-          setCategories([])
-        } finally {
-          setCategoriesLoading(false)
-        }
-      }
-
-      try {
-        const list = await fetchProductsSearch(trimmed, cats)
-        setProducts(list)
-        setProductsError(null)
-        setCatalogLoaded(true)
-      } catch (err) {
-        setProductsError(err?.message ?? 'Failed to search products')
-        setProducts([])
-      } finally {
-        setProductsLoading(false)
-      }
-    },
-    [categories, loadProductsByCategory],
-  )
-
-  const reloadProducts = useCallback(
-    (categoryId = 'all', query = '') => {
-      const trimmed = query.trim()
-      if (trimmed) return searchProducts(trimmed, { force: true })
-      return loadProductsByCategory(categoryId, { force: true })
-    },
-    [loadProductsByCategory, searchProducts],
-  )
+  const reloadProducts = useCallback(() => {
+    setProductsRefreshKey((key) => key + 1)
+  }, [])
 
   const value = useMemo(() => {
     const outlets = profileAddresses.map((address) => mapAddressToOutlet(address, storeProfiles))
@@ -395,9 +300,9 @@ export function OwnerPortalProvider({ children }) {
       categoriesLoading,
       categoriesError,
       loadProductCatalog,
-      loadProductsByCategory,
-      searchProducts,
+      loadCategories,
       reloadProducts,
+      productsRefreshKey,
       productCategories,
       saveProduct,
       deleteProduct,
@@ -430,9 +335,9 @@ export function OwnerPortalProvider({ children }) {
     categoriesLoading,
     categoriesError,
     loadProductCatalog,
-    loadProductsByCategory,
-    searchProducts,
+    loadCategories,
     reloadProducts,
+    productsRefreshKey,
     catalogLoaded,
     staff,
     riders,

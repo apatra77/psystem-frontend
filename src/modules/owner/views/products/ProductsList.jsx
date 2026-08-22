@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import PortalModal from '../../components/PortalModal'
 import BulkUploadModal from './BulkUploadModal'
 import Spinner from '@/components/ui/Spinner'
 import { ModalSelect } from '../../components/PortalModal'
 import { useOwnerPortal } from '../../context/OwnerPortalContext'
-import { useProductSearchQuery } from '../../hooks/useProductSearchQuery'
+import { useProductsQuery } from '../../hooks/useProductsQuery'
 import { stockMeta } from '../../utils/helpers'
 import { colors } from '@/theme/colors'
 
@@ -47,29 +47,35 @@ function Th({ children }) {
 export default function ProductsList() {
   const navigate = useNavigate()
   const {
-    products,
-    categories,
-    activeOutletName,
-    deleteProduct,
-    toggleProductStatus,
-    productsLoading,
+    categories: contextCategories,
     categoriesLoading,
-    productsError,
-    loadProductsByCategory,
-    searchProducts,
+    deleteProduct,
     reloadProducts,
+    productsRefreshKey,
   } = useOwnerPortal()
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('all')
-  const skipInitialCategoryFetch = useRef(true)
-  const catFilterRef = useRef(catFilter)
-  catFilterRef.current = catFilter
-
-  const getCategoryFilter = useCallback(() => catFilterRef.current, [])
-  const { queueSearch } = useProductSearchQuery({
-    searchProducts,
-    loadProductsByCategory,
-    getCategoryFilter,
+  const {
+    products,
+    categories: fetchedCategories,
+    totalElements,
+    totalPages,
+    page,
+    setPage,
+    currentPage,
+    rangeStart,
+    rangeEnd,
+    pageNumbers,
+    loading: productsLoading,
+    error: productsError,
+    isSearchMode,
+    refetch,
+    updateProductLocally,
+    removeProductLocally,
+  } = useProductsQuery({
+    categoryId: catFilter,
+    searchQuery: search,
+    refreshKey: productsRefreshKey,
   })
   const [stockFilter, setStockFilter] = useState('all')
   const [addMenuOpen, setAddMenuOpen] = useState(false)
@@ -77,6 +83,8 @@ export default function ProductsList() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+
+  const categories = contextCategories.length > 0 ? contextCategories : fetchedCategories
 
   const categoryOptions = useMemo(
     () => [
@@ -86,15 +94,6 @@ export default function ProductsList() {
     [categories],
   )
   const isLoading = productsLoading || categoriesLoading
-
-  useEffect(() => {
-    if (skipInitialCategoryFetch.current) {
-      skipInitialCategoryFetch.current = false
-      return
-    }
-    if (search.trim()) return
-    loadProductsByCategory(catFilter)
-  }, [catFilter, loadProductsByCategory, search])
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -106,9 +105,7 @@ export default function ProductsList() {
   }, [products, stockFilter])
 
   const handleSearchChange = (e) => {
-    const value = e.target.value
-    setSearch(value)
-    queueSearch(value)
+    setSearch(e.target.value)
   }
 
   const stockChips = STOCK_FILTERS.map((f) => {
@@ -141,7 +138,9 @@ export default function ProductsList() {
     setDeleteError('')
     try {
       await deleteProduct(deleteTarget.id)
+      removeProductLocally(deleteTarget.id)
       setDeleteTarget(null)
+      await refetch()
     } catch (error) {
       setDeleteError(
         error instanceof Error ? error.message : 'Failed to delete product. Please try again.',
@@ -272,7 +271,7 @@ export default function ProductsList() {
             <div className="text-[13px] font-bold text-red-400">{productsError}</div>
             <button
               type="button"
-              onClick={() => reloadProducts(catFilter, search)}
+              onClick={refetch}
               className="text-[12.5px] font-bold px-4 py-2 rounded-[10px] cursor-pointer"
               style={{
                 color: colors.accentText,
@@ -283,6 +282,7 @@ export default function ProductsList() {
             </button>
           </div>
         ) : (
+        <>
         <table className="w-full border-collapse">
           <thead>
             <tr>
@@ -364,7 +364,12 @@ export default function ProductsList() {
                   <td className="px-4 py-2.5">
                     <button
                       type="button"
-                      onClick={() => toggleProductStatus(p.id)}
+                      onClick={() =>
+                        updateProductLocally(p.id, (product) => ({
+                          ...product,
+                          status: product.status === 'active' ? 'inactive' : 'active',
+                        }))
+                      }
                       className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full cursor-pointer"
                       style={{
                         background: isActive ? 'rgba(64,222,170,0.14)' : 'rgba(255,255,255,0.08)',
@@ -406,14 +411,82 @@ export default function ProductsList() {
             )}
           </tbody>
         </table>
+
+        {!isSearchMode && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5"
+            style={{ borderTop: `1px solid ${colors.borderSubtle}` }}
+          >
+            <div className="text-[12px]" style={{ color: colors.textSecondary }}>
+              Showing {rangeStart} to {rangeEnd} of {totalElements} products
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={isLoading || currentPage === 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }}
+                aria-label="Previous page"
+              >
+                <ChevronLeft size={15} />
+              </button>
+
+              {pageNumbers.map((item, index) =>
+                item === '…' ? (
+                  <span key={`ellipsis-${index}`} className="px-1 text-[12px]" style={{ color: colors.textDim }}>
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setPage(item)}
+                    className="min-w-8 h-8 px-2 rounded-[9px] text-[12px] font-extrabold cursor-pointer"
+                    style={
+                      item === currentPage
+                        ? { background: colors.primaryBtn, color: colors.accentText }
+                        : { color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }
+                    }
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+
+              <button
+                type="button"
+                disabled={isLoading || currentPage === totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }}
+                aria-label="Next page"
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isSearchMode && filtered.length > 0 && (
+          <div
+            className="px-4 py-3.5 text-[12px]"
+            style={{ color: colors.textSecondary, borderTop: `1px solid ${colors.borderSubtle}` }}
+          >
+            Showing {filtered.length} search result{filtered.length === 1 ? '' : 's'}
+          </div>
+        )}
+        </>
         )}
       </GlassCard>
 
-      <div className="text-[11.5px]" style={{ color: '#5f7d73' }}>
-        Showing {filtered.length} of {products.length} products across {activeOutletName}.
-      </div>
-
-      {bulkUploadOpen && <BulkUploadModal onClose={() => setBulkUploadOpen(false)} />}
+      {bulkUploadOpen && (
+        <BulkUploadModal
+          onClose={() => setBulkUploadOpen(false)}
+          onUploaded={() => reloadProducts()}
+        />
+      )}
 
       {deleteTarget && (
         <PortalModal onClose={closeDeleteModal} width={420} scrollable={false}>

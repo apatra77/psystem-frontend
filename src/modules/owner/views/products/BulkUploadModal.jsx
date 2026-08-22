@@ -6,45 +6,24 @@ import {
 } from 'lucide-react'
 import PortalModal from '../../components/PortalModal'
 import Spinner from '@/components/ui/Spinner'
+import { toast } from '@/app/store/uiStore'
+import {
+  downloadProductUploadTemplate,
+  uploadProductBulkFile,
+} from '@/services/products'
 import { colors } from '@/theme/colors'
 
 const ACCEPTED_EXTENSIONS = ['.csv', '.xls', '.xlsx']
 const ACCEPTED_MIME_TYPES = [
   'text/csv',
+  'text/plain',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/octet-stream',
 ]
 const MAX_FILE_SIZE = 10 * 1024 * 1024
-
-const TEMPLATE_HEADERS = [
-  'product_name',
-  'generic_name',
-  'description',
-  'category',
-  'sku',
-  'stock_qty',
-  'stock_unit',
-  'mrp',
-  'discount_percent',
-  'price',
-  'purchase_tax',
-  'sales_tax',
-]
-
-const TEMPLATE_SAMPLE = [
-  'Paracetamol 500mg',
-  'Paracetamol',
-  'Pain relief tablet',
-  'Tablets',
-  'SKU-001',
-  '100',
-  'units',
-  '50',
-  '10',
-  '45',
-  'GST5',
-  'GST5',
-]
+const FILE_INPUT_ID = 'bulk-upload-file-input'
+const FORM_ID = 'bulk-upload-form'
 
 function isAcceptedFile(file) {
   const name = file.name.toLowerCase()
@@ -59,39 +38,38 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function downloadTemplate() {
-  const rows = [TEMPLATE_HEADERS, TEMPLATE_SAMPLE]
-  const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'product-bulk-upload-template.csv'
-  link.click()
-  URL.revokeObjectURL(url)
-}
-
-export default function BulkUploadModal({ onClose }) {
+export default function BulkUploadModal({ onClose, onUploaded }) {
   const inputRef = useRef(null)
+  const fileRef = useRef(null)
   const [file, setFile] = useState(null)
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [downloading, setDownloading] = useState(false)
+  const busy = submitting || downloading
+
+  const clearSelectedFile = () => {
+    setFile(null)
+    fileRef.current = null
+    if (inputRef.current) inputRef.current.value = ''
+  }
 
   const validateAndSetFile = (nextFile) => {
     if (!nextFile) return
     if (!isAcceptedFile(nextFile)) {
       setError('Please upload a CSV, XLS, or XLSX file.')
-      setFile(null)
+      clearSelectedFile()
       return
     }
     if (nextFile.size > MAX_FILE_SIZE) {
       setError('File size must be 10MB or less.')
-      setFile(null)
+      clearSelectedFile()
       return
     }
     setError('')
     setFile(nextFile)
+    fileRef.current = nextFile
   }
 
   const handleDrop = (event) => {
@@ -100,19 +78,47 @@ export default function BulkUploadModal({ onClose }) {
     validateAndSetFile(event.dataTransfer.files?.[0])
   }
 
-  const handleSubmit = async () => {
-    if (!file || submitting) return
-    setSubmitting(true)
+  const handleDownloadTemplate = async () => {
+    if (busy) return
+    setDownloading(true)
     setError('')
 
     try {
-      // UI ready — wire to bulk upload API when available.
-      await new Promise((resolve) => setTimeout(resolve, 600))
+      await downloadProductUploadTemplate()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not download template. Please try again.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const handleSubmit = async (event) => {
+    event?.preventDefault?.()
+    event?.stopPropagation?.()
+
+    if (submitting || downloading) return
+
+    const selectedFile = fileRef.current ?? file
+    if (!selectedFile) {
+      setError('Please select a file before submitting.')
+      inputRef.current?.click()
+      return
+    }
+
+    setSubmitting(true)
+    setUploadProgress(0)
+    setError('')
+
+    try {
+      await uploadProductBulkFile(selectedFile, setUploadProgress)
+      toast.success('Products uploaded successfully')
+      await onUploaded?.()
       onClose?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not upload file. Please try again.')
     } finally {
       setSubmitting(false)
+      setUploadProgress(0)
     }
   }
 
@@ -122,7 +128,7 @@ export default function BulkUploadModal({ onClose }) {
       width={720}
       maxHeight="88vh"
       scrollable={false}
-      closeOnBackdrop={!submitting}
+      closeOnBackdrop={!busy}
     >
       <div className="flex flex-col max-h-[88vh]">
         <div className="flex-shrink-0 flex items-start justify-between px-4 pt-4 pb-3">
@@ -135,7 +141,7 @@ export default function BulkUploadModal({ onClose }) {
           <button
             type="button"
             onClick={onClose}
-            disabled={submitting}
+            disabled={busy}
             className="cursor-pointer text-lg leading-none p-2 flex-shrink-0 disabled:opacity-60"
             style={{ color: colors.textDim }}
             aria-label="Close"
@@ -144,16 +150,15 @@ export default function BulkUploadModal({ onClose }) {
           </button>
         </div>
 
-        <div className="flex-1 px-4 py-2 flex flex-col gap-4 min-h-0">
+        <form
+          id={FORM_ID}
+          className="flex-1 px-4 py-2 flex flex-col gap-4 min-h-0"
+          onSubmit={handleSubmit}
+        >
         <div
-          role="button"
-          tabIndex={0}
-          onClick={() => inputRef.current?.click()}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              inputRef.current?.click()
-            }
+          onClick={(event) => {
+            if (event.target.closest('label')) return
+            inputRef.current?.click()
           }}
           onDragEnter={(event) => {
             event.preventDefault()
@@ -175,6 +180,7 @@ export default function BulkUploadModal({ onClose }) {
           }}
         >
           <input
+            id={FILE_INPUT_ID}
             ref={inputRef}
             type="file"
             accept={ACCEPTED_EXTENSIONS.join(',')}
@@ -182,12 +188,8 @@ export default function BulkUploadModal({ onClose }) {
             onChange={(event) => validateAndSetFile(event.target.files?.[0])}
           />
 
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              inputRef.current?.click()
-            }}
+          <label
+            htmlFor={FILE_INPUT_ID}
             className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-[10px] text-[12.5px] font-extrabold cursor-pointer"
             style={{
               color: colors.accent,
@@ -197,7 +199,7 @@ export default function BulkUploadModal({ onClose }) {
           >
             <Upload size={14} strokeWidth={2.2} />
             Choose File
-          </button>
+          </label>
 
           <p className="text-[15px] font-extrabold text-white">
             Upload CSV or Excel file
@@ -230,6 +232,38 @@ export default function BulkUploadModal({ onClose }) {
           </ul>
         </div>
 
+        {submitting && (
+          <div
+            className="rounded-[12px] p-3.5"
+            style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.borderSubtle}` }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[12px] font-extrabold text-white">Uploading file…</p>
+              <p className="text-[12px] font-extrabold" style={{ color: colors.accent }}>
+                {uploadProgress}%
+              </p>
+            </div>
+            <div
+              className="h-2 rounded-full overflow-hidden"
+              style={{ background: 'rgba(255,255,255,0.08)' }}
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={uploadProgress}
+              aria-label="Upload progress"
+            >
+              <div
+                className="h-full rounded-full transition-[width] duration-200 ease-out"
+                style={{
+                  width: `${uploadProgress}%`,
+                  background: colors.primaryBtn,
+                  boxShadow: '0 0 10px rgba(64,222,170,0.45)',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {error && (
           <div
             className="rounded-[10px] px-3.5 py-2 text-[12px] font-bold text-red-400"
@@ -238,7 +272,7 @@ export default function BulkUploadModal({ onClose }) {
             {error}
           </div>
         )}
-        </div>
+        </form>
 
         <div
           className="flex-shrink-0 px-4 py-4 border-t"
@@ -247,8 +281,8 @@ export default function BulkUploadModal({ onClose }) {
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={downloadTemplate}
-            disabled={submitting}
+            onClick={handleDownloadTemplate}
+            disabled={busy}
             className="inline-flex items-center justify-center gap-2 py-3 rounded-[12px] text-[13px] font-extrabold cursor-pointer disabled:opacity-60"
             style={{
               color: colors.accent,
@@ -256,24 +290,33 @@ export default function BulkUploadModal({ onClose }) {
               border: `1px solid ${colors.border}`,
             }}
           >
-            <Download size={16} strokeWidth={2.2} />
-            Download Template
+            {downloading ? (
+              <>
+                <Spinner />
+                Downloading…
+              </>
+            ) : (
+              <>
+                <Download size={16} strokeWidth={2.2} />
+                Download Template
+              </>
+            )}
           </button>
           <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!file || submitting}
+            type="submit"
+            form={FORM_ID}
+            disabled={submitting || downloading}
             className="inline-flex items-center justify-center gap-2 py-3 rounded-[12px] text-[13px] font-extrabold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               color: colors.accentText,
               background: colors.primaryBtn,
-              boxShadow: '0 6px 18px rgba(64,222,170,0.35)',
+              boxShadow: file ? '0 6px 18px rgba(64,222,170,0.35)' : 'none',
+              opacity: file ? 1 : 0.55,
             }}
           >
             {submitting ? (
               <>
-                <Spinner />
-                Uploading…
+                Uploading {uploadProgress}%
               </>
             ) : (
               <>
