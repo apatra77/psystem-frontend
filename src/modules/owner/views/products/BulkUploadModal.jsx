@@ -1,14 +1,19 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
+  Clock,
   Download,
   Info,
   Upload,
+  AlertTriangle,
+  X,
 } from 'lucide-react'
 import PortalModal from '../../components/PortalModal'
 import Spinner from '@/components/ui/Spinner'
 import { toast } from '@/app/store/uiStore'
 import {
+  downloadProductUploadFailedRecords,
   downloadProductUploadTemplate,
+  normalizeBulkUploadResponse,
   uploadProductBulkFile,
 } from '@/services/products'
 import { colors } from '@/theme/colors'
@@ -38,6 +43,92 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function formatElapsedClock(totalSeconds) {
+  const hrs = Math.floor(totalSeconds / 3600)
+  const mins = Math.floor((totalSeconds % 3600) / 60)
+  const secs = totalSeconds % 60
+  return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
+function UploadLoadingOverlay({ elapsedSeconds, onCancel }) {
+  return (
+    <div
+      className="absolute inset-0 z-20 flex items-center justify-center rounded-[22px] px-6"
+      style={{
+        background: 'rgba(4,10,8,0.72)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      }}
+      role="status"
+      aria-live="polite"
+      aria-label="Uploading file"
+    >
+      <div
+        className="w-full max-w-[400px] rounded-[18px] px-8 py-8 text-center"
+        style={{
+          background: 'rgba(8,20,16,0.96)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
+        }}
+      >
+        <div className="flex justify-center mb-5">
+          <span
+            className="w-9 h-9 rounded-full animate-spin"
+            style={{
+              border: '2.5px solid rgba(64,222,170,0.18)',
+              borderTopColor: colors.accent,
+              borderRightColor: colors.accent,
+              boxShadow: '0 0 14px rgba(64,222,170,0.42)',
+            }}
+          />
+        </div>
+
+        <p className="text-[18px] font-extrabold text-white leading-tight">
+          Uploading in progress
+        </p>
+        <p className="mt-2 text-[13px] leading-relaxed" style={{ color: colors.textSecondary }}>
+          Please do not close this window or refresh the page.
+        </p>
+
+        <div
+          className="mt-6 inline-flex items-center gap-2.5 px-4 py-2.5 rounded-full"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.12)',
+          }}
+        >
+          <Clock size={15} strokeWidth={2.2} style={{ color: colors.accent, flexShrink: 0 }} />
+          <span className="text-[12.5px] font-semibold" style={{ color: colors.textSecondary }}>
+            Elapsed time:
+          </span>
+          <span
+            className="text-[13px] font-extrabold tabular-nums tracking-wide"
+            style={{ color: colors.accent }}
+          >
+            {formatElapsedClock(elapsedSeconds)}
+          </span>
+        </div>
+
+        <div className="my-6" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }} />
+
+        <button
+          type="button"
+          onClick={onCancel}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-bold cursor-pointer transition-colors hover:bg-white/5"
+          style={{
+            color: colors.textHighlight,
+            border: '1px solid rgba(255,255,255,0.18)',
+            background: 'transparent',
+          }}
+        >
+          <X size={14} strokeWidth={2.4} />
+          Cancel Upload
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function BulkUploadModal({ onClose, onUploaded }) {
   const inputRef = useRef(null)
   const fileRef = useRef(null)
@@ -45,9 +136,31 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const uploadAbortRef = useRef(null)
   const [downloading, setDownloading] = useState(false)
-  const busy = submitting || downloading
+  const [downloadingFailedRecords, setDownloadingFailedRecords] = useState(false)
+  const [uploadResult, setUploadResult] = useState(null)
+  const busy = submitting || downloading || downloadingFailedRecords
+
+  useEffect(() => {
+    if (!submitting) {
+      setElapsedSeconds(0)
+      return undefined
+    }
+
+    setElapsedSeconds(0)
+
+    const tick = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1)
+    }, 1000)
+
+    return () => {
+      clearInterval(tick)
+    }
+  }, [submitting])
+
+  useEffect(() => () => uploadAbortRef.current?.(), [])
 
   const clearSelectedFile = () => {
     setFile(null)
@@ -92,6 +205,30 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
     }
   }
 
+  const handleDownloadFailedRecords = async () => {
+    if (!uploadResult?.failedRecordsDownloadUrl || downloadingFailedRecords) return
+
+    setDownloadingFailedRecords(true)
+    setError('')
+
+    try {
+      await downloadProductUploadFailedRecords(uploadResult.failedRecordsDownloadUrl)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not download failed records. Please try again.')
+    } finally {
+      setDownloadingFailedRecords(false)
+    }
+  }
+
+  const handleCancelUpload = () => {
+    uploadAbortRef.current?.()
+  }
+
+  const handleDismissUploadResult = () => {
+    setUploadResult(null)
+    onClose?.()
+  }
+
   const handleSubmit = async (event) => {
     event?.preventDefault?.()
     event?.stopPropagation?.()
@@ -106,31 +243,53 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
     }
 
     setSubmitting(true)
-    setUploadProgress(0)
     setError('')
 
     try {
-      await uploadProductBulkFile(selectedFile, setUploadProgress)
+      const uploadRequest = uploadProductBulkFile(selectedFile)
+      uploadAbortRef.current = uploadRequest.abort
+      const response = await uploadRequest.promise
+      const result = normalizeBulkUploadResponse(response)
+
+      if (result.failedCount > 0) {
+        if (result.successCount > 0) {
+          toast.success(`${result.successCount.toLocaleString('en-IN')} products uploaded successfully`)
+          await onUploaded?.()
+        }
+        setUploadResult(result)
+        return
+      }
+
+      if (!result.success && result.message) {
+        throw new Error(result.message)
+      }
+
       toast.success('Products uploaded successfully')
       await onUploaded?.()
       onClose?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not upload file. Please try again.')
+      const message = err instanceof Error ? err.message : 'Could not upload file. Please try again.'
+      if (message !== 'Upload cancelled.') {
+        setError(message)
+      }
     } finally {
+      uploadAbortRef.current = null
       setSubmitting(false)
-      setUploadProgress(0)
     }
   }
 
   return (
     <PortalModal
-      onClose={onClose}
+      onClose={uploadResult ? handleDismissUploadResult : onClose}
       width={720}
       maxHeight="88vh"
       scrollable={false}
-      closeOnBackdrop={!busy}
+      closeOnBackdrop={!busy && !uploadResult}
     >
-      <div className="flex flex-col max-h-[88vh]">
+      <div className="relative flex flex-col max-h-[88vh]">
+        {submitting && (
+          <UploadLoadingOverlay elapsedSeconds={elapsedSeconds} onCancel={handleCancelUpload} />
+        )}
         <div className="flex-shrink-0 flex items-start justify-between px-4 pt-4 pb-3">
           <div className="min-w-0 pr-4">
             <h2 className="text-[22px] font-extrabold text-white leading-tight">Bulk Upload Products</h2>
@@ -140,7 +299,7 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={uploadResult ? handleDismissUploadResult : onClose}
             disabled={busy}
             className="cursor-pointer text-lg leading-none p-2 flex-shrink-0 disabled:opacity-60"
             style={{ color: colors.textDim }}
@@ -155,6 +314,35 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
           className="flex-1 px-4 py-2 flex flex-col gap-4 min-h-0"
           onSubmit={handleSubmit}
         >
+        {uploadResult ? (
+          <div
+            className="rounded-[14px] p-5"
+            style={{ background: 'rgba(255,181,71,0.08)', border: '1px solid rgba(255,181,71,0.28)' }}
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={20} style={{ color: colors.gold, flexShrink: 0, marginTop: 2 }} />
+              <div className="min-w-0">
+                <p className="text-[15px] font-extrabold text-white">
+                  {uploadResult.message || 'Upload completed with errors'}
+                </p>
+                <p className="text-[13px] mt-2 leading-relaxed" style={{ color: colors.textSecondary }}>
+                  {uploadResult.failedCount.toLocaleString('en-IN')} medicine
+                  {uploadResult.failedCount === 1 ? '' : 's'} failed to upload.
+                  {uploadResult.successCount > 0 && (
+                    <>
+                      {' '}
+                      {uploadResult.successCount.toLocaleString('en-IN')} uploaded successfully.
+                    </>
+                  )}
+                </p>
+                <p className="text-[12px] mt-2" style={{ color: colors.textDim }}>
+                  Download the failed records file to review the reasons and fix the rows.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+        <>
         <div
           onClick={(event) => {
             if (event.target.closest('label')) return
@@ -231,37 +419,7 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
             <li>• Make sure all required fields are filled</li>
           </ul>
         </div>
-
-        {submitting && (
-          <div
-            className="rounded-[12px] p-3.5"
-            style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.borderSubtle}` }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[12px] font-extrabold text-white">Uploading file…</p>
-              <p className="text-[12px] font-extrabold" style={{ color: colors.accent }}>
-                {uploadProgress}%
-              </p>
-            </div>
-            <div
-              className="h-2 rounded-full overflow-hidden"
-              style={{ background: 'rgba(255,255,255,0.08)' }}
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={uploadProgress}
-              aria-label="Upload progress"
-            >
-              <div
-                className="h-full rounded-full transition-[width] duration-200 ease-out"
-                style={{
-                  width: `${uploadProgress}%`,
-                  background: colors.primaryBtn,
-                  boxShadow: '0 0 10px rgba(64,222,170,0.45)',
-                }}
-              />
-            </div>
-          </div>
+        </>
         )}
 
         {error && (
@@ -278,6 +436,46 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
           className="flex-shrink-0 px-4 py-4 border-t"
           style={{ borderColor: 'rgba(255,255,255,0.09)' }}
         >
+        {uploadResult ? (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={handleDownloadFailedRecords}
+              disabled={busy || !uploadResult.failedRecordsDownloadUrl}
+              className="inline-flex items-center justify-center gap-2 py-3 rounded-[12px] text-[13px] font-extrabold cursor-pointer disabled:opacity-60"
+              style={{
+                color: colors.accentText,
+                background: colors.primaryBtn,
+                boxShadow: '0 6px 18px rgba(64,222,170,0.35)',
+              }}
+            >
+              {downloadingFailedRecords ? (
+                <>
+                  <Spinner />
+                  Downloading…
+                </>
+              ) : (
+                <>
+                  <Download size={16} strokeWidth={2.2} />
+                  Download Failed Records
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleDismissUploadResult}
+              disabled={busy}
+              className="inline-flex items-center justify-center gap-2 py-3 rounded-[12px] text-[13px] font-extrabold cursor-pointer disabled:opacity-60"
+              style={{
+                color: colors.textHighlight,
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${colors.border}`,
+              }}
+            >
+              Close
+            </button>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
@@ -315,9 +513,7 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
             }}
           >
             {submitting ? (
-              <>
-                Uploading {uploadProgress}%
-              </>
+              'Uploading…'
             ) : (
               <>
                 <Upload size={16} strokeWidth={2.2} />
@@ -326,6 +522,7 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
             )}
           </button>
         </div>
+        )}
         </div>
       </div>
     </PortalModal>

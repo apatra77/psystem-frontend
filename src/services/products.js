@@ -619,11 +619,12 @@ export async function downloadProductUploadTemplate() {
 
 /** POST /api/products/upload-product-info */
 export function uploadProductBulkFile(file, onProgress) {
-  return new Promise((resolve, reject) => {
+  const xhr = new XMLHttpRequest()
+
+  const promise = new Promise((resolve, reject) => {
     const formData = new FormData()
     formData.append('file', file)
 
-    const xhr = new XMLHttpRequest()
     xhr.open('POST', `${PRODUCT_API_BASE}/api/products/upload-product-info`)
 
     const headers = authHeaders({ Accept: '*/*' })
@@ -674,6 +675,15 @@ export function uploadProductBulkFile(file, onProgress) {
 
     xhr.send(formData)
   })
+
+  return {
+    promise,
+    abort: () => {
+      if (xhr.readyState !== XMLHttpRequest.DONE) {
+        xhr.abort()
+      }
+    },
+  }
 }
 
 function readXhrProductApiError(xhr) {
@@ -684,4 +694,48 @@ function readXhrProductApiError(xhr) {
   } catch {
     return text
   }
+}
+
+export function normalizeBulkUploadResponse(payload) {
+  const root = payload && typeof payload === 'object' ? payload : {}
+  const data = root.data && typeof root.data === 'object' ? root.data : root
+
+  return {
+    success: root.success !== false,
+    message: root.message ?? '',
+    totalRows: Number(data.totalRows) || 0,
+    successCount: Number(data.successCount) || 0,
+    failedCount: Number(data.failedCount) || 0,
+    failedRecordsDownloadUrl: data.failedRecordsDownloadUrl ?? null,
+  }
+}
+
+function resolveProductApiUrl(path) {
+  if (!path) return null
+  if (/^https?:\/\//i.test(path)) return path
+  return `${PRODUCT_API_BASE}${path.startsWith('/') ? path : `/${path}`}`
+}
+
+/** GET /api/products/upload-product-info/failed-records/{id} */
+export async function downloadProductUploadFailedRecords(downloadPath) {
+  const url = resolveProductApiUrl(downloadPath)
+  if (!url) throw new Error('Failed records download is unavailable.')
+
+  const res = await fetch(url, {
+    headers: authHeaders({ Accept: '*/*' }),
+  })
+
+  if (res.status === 401) {
+    notifyUnauthorized()
+  }
+
+  if (!res.ok) {
+    throw new Error(await readProductApiError(res))
+  }
+
+  const blob = await res.blob()
+  const filename =
+    parseFilenameFromDisposition(res.headers.get('content-disposition')) ??
+    'failed-product-upload-records.xlsx'
+  triggerBlobDownload(blob, filename)
 }
