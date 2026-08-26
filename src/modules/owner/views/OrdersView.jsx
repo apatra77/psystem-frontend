@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Package, Printer, Search, Truck, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
+import AdminOrderDetailPanel from './orders/AdminOrderDetailPanel'
 import { useAdminOrdersQuery, ADMIN_ORDERS_PAGE_SIZE } from '../hooks/useAdminOrdersQuery'
 import { colors } from '@/theme/colors'
 
@@ -25,124 +26,6 @@ const PAYMENT_FILTERS = [
   { id: 'cod', label: 'COD' },
   { id: 'online', label: 'Online' },
 ]
-
-const ORDER_MENU_OPTIONS = [
-  { id: 'ready', label: 'Mark as Packed', subtitle: 'Order packed and ready', icon: Package },
-  { id: 'out', label: 'Mark as Out for Delivery', subtitle: 'Order is out for delivery', icon: Truck },
-  { id: 'delivered', label: 'Mark as Delivered', subtitle: 'Order delivered successfully', icon: CheckCircle2 },
-  { id: 'print', label: 'Print Invoice', subtitle: 'Download / Print invoice', icon: Printer, dividerBefore: true },
-]
-
-function getOrderMenuOptions(reviewStatus) {
-  if (reviewStatus === 'approved') return ORDER_MENU_OPTIONS
-  return [{ id: 'print', label: 'Print Invoice', subtitle: 'Download / Print invoice', icon: Printer }]
-}
-
-function isOrderDelivered(order) {
-  const status = order.status
-  const desc = String(order.orderStatusDesc ?? order.statusDisplayMeta?.label ?? '').toLowerCase()
-  return status === 'delivered' || desc.includes('delivered')
-}
-
-function isOrderMenuOptionDisabled(order, optionId) {
-  if (optionId === 'print') return !isOrderDelivered(order)
-
-  const status = order.status
-  const desc = String(order.orderStatusDesc ?? order.statusDisplayMeta?.label ?? '').toLowerCase()
-
-  const isDelivered = isOrderDelivered(order)
-  const isOutForDelivery = status === 'out' || desc.includes('out for deliver')
-  const isPacked = status === 'ready' || desc.includes('packing') || desc.includes('packed')
-
-  if (isDelivered) return optionId === 'ready' || optionId === 'out' || optionId === 'delivered'
-  if (isOutForDelivery) return optionId === 'ready' || optionId === 'out'
-  if (isPacked) return optionId === 'ready'
-  return false
-}
-
-function OrderActionsMenu({ order, onMenuAction, onPrintInvoice, actionState, disabled }) {
-  const [open, setOpen] = useState(false)
-  const menuOptions = getOrderMenuOptions(order.reviewStatus)
-  const rowBusy = actionState?.id === order.id
-
-  const handleSelect = async (option) => {
-    if (isOrderMenuOptionDisabled(order, option.id)) return
-    setOpen(false)
-    if (option.id === 'print') {
-      await onPrintInvoice(order)
-      return
-    }
-    onMenuAction(order, option.id)
-  }
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        disabled={disabled || rowBusy}
-        className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer hover:bg-white/5 disabled:opacity-60 disabled:cursor-not-allowed"
-        style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}`, background: 'rgba(255,255,255,0.03)' }}
-        aria-label="More actions"
-        aria-expanded={open}
-      >
-        <MoreVertical size={15} />
-      </button>
-      {open && (
-        <>
-          <button type="button" className="fixed inset-0 z-20 cursor-default" aria-label="Close menu" onClick={() => setOpen(false)} />
-          <div
-            className="absolute right-0 top-[calc(100%+6px)] z-30 min-w-[268px] rounded-[14px] py-1.5 shadow-2xl"
-            style={{ background: 'rgba(12,28,23,0.98)', border: `1px solid ${colors.borderStrong}` }}
-          >
-            {menuOptions.map((option) => {
-              const Icon = option.icon
-              const isPrintLoading =
-                option.id === 'print' && actionState?.id === order.id && actionState?.type === 'print'
-              const optionDisabled =
-                isOrderMenuOptionDisabled(order, option.id) ||
-                isPrintLoading ||
-                (rowBusy && option.id !== 'print')
-              return (
-                <div key={option.id}>
-                  {option.dividerBefore && (
-                    <div className="my-1.5 mx-3" style={{ borderTop: `1px solid ${colors.borderSubtle}` }} />
-                  )}
-                  <button
-                    type="button"
-                    disabled={optionDisabled}
-                    onClick={() => handleSelect(option)}
-                    className="w-full flex items-start gap-3 px-3.5 py-3 text-left cursor-pointer hover:bg-white/5 disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                  >
-                    <Icon
-                      size={18}
-                      strokeWidth={1.85}
-                      className="mt-0.5"
-                      style={{ color: optionDisabled ? colors.textDim : colors.textMuted, flexShrink: 0 }}
-                    />
-                    <span className="min-w-0">
-                      <span
-                        className="block text-[13px] font-bold leading-tight"
-                        style={{ color: optionDisabled ? colors.textDim : colors.textBright }}
-                      >
-                        {isPrintLoading ? 'Opening invoice…' : option.label}
-                      </span>
-                      {option.subtitle && (
-                        <span className="block text-[11px] font-medium leading-snug mt-1" style={{ color: colors.textDim }}>
-                          {option.subtitle}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
 
 function Pill({ meta }) {
   return (
@@ -220,6 +103,7 @@ export default function OrdersView() {
   const [sortBy, setSortBy] = useState('newest')
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
+  const [selectedOrderId, setSelectedOrderId] = useState(null)
 
   const {
     ordersMapped,
@@ -228,6 +112,7 @@ export default function OrdersView() {
     loading,
     error,
     actionState,
+    refetchOrders,
     acceptOrder,
     rejectOrder,
     updateOrderStatus,
@@ -249,6 +134,10 @@ export default function OrdersView() {
     if (currentPage >= totalPages - 2) return [1, '…', totalPages - 2, totalPages - 1, totalPages]
     return [1, '…', currentPage, '…', totalPages]
   })()
+
+  const openOrderDetail = (order) => {
+    setSelectedOrderId(order.apiOrderId ?? order.id)
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -320,187 +209,165 @@ export default function OrdersView() {
         </div>
       )}
 
-      <GlassCard className="overflow-hidden">
-        <div className="overflow-x-auto owner-scroll">
-          <table className="w-full min-w-[980px] border-collapse">
-            <thead>
-              <tr>
-                <Th>Order</Th>
-                <Th>Customer</Th>
-                <Th>Amount</Th>
-                <Th>Payment</Th>
-                <Th>Status</Th>
-                <Th>Ordered on</Th>
-                <Th align="center" className="whitespace-nowrap w-[1%]">Actions</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+      <GlassCard className="overflow-hidden w-full">
+          <div className="overflow-x-auto owner-scroll">
+            <table className="w-full min-w-[860px] border-collapse">
+              <thead>
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-[13px]" style={{ color: colors.textDim }}>
-                    Loading orders…
-                  </td>
+                  <Th>Order</Th>
+                  <Th>Customer</Th>
+                  <Th>Amount</Th>
+                  <Th>Payment</Th>
+                  <Th>Status</Th>
+                  <Th>Ordered on</Th>
+                  <Th align="center" className="whitespace-nowrap w-[1%]">Action</Th>
                 </tr>
-              ) : (
-                pageItems.map((order) => (
-                <tr key={order.id} style={{ borderBottom: `1px solid ${colors.borderSubtle}` }}>
-                  <td className="px-4 py-4 align-top">
-                    <div className="text-[13px] font-extrabold text-white">{order.id}</div>
-                    <div className="text-[11px] mt-1" style={{ color: colors.textDim }}>
-                      {order.itemsCount} item{order.itemsCount === 1 ? '' : 's'}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 align-top">
-                    <div className="text-[13px] font-bold text-white">{order.customer}</div>
-                    <div className="text-[11.5px] mt-1" style={{ color: colors.textSecondary }}>{order.phone}</div>
-                    <div className="text-[11px] mt-1 max-w-[220px] truncate" style={{ color: colors.textDim }}>
-                      {order.address}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 align-top">
-                    <div className="text-[13px] font-extrabold text-white tabular-nums">{order.totalFmt}</div>
-                    <div className="text-[11px] mt-1" style={{ color: colors.textDim }}>{order.payment}</div>
-                  </td>
-                  <td className="px-4 py-4 align-top">
-                    <Pill meta={order.paymentMeta} />
-                  </td>
-                  <td className="px-4 py-4 align-top">
-                    <Pill meta={order.statusDisplayMeta} />
-                  </td>
-                  <td className="px-4 py-4 align-top">
-                    <div className="text-[12px] font-semibold text-white whitespace-nowrap">{order.orderedOn}</div>
-                  </td>
-                  <td className="px-4 py-4 align-top whitespace-nowrap w-[1%]">
-                    <div className="flex items-center justify-center gap-2">
-                      {order.reviewStatus === 'pending' ? (
-                        <>
-                          <button
-                            type="button"
-                            disabled={Boolean(actionState)}
-                            onClick={() => acceptOrder(order)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[11.5px] font-extrabold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                            style={{ color: colors.accent, background: 'rgba(64,222,170,0.08)', border: '1px solid rgba(64,222,170,0.34)' }}
-                          >
-                            <Check size={13} strokeWidth={2.5} />
-                            {actionState?.id === order.id && actionState.type === 'accept' ? 'Accepting…' : 'Accept'}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={Boolean(actionState)}
-                            onClick={() => rejectOrder(order)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[11.5px] font-extrabold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                            style={{ color: '#ff8a80', background: 'rgba(255,138,128,0.08)', border: '1px solid rgba(255,138,128,0.34)' }}
-                          >
-                            <X size={13} strokeWidth={2.5} />
-                            {actionState?.id === order.id && actionState.type === 'reject' ? 'Rejecting…' : 'Reject'}
-                          </button>
-                        </>
-                      ) : order.reviewStatus === 'approved' ? (
-                        <>
-                          <button
-                            type="button"
-                            disabled
-                            className="px-3 py-2 rounded-[10px] text-[11.5px] font-extrabold opacity-70 cursor-default"
-                            style={{
-                              color: order.reviewMeta.color,
-                              background: order.reviewMeta.bg,
-                              border: `1px solid ${order.reviewMeta.border}`,
-                            }}
-                          >
-                            {order.reviewMeta.label}
-                          </button>
-                          <OrderActionsMenu
-                            order={order}
-                            onMenuAction={updateOrderStatus}
-                            onPrintInvoice={printInvoice}
-                            actionState={actionState}
-                            disabled={Boolean(actionState)}
-                          />
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled
-                          className="px-3 py-2 rounded-[10px] text-[11.5px] font-extrabold opacity-70 cursor-default"
-                          style={{
-                            color: order.reviewMeta.color,
-                            background: order.reviewMeta.bg,
-                            border: `1px solid ${order.reviewMeta.border}`,
-                          }}
-                        >
-                          {order.reviewMeta.label}
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-                ))
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-[13px]" style={{ color: colors.textDim }}>
+                      Loading orders…
+                    </td>
+                  </tr>
+                ) : (
+                  pageItems.map((order) => {
+                    const isSelected =
+                      selectedOrderId === order.id || selectedOrderId === order.apiOrderId
+
+                    return (
+                      <tr
+                        key={order.id}
+                        style={{
+                          borderBottom: `1px solid ${colors.borderSubtle}`,
+                          background: isSelected ? 'rgba(64,222,170,0.06)' : undefined,
+                        }}
+                      >
+                        <td className="px-4 py-4 align-top">
+                          <div className="text-[13px] font-extrabold text-white">{order.id}</div>
+                          <div className="text-[11px] mt-1" style={{ color: colors.textDim }}>
+                            {order.itemsCount} item{order.itemsCount === 1 ? '' : 's'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="text-[13px] font-bold text-white">{order.customer}</div>
+                          <div className="text-[11.5px] mt-1" style={{ color: colors.textSecondary }}>{order.phone}</div>
+                          <div className="text-[11px] mt-1 max-w-[220px] truncate" style={{ color: colors.textDim }}>
+                            {order.address}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="text-[13px] font-extrabold text-white tabular-nums">{order.totalFmt}</div>
+                          <div className="text-[11px] mt-1" style={{ color: colors.textDim }}>{order.payment}</div>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <Pill meta={order.paymentMeta} />
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <Pill meta={order.statusDisplayMeta} />
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="text-[12px] font-semibold text-white whitespace-nowrap">{order.orderedOn}</div>
+                        </td>
+                        <td className="px-4 py-4 align-top whitespace-nowrap w-[1%]">
+                          <div className="flex items-center justify-center">
+                            <button
+                              type="button"
+                              onClick={() => openOrderDetail(order)}
+                              className="inline-flex items-center gap-1 px-3 py-2 rounded-[10px] text-[11.5px] font-extrabold cursor-pointer"
+                              style={{
+                                color: colors.accent,
+                                background: isSelected ? 'rgba(64,222,170,0.14)' : 'rgba(64,222,170,0.08)',
+                                border: '1px solid rgba(64,222,170,0.34)',
+                              }}
+                            >
+                              View
+                              <ChevronRight size={13} strokeWidth={2.5} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {!loading && pageItems.length === 0 && (
+            <div className="px-4 py-12 text-center text-[13px]" style={{ color: colors.textDim }}>
+              No orders match this filter.
+            </div>
+          )}
+
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5"
+            style={{ borderTop: `1px solid ${colors.borderSubtle}` }}
+          >
+            <div className="text-[12px]" style={{ color: colors.textSecondary }}>
+              Showing {rangeStart} to {rangeEnd} of {totalElements} orders
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={loading || currentPage === 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }}
+                aria-label="Previous page"
+              >
+                <ChevronLeft size={15} />
+              </button>
+
+              {pageNumbers.map((item, index) =>
+                item === '…' ? (
+                  <span key={`ellipsis-${index}`} className="px-1 text-[12px]" style={{ color: colors.textDim }}>
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setPage(item)}
+                    className="min-w-8 h-8 px-2 rounded-[9px] text-[12px] font-extrabold cursor-pointer"
+                    style={
+                      item === currentPage
+                        ? { background: colors.primaryBtn, color: colors.accentText }
+                        : { color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }
+                    }
+                  >
+                    {item}
+                  </button>
+                ),
               )}
-            </tbody>
-          </table>
-        </div>
 
-        {!loading && pageItems.length === 0 && (
-          <div className="px-4 py-12 text-center text-[13px]" style={{ color: colors.textDim }}>
-            No orders match this filter.
+              <button
+                type="button"
+                disabled={loading || currentPage === totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }}
+                aria-label="Next page"
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
           </div>
-        )}
+        </GlassCard>
 
-        <div
-          className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5"
-          style={{ borderTop: `1px solid ${colors.borderSubtle}` }}
-        >
-          <div className="text-[12px]" style={{ color: colors.textSecondary }}>
-            Showing {rangeStart} to {rangeEnd} of {totalElements} orders
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              disabled={loading || currentPage === 1}
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }}
-              aria-label="Previous page"
-            >
-              <ChevronLeft size={15} />
-            </button>
-
-            {pageNumbers.map((item, index) =>
-              item === '…' ? (
-                <span key={`ellipsis-${index}`} className="px-1 text-[12px]" style={{ color: colors.textDim }}>
-                  …
-                </span>
-              ) : (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setPage(item)}
-                  className="min-w-8 h-8 px-2 rounded-[9px] text-[12px] font-extrabold cursor-pointer"
-                  style={
-                    item === currentPage
-                      ? { background: colors.primaryBtn, color: colors.accentText }
-                      : { color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }
-                  }
-                >
-                  {item}
-                </button>
-              ),
-            )}
-
-            <button
-              type="button"
-              disabled={loading || currentPage === totalPages}
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }}
-              aria-label="Next page"
-            >
-              <ChevronRight size={15} />
-            </button>
-          </div>
-        </div>
-      </GlassCard>
+      {selectedOrderId ? (
+        <AdminOrderDetailPanel
+          orderId={selectedOrderId}
+          onClose={() => setSelectedOrderId(null)}
+          acceptOrder={acceptOrder}
+          rejectOrder={rejectOrder}
+          updateOrderStatus={updateOrderStatus}
+          printInvoice={printInvoice}
+          actionState={actionState}
+          onOrderUpdated={refetchOrders}
+        />
+      ) : null}
     </div>
   )
 }

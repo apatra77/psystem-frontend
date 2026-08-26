@@ -200,6 +200,7 @@ export function useAdminOrdersQuery({ statusFilter, paymentFilter, sortBy, searc
     loading,
     error,
     actionState,
+    refetchOrders,
     acceptOrder,
     rejectOrder,
     updateOrderStatus,

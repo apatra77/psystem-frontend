@@ -70,6 +70,21 @@ export async function fetchCategories({ force = false } = {}) {
   return inFlightCategoriesRequest
 }
 
+/** POST /api/categories — create a new product category. */
+export async function createCategory({ name }) {
+  const payload = await authFetch(
+    '/api/categories',
+    {
+      method: 'POST',
+      body: JSON.stringify({ name: String(name ?? '').trim() }),
+    },
+    PRODUCT_API_BASE,
+  )
+
+  const item = payload?.data ?? payload
+  return mapCategoryFromApi(item)
+}
+
 // --- Tax groups ---
 
 export function mapSalesTaxFromApi(item) {

@@ -31,6 +31,32 @@ const EMPTY_DRAFT = {
   stockUnit: '',
 }
 
+function FieldError({ message }) {
+  if (!message) return null
+  return (
+    <p className="mt-1 text-[11px] font-bold text-red-400 leading-snug">{message}</p>
+  )
+}
+
+function validateProductDraft(draft) {
+  const errors = {}
+  const productName = draft.name.trim()
+  const genericName = draft.genericName.trim()
+  const stockUnit = draft.stockUnit.trim()
+  const sellingPrice = draft.price
+
+  if (!productName) errors.name = 'Product name is required'
+  if (!genericName) errors.genericName = 'Generic name is required'
+  if (!draft.purchaseTax) errors.purchaseTax = 'Please select purchase tax'
+  if (!draft.salesTax) errors.salesTax = 'Please select sales tax'
+  if (draft.mrp === '' || Number.isNaN(Number(draft.mrp))) errors.mrp = 'MRP is required'
+  if (sellingPrice === '' || Number.isNaN(Number(sellingPrice))) errors.price = 'Price is required'
+  if (draft.stock === '' || Number.isNaN(Number(draft.stock))) errors.stock = 'Stock qty is required'
+  if (!stockUnit) errors.stockUnit = 'Stock unit is required'
+
+  return errors
+}
+
 function formatAmount(value) {
   const n = Number(value)
   if (!Number.isFinite(n)) return ''
@@ -100,6 +126,7 @@ export default function ProductFormModal() {
   const [taxGroupsLoading, setTaxGroupsLoading] = useState(true)
   const [taxGroupsError, setTaxGroupsError] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState({})
   const [saveError, setSaveError] = useState(null)
 
   const categoryOptions = useMemo(
@@ -174,6 +201,18 @@ export default function ProductFormModal() {
   const close = () => navigate('/owner/products')
 
   const setField = (field, value) => {
+    setFieldErrors((prev) => {
+      const keysToClear = [field]
+      if (field === 'mrp' || field === 'discountPercent' || field === 'discountPrice') {
+        keysToClear.push('price')
+      }
+      if (!keysToClear.some((key) => prev[key])) return prev
+      const next = { ...prev }
+      keysToClear.forEach((key) => {
+        delete next[key]
+      })
+      return next
+    })
     setDraft((prev) => {
       const next = { ...prev, [field]: value }
       const mrp = field === 'mrp' ? value : prev.mrp
@@ -208,44 +247,10 @@ export default function ProductFormModal() {
     const stockUnit = draft.stockUnit.trim()
     const sellingPrice = draft.price
 
-    if (!productName) {
-      setSaveError('Product name is required')
-      return
-    }
-    if (!genericName) {
-      setSaveError('Generic name is required')
-      return
-    }
-    if (!description) {
-      setSaveError('Product description is required')
-      return
-    }
-    if (!categoryName) {
-      setSaveError('Please select a category')
-      return
-    }
-    if (!draft.purchaseTax) {
-      setSaveError('Please select purchase tax')
-      return
-    }
-    if (!draft.salesTax) {
-      setSaveError('Please select sales tax')
-      return
-    }
-    if (draft.mrp === '' || Number.isNaN(Number(draft.mrp))) {
-      setSaveError('MRP is required')
-      return
-    }
-    if (sellingPrice === '' || Number.isNaN(Number(sellingPrice))) {
-      setSaveError('Price is required')
-      return
-    }
-    if (draft.stock === '' || Number.isNaN(Number(draft.stock))) {
-      setSaveError('Stock qty is required')
-      return
-    }
-    if (!stockUnit) {
-      setSaveError('Stock unit is required')
+    const errors = validateProductDraft(draft)
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      setSaveError(null)
       return
     }
 
@@ -263,6 +268,7 @@ export default function ProductFormModal() {
     })
 
     setSaving(true)
+    setFieldErrors({})
     setSaveError(null)
 
     try {
@@ -359,6 +365,7 @@ export default function ProductFormModal() {
               onChange={(e) => setField('name', e.target.value)}
               placeholder="e.g. Aspirin 500mg"
             />
+            <FieldError message={fieldErrors.name} />
           </div>
           <div>
             <ModalFieldLabel>Generic name</ModalFieldLabel>
@@ -367,6 +374,7 @@ export default function ProductFormModal() {
               onChange={(e) => setField('genericName', e.target.value)}
               placeholder="e.g. Ashwagandha"
             />
+            <FieldError message={fieldErrors.genericName} />
           </div>
         </div>
 
@@ -378,6 +386,7 @@ export default function ProductFormModal() {
             placeholder="Short description of the product"
             rows={2}
           />
+          <FieldError message={fieldErrors.description} />
         </div>
 
         <div className="grid grid-cols-3 gap-2">
@@ -398,6 +407,7 @@ export default function ProductFormModal() {
               options={purchaseTaxOptions}
               placeholder={taxGroupsLoading ? 'Loading purchase tax…' : 'Select tax'}
             />
+            <FieldError message={fieldErrors.purchaseTax} />
           </div>
           <div>
             <ModalFieldLabel>Sales tax</ModalFieldLabel>
@@ -407,15 +417,12 @@ export default function ProductFormModal() {
               options={salesTaxOptions}
               placeholder={taxGroupsLoading ? 'Loading sales tax…' : 'Select tax'}
             />
+            <FieldError message={fieldErrors.salesTax} />
           </div>
         </div>
 
         {taxGroupsError && (
           <div className="text-[12px] font-bold text-red-400">{taxGroupsError}</div>
-        )}
-
-        {saveError && (
-          <div className="text-[12px] font-bold text-red-400">{saveError}</div>
         )}
 
         <div className="grid grid-cols-3 gap-2">
@@ -436,6 +443,7 @@ export default function ProductFormModal() {
               onChange={(e) => setField('stock', e.target.value)}
               placeholder="Enter quantity"
             />
+            <FieldError message={fieldErrors.stock} />
           </div>
           <div>
             <ModalFieldLabel>Stock unit</ModalFieldLabel>
@@ -444,6 +452,7 @@ export default function ProductFormModal() {
               onChange={(e) => setField('stockUnit', e.target.value)}
               placeholder="e.g. Pcs, TAB"
             />
+            <FieldError message={fieldErrors.stockUnit} />
           </div>
         </div>
 
@@ -458,6 +467,7 @@ export default function ProductFormModal() {
               onChange={(e) => setField('mrp', e.target.value)}
               placeholder="0"
             />
+            <FieldError message={fieldErrors.mrp} />
           </div>
           <div>
             <ModalFieldLabel>Discount %</ModalFieldLabel>
@@ -492,9 +502,14 @@ export default function ProductFormModal() {
               disabled
               placeholder="0"
             />
+            <FieldError message={fieldErrors.price} />
           </div>
         </div>
         </div>
+
+        {saveError && (
+          <div className="flex-shrink-0 px-4 pb-1 text-[12px] font-bold text-red-400">{saveError}</div>
+        )}
 
         <div
           className="flex-shrink-0 flex justify-end gap-2.5 px-4 py-3 border-t"

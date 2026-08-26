@@ -271,6 +271,73 @@ export function mapAdminOrderFromApi(order, index = 0) {
   }
 }
 
+function mapAdminOrderDetailItemFromApi(line, index) {
+  const mapped = mapOrderItemFromApi(line, index)
+  const product = line?.product ?? line?.productDetails ?? line?.productInfo ?? {}
+  const form =
+    pick(line, 'dosageForm', 'form', 'productForm', 'packingType', 'type') ??
+    pick(product, 'dosageForm', 'form', 'productForm', 'packingType', 'type') ??
+    pick(Array.isArray(product?.packings) ? product.packings[0] : null, 'packingType', 'unit', 'label') ??
+    ''
+
+  return {
+    ...mapped,
+    form: String(form ?? '').trim(),
+    lineTotal: mapped.price * mapped.qty,
+    rx: Boolean(
+      pick(line, 'rx', 'requiresPrescription', 'prescriptionRequired') ??
+        pick(product, 'rx', 'requiresPrescription', 'prescriptionRequired'),
+    ),
+  }
+}
+
+/** Map GET /api/admin/orders/{orderId} into owner portal detail shape. */
+export function mapAdminOrderDetailFromApi(order, index = 0) {
+  const base = mapAdminOrderFromApi(order, index)
+  const detailItems = extractOrderItems(order).map(mapAdminOrderDetailItemFromApi)
+  const itemsSubtotal = detailItems.reduce((sum, item) => sum + item.lineTotal, 0)
+
+  const subtotal =
+    Number(pick(order, 'subtotal', 'subTotal', 'itemsTotal', 'itemTotal')) || itemsSubtotal
+  const deliveryFee =
+    Number(pick(order, 'deliveryFee', 'deliveryCharge', 'shippingFee', 'deliveryAmount')) || 0
+  const discount =
+    Number(pick(order, 'discount', 'discountAmount', 'couponDiscount', 'totalDiscount')) || 0
+  const grandTotal =
+    Number(pick(order, 'orderTotal', 'totalAmount', 'total', 'amount', 'grandTotal', 'orderTotalAmount')) ||
+    Math.max(0, subtotal + deliveryFee - discount)
+
+  const prescriptionUrl =
+    pick(order, 'prescriptionUrl', 'prescriptionImageUrl', 'prescriptionImage', 'rxUrl', 'prescriptionFileUrl') ??
+    null
+  const prescriptionId = pick(order, 'prescriptionId', 'rxId') ?? null
+  const hasPrescription = Boolean(
+    prescriptionUrl ||
+      prescriptionId ||
+      pick(order, 'hasPrescription', 'prescriptionRequired', 'containsPrescription') ||
+      detailItems.some((item) => item.rx),
+  )
+
+  return {
+    ...base,
+    detailItems,
+    subtotal,
+    deliveryFee,
+    discount,
+    grandTotal,
+    prescriptionUrl,
+    prescriptionId,
+    hasPrescription,
+  }
+}
+
+/** Parse GET /api/admin/orders/{orderId} response. */
+export function parseAdminOrderDetail(payload) {
+  const data = payload?.data ?? payload
+  const order = data?.order ?? data
+  return mapAdminOrderDetailFromApi(order)
+}
+
 /** Parse paginated GET /api/admin/orders response. */
 export function parseAdminOrdersPage(payload) {
   const data = payload?.data ?? payload
@@ -365,6 +432,15 @@ export async function fetchAdminOrders(
   })
 
   return inFlightAdminOrdersRequest
+}
+
+/** GET /api/admin/orders/{orderId} — fetch a single admin order with line items. */
+export async function fetchAdminOrderById(orderId, { signal } = {}) {
+  return authFetch(
+    `/api/admin/orders/${normalizeAdminOrderId(orderId)}`,
+    signal ? { signal } : {},
+    CART_API_BASE,
+  )
 }
 
 function normalizeAdminOrderId(orderId) {

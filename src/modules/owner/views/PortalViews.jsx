@@ -1,6 +1,5 @@
 import GlassCard from '../components/GlassCard'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
-import { INITIAL_CATEGORIES } from '../data/initialState'
 import { stockMeta } from '../utils/helpers'
 import { colors } from '@/theme/colors'
 
@@ -20,37 +19,6 @@ function Th({ children }) {
     >
       {children}
     </th>
-  )
-}
-
-export function CategoriesView() {
-  const { categories } = useOwnerPortal()
-  const displayCategories = categories.length > 0 ? categories : INITIAL_CATEGORIES
-
-  return (
-    <div className="grid grid-cols-4 gap-4">
-      {displayCategories.map((c) => (
-        <GlassCard key={c.id} className="p-5 flex flex-col gap-3.5">
-          <div className="w-[52px] h-[52px] rounded-[14px]" style={{ background: 'rgba(64,222,170,0.12)' }} />
-          <div>
-            <div className="text-[14.5px] font-extrabold text-white">{c.name}</div>
-            <div className="text-[11.5px] mt-0.5" style={{ color: colors.textSecondary }}>
-              {c.count != null ? `${c.count} products` : 'Category'}
-            </div>
-          </div>
-          <span
-            className="text-[10px] font-extrabold px-2.5 py-1 rounded-full self-start"
-            style={{
-              background: 'rgba(64,222,170,0.14)',
-              color: colors.accent,
-              border: '1px solid rgba(64,222,170,0.34)',
-            }}
-          >
-            Active
-          </span>
-        </GlassCard>
-      ))}
-    </div>
   )
 }
 

@@ -5,11 +5,11 @@ import useAuthStore from '@/app/store/authStore'
 import OwnerPortalPage from '../pages/OwnerPortalPage'
 import DashboardView from '../views/DashboardView'
 import OrdersView from '../views/OrdersView'
+import CategoriesView from '../views/CategoriesView'
 import ProductsLayout from '../views/products/ProductsLayout'
 import ProductFormModal from '../views/products/ProductFormModal'
 import MyProfileView from '../views/MyProfileView'
 import {
-  CategoriesView,
   DiscountsView,
   InventoryView,
   LogisticsView,

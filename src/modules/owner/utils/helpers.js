@@ -13,6 +13,29 @@ export function getAccentMeta(a) {
   return accentMeta[a] || accentMeta.mint
 }
 
+/** Derive display initials from a category name (e.g. "Vitamins & Supplements" → "V&S"). */
+export function getCategoryInitials(name) {
+  const trimmed = String(name ?? '').trim()
+  if (!trimmed) return '?'
+
+  if (trimmed.includes('&')) {
+    return trimmed
+      .split('&')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('&')
+  }
+
+  const words = trimmed.split(/\s+/).filter(Boolean)
+  if (words.length === 1) return words[0][0]?.toUpperCase() ?? '?'
+
+  return words
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
 export function orderStatusMeta(s) {
   const danger = { color: '#ff8a80', bg: 'rgba(255,138,128,0.14)', border: 'rgba(255,138,128,0.34)' }
   const map = {
