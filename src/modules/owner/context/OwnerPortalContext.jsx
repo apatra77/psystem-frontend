@@ -249,6 +249,20 @@ export function OwnerPortalProvider({ children }) {
     setCatalogLoaded(true)
   }, [])
 
+  const updateCategoryInList = useCallback((category) => {
+    if (!category?.id) return
+
+    setCategories((prev) =>
+      prev.map((item) => (item.id === category.id ? { ...item, ...category } : item)),
+    )
+    setCategoriesError(null)
+  }, [])
+
+  const removeCategoryFromList = useCallback((categoryId) => {
+    setCategories((prev) => prev.filter((item) => item.id !== categoryId))
+    setCategoriesError(null)
+  }, [])
+
   const loadProductCatalog = loadCategories
 
   const reloadProducts = useCallback(() => {
@@ -318,6 +332,8 @@ export function OwnerPortalProvider({ children }) {
       loadProductCatalog,
       loadCategories,
       addCategory,
+      updateCategoryInList,
+      removeCategoryFromList,
       reloadProducts,
       productsRefreshKey,
       productCategories,
@@ -354,6 +370,8 @@ export function OwnerPortalProvider({ children }) {
     loadProductCatalog,
     loadCategories,
     addCategory,
+    updateCategoryInList,
+    removeCategoryFromList,
     reloadProducts,
     productsRefreshKey,
     catalogLoaded,

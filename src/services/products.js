@@ -101,6 +101,35 @@ export async function createCategory({ name }) {
   return inFlightCreateCategoryRequest
 }
 
+/** PUT /api/categories/{categoryId} — update a product category. */
+export async function updateCategory(categoryId, { name }) {
+  const categoryName = String(name ?? '').trim()
+  if (!categoryName) {
+    throw new Error('Category name is required')
+  }
+
+  const payload = await authFetch(
+    `/api/categories/${encodeURIComponent(categoryId)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ categoryName }),
+    },
+    PRODUCT_API_BASE,
+  )
+
+  const item = payload?.data ?? payload
+  return mapCategoryFromApi(item)
+}
+
+/** DELETE /api/categories/{categoryId} — remove a product category. */
+export async function deleteCategory(categoryId) {
+  return authFetch(
+    `/api/categories/${encodeURIComponent(categoryId)}`,
+    { method: 'DELETE' },
+    PRODUCT_API_BASE,
+  )
+}
+
 // --- Tax groups ---
 
 export function mapSalesTaxFromApi(item) {

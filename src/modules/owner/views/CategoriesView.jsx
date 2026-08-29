@@ -6,22 +6,34 @@ import {
   Droplets,
   FlaskConical,
   Leaf,
-  MoreVertical,
+  Pencil,
   Pill,
-  Plus,
   Sparkles,
+  Trash2,
   Watch,
 } from 'lucide-react'
-import GlassCard from '../components/GlassCard'
 import PortalModal, { ModalFieldLabel, ModalInput } from '../components/PortalModal'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
 import { INITIAL_CATEGORIES } from '../data/initialState'
 import { getAccentMeta, getCategoryInitials } from '../utils/helpers'
-import { createCategory } from '@/services/products'
+import { createCategory, deleteCategory, updateCategory } from '@/services/products'
 import { toast } from '@/app/store/uiStore'
 import { colors } from '@/theme/colors'
 
 const PAGE_SIZE = 8
+
+function getCategoryAccentMeta(category) {
+  if (typeof category.accent === 'string' && category.accent.startsWith('#')) {
+    const color = category.accent
+    return {
+      c: color,
+      bg1: `${color}22`,
+      bg2: `${color}08`,
+      border: `${color}55`,
+    }
+  }
+  return getAccentMeta(category.accent)
+}
 
 function resolveCategoryIcon(category) {
   const key = String(category.slug ?? category.id ?? '').toLowerCase()
@@ -38,17 +50,10 @@ function resolveCategoryIcon(category) {
   return null
 }
 
-function getCategoryAccentColor(category) {
-  if (typeof category.accent === 'string' && category.accent.startsWith('#')) {
-    return category.accent
-  }
-  return getAccentMeta(category.accent).c
-}
-
 function CategoryAvatar({ category }) {
   const Icon = resolveCategoryIcon(category)
   const initials = getCategoryInitials(category.name)
-  const accentColor = getCategoryAccentColor(category)
+  const accentColor = getCategoryAccentMeta(category).c
 
   return (
     <div
@@ -68,54 +73,9 @@ function CategoryAvatar({ category }) {
   )
 }
 
-function CategoryCardMenu({ category, onToggleStatus }) {
-  const [open, setOpen] = useState(false)
-  const isActive = category.status !== 'inactive'
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer hover:bg-white/5"
-        style={{ color: colors.textMuted }}
-        aria-label={`Actions for ${category.name}`}
-        aria-expanded={open}
-      >
-        <MoreVertical size={15} />
-      </button>
-      {open && (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-20 cursor-default"
-            aria-label="Close menu"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            className="absolute right-0 top-[calc(100%+6px)] z-30 min-w-[168px] rounded-[12px] py-1.5 shadow-2xl"
-            style={{ background: 'rgba(12,28,23,0.98)', border: `1px solid ${colors.borderStrong}` }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false)
-                onToggleStatus(category.id)
-              }}
-              className="w-full px-3.5 py-2.5 text-left text-[12.5px] font-semibold cursor-pointer hover:bg-white/5"
-              style={{ color: colors.textHighlight }}
-            >
-              {isActive ? 'Mark inactive' : 'Mark active'}
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-function AddCategoryModal({ onClose, onCreated }) {
-  const [name, setName] = useState('')
+function CategoryFormModal({ category, onClose, onSaved }) {
+  const isEdit = Boolean(category)
+  const [name, setName] = useState(category?.name ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -133,12 +93,24 @@ function AddCategoryModal({ onClose, onCreated }) {
     setError('')
 
     try {
-      const created = await createCategory({ name: trimmed })
-      toast.success(`Category "${trimmed}" created`)
-      await onCreated(created)
+      if (isEdit) {
+        if (category.isFallback) {
+          await onSaved({ ...category, name: trimmed })
+          toast.success(`Category "${trimmed}" updated`)
+          onClose()
+          return
+        }
+        const updated = await updateCategory(category.id, { name: trimmed })
+        toast.success(`Category "${trimmed}" updated`)
+        await onSaved(updated)
+      } else {
+        const created = await createCategory({ name: trimmed })
+        toast.success(`Category "${trimmed}" created`)
+        await onSaved(created)
+      }
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create category')
+      setError(err instanceof Error ? err.message : `Failed to ${isEdit ? 'update' : 'create'} category`)
     } finally {
       setSaving(false)
     }
@@ -147,9 +119,13 @@ function AddCategoryModal({ onClose, onCreated }) {
   return (
     <PortalModal onClose={onClose} width={420} scrollable={false} closeOnBackdrop={!saving}>
       <form onSubmit={handleSubmit} className="p-6">
-        <h2 className="text-[16px] font-extrabold text-white mb-1">Add category</h2>
+        <h2 className="text-[16px] font-extrabold text-white mb-1">
+          {isEdit ? 'Edit category' : 'Add category'}
+        </h2>
         <p className="text-[12px] mb-5" style={{ color: colors.textSecondary }}>
-          Create a new storefront aisle for your products.
+          {isEdit
+            ? 'Update the category name for your storefront aisle.'
+            : 'Create a new storefront aisle for your products.'}
         </p>
 
         <ModalFieldLabel>Category name</ModalFieldLabel>
@@ -164,9 +140,7 @@ function AddCategoryModal({ onClose, onCreated }) {
           disabled={saving}
         />
 
-        {error ? (
-          <p className="mt-2 text-[12px] font-bold text-red-400">{error}</p>
-        ) : null}
+        {error ? <p className="mt-2 text-[12px] font-bold text-red-400">{error}</p> : null}
 
         <div className="mt-6 flex items-center justify-end gap-2">
           <button
@@ -184,7 +158,7 @@ function AddCategoryModal({ onClose, onCreated }) {
             className="px-4 py-2.5 rounded-[10px] text-[12.5px] font-extrabold cursor-pointer disabled:opacity-60"
             style={{ background: colors.primaryBtn, color: colors.accentText }}
           >
-            {saving ? 'Creating…' : 'Create category'}
+            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create category'}
           </button>
         </div>
       </form>
@@ -192,23 +166,101 @@ function AddCategoryModal({ onClose, onCreated }) {
   )
 }
 
+function DeleteCategoryModal({ category, onClose, onDeleted }) {
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleDelete = async () => {
+    if (deleting) return
+    setDeleting(true)
+    setError('')
+
+    try {
+      if (!category.isFallback) {
+        await deleteCategory(category.id)
+      }
+      toast.success(`Category "${category.name}" deleted`)
+      await onDeleted(category.id)
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete category')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <PortalModal onClose={onClose} width={420} scrollable={false} closeOnBackdrop={!deleting}>
+      <div className="p-6">
+        <h2 className="text-[16px] font-extrabold text-white mb-1">Delete category</h2>
+        <p className="text-[12px] mb-5" style={{ color: colors.textSecondary }}>
+          Are you sure you want to delete <span className="text-white font-bold">{category.name}</span>?
+          This action cannot be undone.
+        </p>
+
+        {error ? <p className="mb-4 text-[12px] font-bold text-red-400">{error}</p> : null}
+
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={deleting}
+            className="px-4 py-2.5 rounded-[10px] text-[12.5px] font-bold cursor-pointer disabled:opacity-60"
+            style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="px-5 py-2.5 rounded-[10px] text-[12.5px] font-extrabold cursor-pointer disabled:opacity-60"
+            style={{ background: '#B91C1C', color: '#ffffff' }}
+          >
+            {deleting ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </PortalModal>
+  )
+}
+
 export default function CategoriesView() {
-  const { categories, categoriesLoading, categoriesError, loadCategories, addCategory } = useOwnerPortal()
+  const {
+    categories,
+    categoriesLoading,
+    categoriesError,
+    loadCategories,
+    addCategory,
+    updateCategoryInList,
+    removeCategoryFromList,
+  } = useOwnerPortal()
   const [page, setPage] = useState(1)
-  const [addOpen, setAddOpen] = useState(false)
-  const [statusOverrides, setStatusOverrides] = useState({})
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState(null)
+  const [deletingCategory, setDeletingCategory] = useState(null)
+  const [hiddenCategoryIds, setHiddenCategoryIds] = useState([])
+  const [fallbackOverrides, setFallbackOverrides] = useState({})
 
   useEffect(() => {
     loadCategories()
   }, [loadCategories])
 
+  const usingFallbackCategories = categories.length === 0
+
   const displayCategories = useMemo(() => {
-    const source = categories.length > 0 ? categories : INITIAL_CATEGORIES
-    return source.map((category) => ({
-      ...category,
-      status: statusOverrides[category.id] ?? category.status ?? 'active',
-    }))
-  }, [categories, statusOverrides])
+    const source = usingFallbackCategories ? INITIAL_CATEGORIES : categories
+    return source
+      .filter((category) => !hiddenCategoryIds.includes(category.id))
+      .map((category) => {
+        const override = fallbackOverrides[category.id]
+        return {
+          ...category,
+          ...override,
+          isFallback: usingFallbackCategories,
+        }
+      })
+  }, [categories, hiddenCategoryIds, fallbackOverrides, usingFallbackCategories])
 
   const totalElements = displayCategories.length
   const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE))
@@ -228,28 +280,53 @@ export default function CategoriesView() {
     if (page > totalPages) setPage(Math.max(1, totalPages))
   }, [page, totalPages])
 
-  const toggleCategoryStatus = (id) => {
-    setStatusOverrides((prev) => {
-      const current = displayCategories.find((c) => c.id === id)?.status ?? 'active'
-      return { ...prev, [id]: current === 'active' ? 'inactive' : 'active' }
-    })
+  const openAddModal = () => {
+    setEditingCategory(null)
+    setFormOpen(true)
+  }
+
+  const openEditModal = (category) => {
+    setEditingCategory(category)
+    setFormOpen(true)
+  }
+
+  const handleCategorySaved = async (category) => {
+    if (editingCategory?.isFallback) {
+      setFallbackOverrides((prev) => ({
+        ...prev,
+        [category.id]: { ...prev[category.id], name: category.name },
+      }))
+      return
+    }
+    if (editingCategory) {
+      updateCategoryInList({ ...editingCategory, ...category })
+      return
+    }
+    addCategory(category)
+  }
+
+  const handleCategoryDeleted = async (categoryId) => {
+    if (usingFallbackCategories) {
+      setHiddenCategoryIds((prev) => (prev.includes(categoryId) ? prev : [...prev, categoryId]))
+      return
+    }
+    removeCategoryFromList(categoryId)
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex justify-end">
         <button
           type="button"
-          onClick={() => setAddOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] text-[12.5px] font-extrabold cursor-pointer"
+          onClick={openAddModal}
+          className="inline-flex items-center justify-center min-w-[220px] px-6 py-3 rounded-[12px] text-[13px] font-extrabold cursor-pointer"
           style={{
-            color: colors.accent,
-            background: 'rgba(64,222,170,0.08)',
-            border: '1px solid rgba(64,222,170,0.34)',
+            color: colors.accentText,
+            background: colors.primaryBtn,
+            boxShadow: '0 8px 24px rgba(64,222,170,0.28)',
           }}
         >
-          <Plus size={15} strokeWidth={2.5} />
-          Add category
+          + Add category
         </button>
       </div>
 
@@ -269,13 +346,40 @@ export default function CategoriesView() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {pageItems.map((category) => {
-            const isActive = category.status !== 'inactive'
+            const accent = getCategoryAccentMeta(category)
 
             return (
-              <GlassCard key={category.id} className="p-5 flex flex-col gap-3.5">
+              <div
+                key={category.id}
+                className="rounded-[18px] p-5 flex flex-col gap-3.5"
+                style={{
+                  background: `linear-gradient(165deg, ${accent.bg1}, ${accent.bg2})`,
+                  border: `1px solid ${accent.border}`,
+                }}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <CategoryAvatar category={category} />
-                  <CategoryCardMenu category={category} onToggleStatus={toggleCategoryStatus} />
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(category)}
+                      className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer hover:bg-white/8"
+                      style={{ color: colors.textHighlight }}
+                      aria-label={`Edit ${category.name}`}
+                    >
+                      <Pencil size={15} strokeWidth={1.9} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeletingCategory(category)}
+                      className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer hover:bg-white/8"
+                      style={{ color: colors.textHighlight }}
+                      aria-label={`Delete ${category.name}`}
+                    >
+                      <Trash2 size={15} strokeWidth={1.9} />
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -284,26 +388,7 @@ export default function CategoriesView() {
                     {category.count != null ? `${category.count} products` : '0 products'}
                   </div>
                 </div>
-
-                <span
-                  className="text-[10px] font-extrabold px-2.5 py-1 rounded-full self-start"
-                  style={
-                    isActive
-                      ? {
-                          background: 'rgba(64,222,170,0.14)',
-                          color: colors.accent,
-                          border: '1px solid rgba(64,222,170,0.34)',
-                        }
-                      : {
-                          background: 'rgba(255,255,255,0.06)',
-                          color: colors.textDim,
-                          border: `1px solid ${colors.borderSubtle}`,
-                        }
-                  }
-                >
-                  {isActive ? 'Active' : 'Inactive'}
-                </span>
-              </GlassCard>
+              </div>
             )
           })}
         </div>
@@ -363,10 +448,22 @@ export default function CategoriesView() {
         </div>
       ) : null}
 
-      {addOpen ? (
-        <AddCategoryModal
-          onClose={() => setAddOpen(false)}
-          onCreated={addCategory}
+      {formOpen ? (
+        <CategoryFormModal
+          category={editingCategory}
+          onClose={() => {
+            setFormOpen(false)
+            setEditingCategory(null)
+          }}
+          onSaved={handleCategorySaved}
+        />
+      ) : null}
+
+      {deletingCategory ? (
+        <DeleteCategoryModal
+          category={deletingCategory}
+          onClose={() => setDeletingCategory(null)}
+          onDeleted={handleCategoryDeleted}
         />
       ) : null}
     </div>
