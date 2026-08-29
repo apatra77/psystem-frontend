@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { Camera, Info } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput, ModalSelect, ModalTextarea } from '../../components/PortalModal'
 import Spinner from '@/components/ui/Spinner'
 import { useOwnerPortal } from '../../context/OwnerPortalContext'
@@ -22,13 +23,68 @@ const EMPTY_DRAFT = {
   cat: '',
   purchaseTax: '',
   salesTax: '',
-  sku: '',
+  packType: '',
+  stockPerPack: '',
+  stockUnit: '',
+  allowLoose: 'no',
+  fullPackQty: '',
+  looseQty: '',
   price: '',
   mrp: '',
   discountPercent: '',
   discountPrice: '',
-  stock: '',
-  stockUnit: '',
+}
+
+function RequiredLabel({ children }) {
+  return (
+    <div className="text-[11px] font-bold mb-1" style={{ color: colors.textSecondary }}>
+      {children}
+      <span className="text-red-400"> *</span>
+    </div>
+  )
+}
+
+function FieldHint({ children }) {
+  return (
+    <p className="mt-1 text-[10px] leading-snug" style={{ color: colors.textDim }}>
+      {children}
+    </p>
+  )
+}
+
+function LooseQuantityRadio({ value, onChange, disabled }) {
+  return (
+    <div
+      className="flex items-center gap-5 mt-2"
+      role="radiogroup"
+      aria-label="Loose quantity"
+    >
+      {[
+        { id: 'yes', label: 'Yes' },
+        { id: 'no', label: 'No' },
+      ].map((option) => (
+        <label
+          key={option.id}
+          className={`flex items-center gap-2 text-[12px] font-bold ${
+            disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+          }`}
+          style={{ color: colors.textHighlight }}
+        >
+          <input
+            type="radio"
+            name="allowLoose"
+            value={option.id}
+            checked={value === option.id}
+            onChange={() => onChange(option.id)}
+            disabled={disabled}
+            className="h-4 w-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
+            style={{ accentColor: colors.accent }}
+          />
+          {option.label}
+        </label>
+      ))}
+    </div>
+  )
 }
 
 function FieldError({ message }) {
@@ -41,20 +97,55 @@ function FieldError({ message }) {
 function validateProductDraft(draft) {
   const errors = {}
   const productName = draft.name.trim()
-  const genericName = draft.genericName.trim()
+  const packType = draft.packType.trim()
   const stockUnit = draft.stockUnit.trim()
   const sellingPrice = draft.price
+  const allowsLoose = draft.allowLoose === 'yes'
 
   if (!productName) errors.name = 'Product name is required'
-  if (!genericName) errors.genericName = 'Generic name is required'
   if (!draft.purchaseTax) errors.purchaseTax = 'Please select purchase tax'
   if (!draft.salesTax) errors.salesTax = 'Please select sales tax'
+  if (!packType) errors.packType = 'Pack type is required'
   if (draft.mrp === '' || Number.isNaN(Number(draft.mrp))) errors.mrp = 'MRP is required'
   if (sellingPrice === '' || Number.isNaN(Number(sellingPrice))) errors.price = 'Price is required'
-  if (draft.stock === '' || Number.isNaN(Number(draft.stock))) errors.stock = 'Stock qty is required'
+  if (draft.stockPerPack === '' || Number.isNaN(Number(draft.stockPerPack))) {
+    errors.stockPerPack = 'Stock quantity per pack is required'
+  }
   if (!stockUnit) errors.stockUnit = 'Stock unit is required'
+  if (draft.fullPackQty === '' || Number.isNaN(Number(draft.fullPackQty))) {
+    errors.fullPackQty = 'Full pack quantity is required'
+  }
+  if (allowsLoose && (draft.looseQty === '' || Number.isNaN(Number(draft.looseQty)))) {
+    errors.looseQty = 'Loose quantity is required when loose sale is enabled'
+  }
 
   return errors
+}
+
+function normalizeLooseIntoFullPacks(stockPerPack, fullPackQty, looseQty) {
+  const unitsPerPack = Number(stockPerPack)
+  const loose = Number(looseQty)
+  const fullPacks = Number(fullPackQty) || 0
+
+  if (
+    looseQty === '' ||
+    Number.isNaN(loose) ||
+    loose < 0 ||
+    stockPerPack === '' ||
+    Number.isNaN(unitsPerPack) ||
+    unitsPerPack <= 0 ||
+    loose < unitsPerPack
+  ) {
+    return null
+  }
+
+  const additionalFullPacks = Math.floor(loose / unitsPerPack)
+  const remainingLoose = loose % unitsPerPack
+
+  return {
+    fullPackQty: String(fullPacks + additionalFullPacks),
+    looseQty: String(remainingLoose),
+  }
 }
 
 function formatAmount(value) {
@@ -206,6 +297,12 @@ export default function ProductFormModal() {
       if (field === 'mrp' || field === 'discountPercent' || field === 'discountPrice') {
         keysToClear.push('price')
       }
+      if (field === 'allowLoose' && value === 'no') {
+        keysToClear.push('looseQty')
+      }
+      if (field === 'looseQty' || field === 'stockPerPack') {
+        keysToClear.push('fullPackQty', 'looseQty')
+      }
       if (!keysToClear.some((key) => prev[key])) return prev
       const next = { ...prev }
       keysToClear.forEach((key) => {
@@ -215,6 +312,25 @@ export default function ProductFormModal() {
     })
     setDraft((prev) => {
       const next = { ...prev, [field]: value }
+      if (field === 'allowLoose' && value === 'no') {
+        next.looseQty = ''
+      }
+
+      if (
+        next.allowLoose === 'yes' &&
+        (field === 'looseQty' || field === 'stockPerPack')
+      ) {
+        const normalized = normalizeLooseIntoFullPacks(
+          field === 'stockPerPack' ? value : next.stockPerPack,
+          next.fullPackQty,
+          field === 'looseQty' ? value : next.looseQty,
+        )
+        if (normalized) {
+          next.fullPackQty = normalized.fullPackQty
+          next.looseQty = normalized.looseQty
+        }
+      }
+
       const mrp = field === 'mrp' ? value : prev.mrp
 
       if (field === 'mrp') {
@@ -235,8 +351,6 @@ export default function ProductFormModal() {
     if (saving) return
 
     const detail = productDetail?.data ?? productDetail ?? {}
-    const packings = Array.isArray(detail.packings) ? detail.packings : []
-    const packingId = packings[0]?.packingId ?? packings[0]?.id ?? null
     const productId = draft.id || routeId
 
     const productName = draft.name.trim()
@@ -245,7 +359,9 @@ export default function ProductFormModal() {
     const categoryName =
       categories.find((c) => c.id === draft.cat)?.name ?? detail.categoryName ?? ''
     const stockUnit = draft.stockUnit.trim()
+    const packType = draft.packType.trim()
     const sellingPrice = draft.price
+    const allowsLoose = draft.allowLoose === 'yes'
 
     const errors = validateProductDraft(draft)
     if (Object.keys(errors).length > 0) {
@@ -263,8 +379,13 @@ export default function ProductFormModal() {
       categoryName,
       purchTaxCode: draft.purchaseTax,
       salesTaxCode: draft.salesTax,
-      stockQty: draft.stock,
+      stockQty: draft.stockPerPack,
       stockUnit,
+      packType,
+      fullPackQty: draft.fullPackQty,
+      looseQty: allowsLoose ? draft.looseQty : '',
+      allowLoose: allowsLoose,
+      discountPercent: draft.discountPercent,
     })
 
     setSaving(true)
@@ -276,7 +397,7 @@ export default function ProductFormModal() {
         if (!productId) {
           throw new Error('Product id is missing')
         }
-        const payload = buildUpdateProductPayload(basePayload, { packingId })
+        const payload = buildUpdateProductPayload(basePayload, { productId })
         await updateProduct(productId, payload)
         await reloadProducts()
         close()
@@ -345,25 +466,29 @@ export default function ProductFormModal() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-1 owner-scroll flex flex-col gap-2 min-h-0">
+        <div className="flex-1 overflow-y-auto px-4 py-1 owner-scroll flex flex-col gap-3 min-h-0">
         <div
-          className="w-full h-[72px] rounded-[12px] flex items-center justify-center text-[11px] font-bold"
+          className="w-full min-h-[92px] rounded-[12px] flex flex-col items-center justify-center gap-1.5 text-center px-4 py-5"
           style={{
             border: '1.5px dashed rgba(255,255,255,0.2)',
             color: colors.textDim,
             background: 'rgba(255,255,255,0.03)',
           }}
         >
-          Drop a product photo
+          <Camera size={22} style={{ color: colors.accent }} />
+          <div className="text-[12px] font-bold text-white">Drop a product photo</div>
+          <div className="text-[10.5px] font-medium" style={{ color: colors.textDim }}>
+            JPG, PNG up to 2MB
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <ModalFieldLabel>Product name</ModalFieldLabel>
+            <RequiredLabel>Product name</RequiredLabel>
             <ModalInput
               value={draft.name}
               onChange={(e) => setField('name', e.target.value)}
-              placeholder="e.g. Aspirin 500mg"
+              placeholder="e.g. Amlokind 2.5 mg Tablet"
             />
             <FieldError message={fieldErrors.name} />
           </div>
@@ -372,7 +497,7 @@ export default function ProductFormModal() {
             <ModalInput
               value={draft.genericName}
               onChange={(e) => setField('genericName', e.target.value)}
-              placeholder="e.g. Ashwagandha"
+              placeholder="e.g. Amlodipine"
             />
             <FieldError message={fieldErrors.genericName} />
           </div>
@@ -384,7 +509,7 @@ export default function ProductFormModal() {
             value={draft.description}
             onChange={(e) => setField('description', e.target.value)}
             placeholder="Short description of the product"
-            rows={2}
+            rows={3}
           />
           <FieldError message={fieldErrors.description} />
         </div>
@@ -398,9 +523,10 @@ export default function ProductFormModal() {
               options={categoryOptions}
               placeholder={categoriesLoading ? 'Loading categories…' : 'Select category'}
             />
+            <FieldError message={fieldErrors.cat} />
           </div>
           <div>
-            <ModalFieldLabel>Purchase tax</ModalFieldLabel>
+            <RequiredLabel>Purchase tax</RequiredLabel>
             <ModalSelect
               value={draft.purchaseTax}
               onChange={(e) => setField('purchaseTax', e.target.value)}
@@ -410,7 +536,7 @@ export default function ProductFormModal() {
             <FieldError message={fieldErrors.purchaseTax} />
           </div>
           <div>
-            <ModalFieldLabel>Sales tax</ModalFieldLabel>
+            <RequiredLabel>Sales tax</RequiredLabel>
             <ModalSelect
               value={draft.salesTax}
               onChange={(e) => setField('salesTax', e.target.value)}
@@ -427,45 +553,88 @@ export default function ProductFormModal() {
 
         <div className="grid grid-cols-3 gap-2">
           <div>
-            <ModalFieldLabel>SKU</ModalFieldLabel>
+            <RequiredLabel>SKU (Pack type)</RequiredLabel>
             <ModalInput
-              value={draft.sku}
-              onChange={(e) => setField('sku', e.target.value)}
-              placeholder="MQ-XXX-0000"
+              value={draft.packType}
+              onChange={(e) => setField('packType', e.target.value)}
+              placeholder="e.g. Strip"
             />
+            <FieldHint>Strip, Tube, Bottle, etc.</FieldHint>
+            <FieldError message={fieldErrors.packType} />
           </div>
           <div>
-            <ModalFieldLabel>Stock qty</ModalFieldLabel>
+            <RequiredLabel>Stock quantity per pack</RequiredLabel>
             <ModalInput
               type="number"
               min="0"
-              value={draft.stock}
-              onChange={(e) => setField('stock', e.target.value)}
-              placeholder="Enter quantity"
+              value={draft.stockPerPack}
+              onChange={(e) => setField('stockPerPack', e.target.value)}
+              placeholder="e.g. 10"
             />
-            <FieldError message={fieldErrors.stock} />
+            <FieldHint>How many units in a single pack (e.g. 10 tablets in 1 strip, 30ml in 1 bottle)</FieldHint>
+            <FieldError message={fieldErrors.stockPerPack} />
           </div>
           <div>
-            <ModalFieldLabel>Stock unit</ModalFieldLabel>
+            <RequiredLabel>Stock unit</RequiredLabel>
             <ModalInput
               value={draft.stockUnit}
               onChange={(e) => setField('stockUnit', e.target.value)}
-              placeholder="e.g. Pcs, TAB"
+              placeholder="e.g. TAB"
             />
+            <FieldHint>Pcs, TAB, Tube, Bottle, ml, gm, etc.</FieldHint>
             <FieldError message={fieldErrors.stockUnit} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <div className="flex items-center gap-1.5 mb-1">
+              <ModalFieldLabel>Loose quantity</ModalFieldLabel>
+              <Info size={12} style={{ color: colors.textDim }} aria-hidden="true" />
+            </div>
+            <LooseQuantityRadio
+              value={draft.allowLoose}
+              onChange={(value) => setField('allowLoose', value)}
+              disabled={saving}
+            />
+          </div>
+          <div>
+            <RequiredLabel>With full pack (Unit 3)</RequiredLabel>
+            <ModalInput
+              type="number"
+              min="0"
+              value={draft.fullPackQty}
+              onChange={(e) => setField('fullPackQty', e.target.value)}
+              placeholder="Enter quantity"
+            />
+            <FieldHint>How many complete packs are required</FieldHint>
+            <FieldError message={fieldErrors.fullPackQty} />
+          </div>
+          <div>
+            <ModalFieldLabel>Loose quantity (Unit 4)</ModalFieldLabel>
+            <ModalInput
+              type="number"
+              min="0"
+              value={draft.looseQty}
+              onChange={(e) => setField('looseQty', e.target.value)}
+              placeholder="Enter quantity"
+              disabled={draft.allowLoose !== 'yes' || saving}
+            />
+            <FieldHint>Loose units required without pack</FieldHint>
+            <FieldError message={fieldErrors.looseQty} />
           </div>
         </div>
 
         <div className="grid grid-cols-4 gap-2">
           <div>
-            <ModalFieldLabel>MRP (₹)</ModalFieldLabel>
+            <RequiredLabel>MRP (₹)</RequiredLabel>
             <ModalInput
               type="number"
               min="0"
               step="0.01"
               value={draft.mrp}
               onChange={(e) => setField('mrp', e.target.value)}
-              placeholder="0"
+              placeholder="0.00"
             />
             <FieldError message={fieldErrors.mrp} />
           </div>
@@ -489,18 +658,18 @@ export default function ProductFormModal() {
               step="0.01"
               value={draft.discountPrice}
               onChange={(e) => setField('discountPrice', e.target.value)}
-              placeholder="0"
+              placeholder="0.00"
             />
           </div>
           <div>
-            <ModalFieldLabel>Price (₹)</ModalFieldLabel>
+            <RequiredLabel>Price (₹)</RequiredLabel>
             <ModalInput
               type="number"
               min="0"
               step="0.01"
               value={draft.price}
               disabled
-              placeholder="0"
+              placeholder="0.00"
             />
             <FieldError message={fieldErrors.price} />
           </div>

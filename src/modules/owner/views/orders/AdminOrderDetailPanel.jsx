@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Check,
   CheckCircle2,
@@ -91,29 +91,34 @@ export default function AdminOrderDetailPanel({
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
 
-  const loadDetail = useCallback(async (signal) => {
-    if (!orderId) return
-    setLoading(true)
-    setError('')
-
-    try {
-      const payload = await fetchAdminOrderById(orderId, { signal })
-      if (signal?.aborted) return
-      setDetailRaw(parseAdminOrderDetail(payload))
-    } catch (err) {
-      if (signal?.aborted) return
-      setDetailRaw(null)
-      setError(err instanceof Error ? err.message : 'Could not load order details')
-    } finally {
-      if (!signal?.aborted) setLoading(false)
-    }
-  }, [orderId])
-
   useEffect(() => {
-    const controller = new AbortController()
-    loadDetail(controller.signal)
-    return () => controller.abort()
-  }, [loadDetail, reloadKey])
+    if (!orderId) return undefined
+
+    let cancelled = false
+
+    const run = async () => {
+      setLoading(true)
+      setError('')
+
+      try {
+        const payload = await fetchAdminOrderById(orderId, { force: reloadKey > 0 })
+        if (cancelled) return
+        setDetailRaw(parseAdminOrderDetail(payload))
+      } catch (err) {
+        if (cancelled) return
+        setDetailRaw(null)
+        setError(err instanceof Error ? err.message : 'Could not load order details')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    run()
+
+    return () => {
+      cancelled = true
+    }
+  }, [orderId, reloadKey])
 
   useEffect(() => {
     const onKeyDown = (event) => {

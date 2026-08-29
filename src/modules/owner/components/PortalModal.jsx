@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { colors } from '@/theme/colors'
 
@@ -66,37 +66,141 @@ export function ModalSelect({
   onChange,
   options = [],
   placeholder = 'Select…',
+  disabled = false,
 }) {
   const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [highlightIndex, setHighlightIndex] = useState(0)
   const ref = useRef(null)
+  const inputRef = useRef(null)
   const selected = options.find((opt) => opt.value === value)
+
+  const filteredOptions = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return options
+    return options.filter(
+      (opt) =>
+        String(opt.label ?? '').toLowerCase().includes(q) ||
+        String(opt.value ?? '').toLowerCase().includes(q),
+    )
+  }, [options, query])
+
+  const closeDropdown = () => {
+    setOpen(false)
+    setQuery('')
+    setHighlightIndex(0)
+  }
+
+  const openDropdown = () => {
+    if (disabled || open) return
+    setOpen(true)
+    setQuery(selected?.label ?? '')
+    setHighlightIndex(0)
+    requestAnimationFrame(() => inputRef.current?.select())
+  }
+
+  const selectOption = (opt) => {
+    onChange({ target: { value: opt.value } })
+    closeDropdown()
+  }
 
   useEffect(() => {
     if (!open) return undefined
     const handleClick = (event) => {
-      if (!ref.current?.contains(event.target)) setOpen(false)
+      if (!ref.current?.contains(event.target)) closeDropdown()
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
 
+  useEffect(() => {
+    setHighlightIndex(0)
+  }, [query])
+
+  const handleKeyDown = (event) => {
+    if (disabled) return
+
+    if (!open) {
+      if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        openDropdown()
+      }
+      return
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeDropdown()
+      return
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setHighlightIndex((prev) => Math.min(prev + 1, Math.max(filteredOptions.length - 1, 0)))
+      return
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setHighlightIndex((prev) => Math.max(prev - 1, 0))
+      return
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      const option = filteredOptions[highlightIndex]
+      if (option) selectOption(option)
+    }
+  }
+
+  const displayValue = open ? query : (selected?.label ?? '')
+
   return (
     <div ref={ref} className={`relative ${className}`}>
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="w-full rounded-[10px] px-3 py-2 text-[13px] font-[inherit] outline-none flex items-center justify-between gap-2 cursor-pointer text-left"
-        style={{
-          color: selected ? '#ffffff' : colors.textDim,
-          background: 'rgba(255,255,255,0.06)',
-          border: '1px solid rgba(255,255,255,0.16)',
-        }}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        <span className="truncate">{selected?.label ?? placeholder}</span>
-        <ChevronDown size={14} strokeWidth={2.2} style={{ color: colors.textDim, flexShrink: 0 }} />
-      </button>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          disabled={disabled}
+          value={displayValue}
+          placeholder={placeholder}
+          onFocus={openDropdown}
+          onChange={(event) => {
+            setQuery(event.target.value)
+            if (!open) setOpen(true)
+          }}
+          onKeyDown={handleKeyDown}
+          className="w-full rounded-[10px] px-3 py-2 pr-8 text-[13px] text-white font-[inherit] outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.16)',
+            color: displayValue ? '#ffffff' : colors.textDim,
+          }}
+          role="combobox"
+          aria-expanded={open}
+          aria-autocomplete="list"
+          aria-haspopup="listbox"
+        />
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => (open ? closeDropdown() : openDropdown())}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+          aria-label={open ? 'Close options' : 'Open options'}
+          tabIndex={-1}
+        >
+          <ChevronDown
+            size={14}
+            strokeWidth={2.2}
+            style={{
+              color: colors.textDim,
+              flexShrink: 0,
+              transform: open ? 'rotate(180deg)' : undefined,
+              transition: 'transform 0.15s ease',
+            }}
+          />
+        </button>
+      </div>
       {open && (
         <div
           role="listbox"
@@ -108,28 +212,37 @@ export function ModalSelect({
             boxShadow: '0 30px 70px rgba(0,0,0,0.6)',
           }}
         >
-          {options.map((opt) => {
-            const isSelected = opt.value === value
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => {
-                  onChange({ target: { value: opt.value } })
-                  setOpen(false)
-                }}
-                className="w-full text-left px-3 py-2 rounded-[8px] text-[13px] font-bold cursor-pointer transition-colors hover:bg-[rgba(64,222,170,0.08)]"
-                style={{
-                  color: isSelected ? colors.accent : '#cfe6dc',
-                  background: isSelected ? 'rgba(64,222,170,0.1)' : 'transparent',
-                }}
-              >
-                {opt.label}
-              </button>
-            )
-          })}
+          {filteredOptions.length === 0 ? (
+            <div
+              className="px-3 py-2 text-[12px] font-bold"
+              style={{ color: colors.textDim }}
+            >
+              No matches found
+            </div>
+          ) : (
+            filteredOptions.map((opt, index) => {
+              const isSelected = opt.value === value
+              const isHighlighted = index === highlightIndex
+              return (
+                <button
+                  key={String(opt.value)}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onMouseEnter={() => setHighlightIndex(index)}
+                  onClick={() => selectOption(opt)}
+                  className="w-full text-left px-3 py-2 rounded-[8px] text-[13px] font-bold cursor-pointer transition-colors hover:bg-[rgba(64,222,170,0.08)]"
+                  style={{
+                    color: isSelected || isHighlighted ? colors.accent : '#cfe6dc',
+                    background:
+                      isSelected || isHighlighted ? 'rgba(64,222,170,0.1)' : 'transparent',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              )
+            })
+          )}
         </div>
       )}
     </div>

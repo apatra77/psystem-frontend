@@ -121,6 +121,8 @@ function AddCategoryModal({ onClose, onCreated }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (saving) return
+
     const trimmed = name.trim()
     if (!trimmed) {
       setError('Category name is required')
@@ -191,7 +193,7 @@ function AddCategoryModal({ onClose, onCreated }) {
 }
 
 export default function CategoriesView() {
-  const { categories, categoriesLoading, categoriesError, loadCategories } = useOwnerPortal()
+  const { categories, categoriesLoading, categoriesError, loadCategories, addCategory } = useOwnerPortal()
   const [page, setPage] = useState(1)
   const [addOpen, setAddOpen] = useState(false)
   const [statusOverrides, setStatusOverrides] = useState({})
@@ -364,7 +366,7 @@ export default function CategoriesView() {
       {addOpen ? (
         <AddCategoryModal
           onClose={() => setAddOpen(false)}
-          onCreated={() => loadCategories({ force: true })}
+          onCreated={addCategory}
         />
       ) : null}
     </div>

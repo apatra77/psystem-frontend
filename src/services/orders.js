@@ -177,7 +177,7 @@ export function mapUiSortToApi(sortBy) {
   return sortBy === 'oldest' ? 'orderPlacedAt,asc' : 'orderPlacedAt,desc'
 }
 
-/** Map owner-portal UI payment filter to API paymentMethod (omit for all). */
+/** Map owner-portal UI payment filter to API paymentMode (omit for all). */
 export function mapUiPaymentFilterToApi(paymentFilter) {
   if (!paymentFilter || paymentFilter === 'all') return undefined
   if (paymentFilter === 'cod') return 'COD'
@@ -355,10 +355,10 @@ export function parseAdminOrdersPage(payload) {
 let inFlightAdminOrdersRequest = null
 let inFlightAdminOrdersKey = null
 
-function buildAdminOrdersQuery({ status, paymentMethod, fromDate, toDate, search, page, size, sort } = {}) {
+function buildAdminOrdersQuery({ status, paymentMode, fromDate, toDate, search, page, size, sort } = {}) {
   const params = new URLSearchParams()
   if (status) params.set('status', status)
-  if (paymentMethod) params.set('paymentMethod', paymentMethod)
+  if (paymentMode) params.set('paymentMode', paymentMode)
   if (fromDate) params.set('fromDate', fromDate)
   if (toDate) params.set('toDate', toDate)
   if (search?.trim()) params.set('search', search.trim())
@@ -381,11 +381,11 @@ export function buildAdminOrdersParams({
 } = {}) {
   const params = {}
   const apiStatus = mapUiStatusFilterToApi(statusFilter)
-  const apiPaymentMethod = mapUiPaymentFilterToApi(paymentFilter)
+  const apiPaymentMode = mapUiPaymentFilterToApi(paymentFilter)
   const trimmedSearch = search.trim()
 
   if (apiStatus) params.status = apiStatus
-  if (apiPaymentMethod) params.paymentMethod = apiPaymentMethod
+  if (apiPaymentMode) params.paymentMode = apiPaymentMode
   if (fromDate) params.fromDate = fromDate
   if (toDate) params.toDate = toDate
   if (trimmedSearch) params.search = trimmedSearch
@@ -402,7 +402,7 @@ export function buildAdminOrdersParams({
 export async function fetchAdminOrders(
   {
     status,
-    paymentMethod,
+    paymentMode,
     fromDate,
     toDate,
     search,
@@ -413,7 +413,7 @@ export async function fetchAdminOrders(
     signal,
   } = {},
 ) {
-  const query = buildAdminOrdersQuery({ status, paymentMethod, fromDate, toDate, search, page, size, sort })
+  const query = buildAdminOrdersQuery({ status, paymentMode, fromDate, toDate, search, page, size, sort })
   const path = query ? `/api/admin/orders?${query}` : '/api/admin/orders'
   const requestKey = path
 
@@ -434,13 +434,27 @@ export async function fetchAdminOrders(
   return inFlightAdminOrdersRequest
 }
 
+let inFlightAdminOrderDetailRequests = new Map()
+
 /** GET /api/admin/orders/{orderId} — fetch a single admin order with line items. */
-export async function fetchAdminOrderById(orderId, { signal } = {}) {
-  return authFetch(
-    `/api/admin/orders/${normalizeAdminOrderId(orderId)}`,
-    signal ? { signal } : {},
-    CART_API_BASE,
-  )
+export async function fetchAdminOrderById(orderId, { force = false } = {}) {
+  const key = normalizeAdminOrderId(orderId)
+
+  if (!force) {
+    const existing = inFlightAdminOrderDetailRequests.get(key)
+    if (existing) return existing
+  } else {
+    inFlightAdminOrderDetailRequests.delete(key)
+  }
+
+  const request = authFetch(`/api/admin/orders/${key}`, {}, CART_API_BASE).finally(() => {
+    if (inFlightAdminOrderDetailRequests.get(key) === request) {
+      inFlightAdminOrderDetailRequests.delete(key)
+    }
+  })
+
+  inFlightAdminOrderDetailRequests.set(key, request)
+  return request
 }
 
 function normalizeAdminOrderId(orderId) {

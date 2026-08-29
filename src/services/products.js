@@ -37,7 +37,7 @@ function slugify(value) {
 const CATEGORY_ACCENTS = ['#40deaa', '#ffd58f', '#6fc2ff', '#b287ff']
 
 export function mapCategoryFromApi(item, index = 0) {
-  const name = pick(item, 'name', 'categoryName') ?? 'Unnamed category'
+  const name = pick(item, 'categoryName', 'name') ?? 'Unnamed category'
   const slug = slugify(name)
 
   return {
@@ -51,6 +51,7 @@ export function mapCategoryFromApi(item, index = 0) {
 }
 
 let inFlightCategoriesRequest = null
+let inFlightCreateCategoryRequest = null
 
 export async function fetchCategories({ force = false } = {}) {
   if (!force && inFlightCategoriesRequest) {
@@ -72,17 +73,32 @@ export async function fetchCategories({ force = false } = {}) {
 
 /** POST /api/categories — create a new product category. */
 export async function createCategory({ name }) {
-  const payload = await authFetch(
+  const categoryName = String(name ?? '').trim()
+  if (!categoryName) {
+    throw new Error('Category name is required')
+  }
+
+  if (inFlightCreateCategoryRequest) {
+    return inFlightCreateCategoryRequest
+  }
+
+  inFlightCreateCategoryRequest = authFetch(
     '/api/categories',
     {
       method: 'POST',
-      body: JSON.stringify({ name: String(name ?? '').trim() }),
+      body: JSON.stringify({ categoryName }),
     },
     PRODUCT_API_BASE,
   )
+    .then((payload) => {
+      const item = payload?.data ?? payload
+      return mapCategoryFromApi(item)
+    })
+    .finally(() => {
+      inFlightCreateCategoryRequest = null
+    })
 
-  const item = payload?.data ?? payload
-  return mapCategoryFromApi(item)
+  return inFlightCreateCategoryRequest
 }
 
 // --- Tax groups ---
@@ -221,6 +237,13 @@ function resolvePackingStock(item) {
     }
   }
 
+  if (item.stockQuantityPerPack != null) {
+    return {
+      stock: Number(item.stockQuantityPerPack) || 0,
+      stockUnit: pick(item, 'stockUnit', 'unit', 'unitOfMeasure', 'uom', 'unitType') ?? 'units',
+    }
+  }
+
   return {
     stock:
       Number(
@@ -242,7 +265,7 @@ export function mapProductFromApi(item, categories = []) {
     name: pick(item, 'name', 'productName') ?? 'Untitled product',
     cat,
     catName,
-    sku: pick(item, 'sku', 'productSku', 'code') ?? '',
+    sku: pick(item, 'sku', 'productSku', 'code', 'packType') ?? '',
     price,
     mrp,
     stock,
@@ -464,37 +487,59 @@ export function buildCreateProductPayload({
   price,
   genericName,
   categoryName,
+  groupName,
   purchTaxCode,
   salesTaxCode,
   stockQty,
   stockUnit,
+  packType,
+  fullPackQty,
+  looseQty,
+  allowLoose,
+  discountPercent,
 }) {
-  return {
+  const allowsLoose = allowLoose === true || allowLoose === 'yes'
+
+  const payload = {
     productName,
     description,
+    salesTaxCode,
+    purchTaxCode,
+    packType,
+    stockQuantityPerPack: Number(stockQty),
+    stockUnit,
+    looseQuantity: allowsLoose,
+    fullPackQuantity: Number(fullPackQty),
     mrp: Number(mrp),
     price: Number(price),
-    genericName,
-    categoryName,
-    purchTaxCode,
-    salesTaxCode,
-    packings: [
-      {
-        quantity: Number(stockQty),
-        unit: stockUnit,
-      },
-    ],
   }
+
+  const trimmedGeneric = genericName?.trim()
+  if (trimmedGeneric) payload.genericName = trimmedGeneric
+
+  const trimmedCategory = categoryName?.trim()
+  if (trimmedCategory) payload.categoryName = trimmedCategory
+
+  const trimmedGroup = groupName?.trim()
+  if (trimmedGroup) payload.groupName = trimmedGroup
+
+  if (allowsLoose) {
+    payload.looseUnitQuantity =
+      looseQty !== '' && looseQty != null && !Number.isNaN(Number(looseQty)) ? Number(looseQty) : 0
+  }
+
+  if (discountPercent !== '' && discountPercent != null && !Number.isNaN(Number(discountPercent))) {
+    payload.discountPercent = Number(discountPercent)
+  }
+
+  return payload
 }
 
-export function buildUpdateProductPayload(basePayload, { packingId } = {}) {
-  const packing = { ...basePayload.packings[0] }
-  if (packingId != null && packingId !== '') {
-    packing.packingId = packingId
-  }
+export function buildUpdateProductPayload(basePayload, { productId } = {}) {
+  if (productId == null || productId === '') return basePayload
   return {
     ...basePayload,
-    packings: [packing],
+    productId: Number(productId) || productId,
   }
 }
 
@@ -563,10 +608,24 @@ export function mapProductDetailToFormDraft(detail, categories = []) {
   const mrp = Number(d.mrp) || 0
   const price = Number(d.price) || 0
   const discountAmount = mrp > 0 && price > 0 && price < mrp ? mrp - price : 0
+  const discountPercentFromApi = d.discountPercent
   const discountPercent =
-    mrp > 0 && discountAmount > 0
-      ? String(Number(((discountAmount / mrp) * 100).toFixed(2)))
-      : ''
+    discountPercentFromApi != null && discountPercentFromApi !== ''
+      ? String(Number(discountPercentFromApi))
+      : mrp > 0 && discountAmount > 0
+        ? String(Number(((discountAmount / mrp) * 100).toFixed(2)))
+        : ''
+
+  const stockPerPack =
+    d.stockQuantityPerPack ?? primary.quantity ?? d.stockQty ?? null
+  const packType = d.packType ?? primary.packingType ?? pick(d, 'sku', 'productSku') ?? ''
+  const stockUnit = d.stockUnit ?? primary.unit ?? ''
+  const fullPackQuantity = d.fullPackQuantity ?? primary.fullPackQuantity
+  const looseUnitQuantity = d.looseUnitQuantity ?? primary.looseQuantity
+  const allowsLoose =
+    d.looseQuantity === true ||
+    d.looseQuantity === 'true' ||
+    (Number.isFinite(Number(looseUnitQuantity)) && Number(looseUnitQuantity) > 0)
 
   return {
     id: String(pick(d, 'productId', 'id') ?? ''),
@@ -576,13 +635,22 @@ export function mapProductDetailToFormDraft(detail, categories = []) {
     cat,
     purchaseTax: d.purchTaxCode ?? '',
     salesTax: d.salesTaxCode ?? '',
-    sku: pick(d, 'sku', 'productSku') ?? '',
+    packType,
     price: d.price != null ? String(d.price) : '',
     mrp: d.mrp != null ? String(d.mrp) : '',
     discountPercent,
     discountPrice: discountAmount > 0 ? String(Number(discountAmount.toFixed(2))) : '',
-    stock: primary.quantity != null ? String(Number(primary.quantity)) : '',
-    stockUnit: primary.unit ?? '',
+    stockPerPack: stockPerPack != null ? String(Number(stockPerPack)) : '',
+    stockUnit,
+    allowLoose: allowsLoose ? 'yes' : 'no',
+    fullPackQty:
+      fullPackQuantity != null && !Number.isNaN(Number(fullPackQuantity))
+        ? String(fullPackQuantity)
+        : '',
+    looseQty:
+      allowsLoose && looseUnitQuantity != null && !Number.isNaN(Number(looseUnitQuantity))
+        ? String(Number(looseUnitQuantity))
+        : '',
   }
 }
 
