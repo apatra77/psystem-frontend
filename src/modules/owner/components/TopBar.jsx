@@ -25,6 +25,7 @@ export default function TopBar() {
     anyMenuOpen,
     selectOutlet,
     storeStatusMeta,
+    storeStatusUpdating,
     cycleStoreStatus,
     incomingCount,
     incomingPreview,
@@ -208,7 +209,8 @@ export default function TopBar() {
         <button
           type="button"
           onClick={cycleStoreStatus}
-          className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-[9px] rounded-xl cursor-pointer whitespace-nowrap"
+          disabled={storeStatusUpdating}
+          className="flex items-center gap-2 text-[12.5px] font-bold px-3.5 py-[9px] rounded-xl cursor-pointer whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
           style={{
             background: storeStatusMeta.bg,
             color: storeStatusMeta.color,

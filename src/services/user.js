@@ -161,6 +161,16 @@ function formatPhone(mobile, countryCode = '+91') {
   return `${countryCode} ${spaced}`.trim()
 }
 
+export function parseIsStoreOpen(value) {
+  if (value === true || value === 'true' || value === 'Y' || value === 'y' || value === 1 || value === '1') {
+    return true
+  }
+  if (value === false || value === 'false' || value === 'N' || value === 'n' || value === 0 || value === '0') {
+    return false
+  }
+  return undefined
+}
+
 function mapOrderStatus(status) {
   const normalized = String(status ?? 'processing').toLowerCase()
   const map = {
@@ -240,6 +250,7 @@ export function mapUserProfileFromApi(payload) {
     role: pick(d, 'role') ?? 'USER',
     location: location || '—',
     memberSince: formatJoinedDate(pick(d, 'memberSince', 'joinedAt', 'createdAt', 'registeredAt')),
+    isStoreOpen: parseIsStoreOpen(pick(d, 'isStoreOpen', 'storeOpen', 'storeStatus')),
     addresses,
     recentOrders,
   }
@@ -271,4 +282,20 @@ export async function fetchUserProfile({ force = false } = {}) {
     })
 
   return inFlightProfileRequest
+}
+
+/** PUT /api/admin/store-status — toggle admin store open/close. */
+export async function updateAdminStoreStatus(isStoreOpen) {
+  const result = await authFetch('/api/admin/store-status', {
+    method: 'PUT',
+    body: JSON.stringify({
+      isStoreOpen: isStoreOpen ? 'Y' : 'N',
+    }),
+  })
+  invalidateUserProfileCache()
+  if (cachedProfile) {
+    cachedProfile = { ...cachedProfile, isStoreOpen: Boolean(isStoreOpen) }
+    cachedProfileAt = Date.now()
+  }
+  return result
 }

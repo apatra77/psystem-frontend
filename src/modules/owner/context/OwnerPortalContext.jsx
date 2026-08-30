@@ -14,7 +14,8 @@ import {
   fetchCategories,
   deleteProductById,
 } from '@/services/products'
-import { fetchUserProfile } from '@/services/user'
+import { fetchUserProfile, updateAdminStoreStatus } from '@/services/user'
+import { toast } from '@/app/store/uiStore'
 
 const OwnerPortalContext = createContext(null)
 
@@ -45,8 +46,20 @@ function createStoreProfileFromAddress(address) {
 
 const STORE_STATUS = {
   open: { label: 'Store open', color: '#40deaa', bg: 'rgba(64,222,170,.12)', border: 'rgba(64,222,170,.35)' },
-  busy: { label: 'Busy · slower prep', color: '#ffd58f', bg: 'rgba(255,181,71,.15)', border: 'rgba(255,181,71,.34)' },
-  paused: { label: 'Orders paused', color: '#ff8a80', bg: 'rgba(255,138,128,0.14)', border: 'rgba(255,138,128,0.34)' },
+  paused: { label: 'Store close', color: '#ff8a80', bg: 'rgba(255,138,128,0.14)', border: 'rgba(255,138,128,0.34)' },
+}
+
+function resolveStoreStatusKey(status) {
+  return status === 'paused' ? 'paused' : 'open'
+}
+
+function applyGlobalStoreStatus(profiles, isStoreOpen) {
+  const status = isStoreOpen ? 'open' : 'paused'
+  const next = { ...profiles }
+  Object.keys(next).forEach((key) => {
+    next[key] = { ...next[key], status }
+  })
+  return next
 }
 
 export function OwnerPortalProvider({ children }) {
@@ -71,6 +84,7 @@ export function OwnerPortalProvider({ children }) {
   const [riders] = useState(INITIAL_RIDERS)
   const [promos] = useState(INITIAL_PROMOS)
   const [storeProfiles, setStoreProfiles] = useState(INITIAL_STORE_PROFILES)
+  const [storeStatusUpdating, setStoreStatusUpdating] = useState(false)
   const [authUser, setAuthUser] = useState(() => getStoredAuthUser())
 
   const updateAuthUser = useCallback((profile) => {
@@ -90,6 +104,9 @@ export function OwnerPortalProvider({ children }) {
     try {
       const profile = await fetchUserProfile({ force })
       setProfileAddresses(Array.isArray(profile?.addresses) ? profile.addresses : [])
+      if (profile?.isStoreOpen !== undefined) {
+        setStoreProfiles((prev) => applyGlobalStoreStatus(prev, profile.isStoreOpen))
+      }
     } catch {
       setProfileAddresses([])
     } finally {
@@ -114,7 +131,8 @@ export function OwnerPortalProvider({ children }) {
       const next = { ...prev }
       profileAddresses.forEach((address) => {
         if (!next[address.id]) {
-          next[address.id] = createStoreProfileFromAddress(address)
+          const inheritedStatus = Object.values(next)[0]?.status ?? 'open'
+          next[address.id] = { ...createStoreProfileFromAddress(address), status: inheritedStatus }
           return
         }
         next[address.id] = {
@@ -148,15 +166,26 @@ export function OwnerPortalProvider({ children }) {
     setOutletMenuOpen(false)
   }
 
-  const cycleStoreStatus = () => {
-    const order = ['open', 'busy', 'paused']
-    setStoreProfiles((prev) => {
-      const currentProfile = prev[activeOutlet] ?? DEFAULT_STORE_PROFILE
-      const cur = currentProfile.status
-      const next = order[(order.indexOf(cur) + 1) % order.length]
-      return { ...prev, [activeOutlet]: { ...currentProfile, status: next } }
-    })
-  }
+  const cycleStoreStatus = useCallback(async () => {
+    if (storeStatusUpdating) return
+
+    const currentProfile = storeProfiles[activeOutlet] ?? DEFAULT_STORE_PROFILE
+    const isCurrentlyOpen = resolveStoreStatusKey(currentProfile.status) === 'open'
+    const nextOpen = !isCurrentlyOpen
+    const previousProfiles = storeProfiles
+
+    setStoreProfiles(applyGlobalStoreStatus(storeProfiles, nextOpen))
+    setStoreStatusUpdating(true)
+
+    try {
+      await updateAdminStoreStatus(nextOpen)
+    } catch (err) {
+      setStoreProfiles(previousProfiles)
+      toast.error(err?.message ?? 'Failed to update store status')
+    } finally {
+      setStoreStatusUpdating(false)
+    }
+  }, [activeOutlet, storeProfiles, storeStatusUpdating])
 
   const acceptOrder = useCallback((id) => {
     setOrders((prev) =>
@@ -310,7 +339,8 @@ export function OwnerPortalProvider({ children }) {
       closeMenus,
       anyMenuOpen: outletMenuOpen || notifOpen || profileMenuOpen,
       storeProfile,
-      storeStatusMeta: STORE_STATUS[storeProfile.status],
+      storeStatusMeta: STORE_STATUS[resolveStoreStatusKey(storeProfile.status)],
+      storeStatusUpdating,
       cycleStoreStatus,
       incomingCount: incoming.length,
       incomingPreview: incoming.slice(0, 3),
@@ -379,6 +409,8 @@ export function OwnerPortalProvider({ children }) {
     riders,
     promos,
     storeProfiles,
+    storeStatusUpdating,
+    cycleStoreStatus,
     saveProduct,
     deleteProduct,
     toggleProductStatus,
