@@ -472,8 +472,8 @@ export default function DashboardView() {
         </GlassCard>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-4">
-        <GlassCard className="p-5 overflow-hidden">
+      <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-4 items-stretch">
+        <GlassCard className="p-5 overflow-hidden flex flex-col min-h-0">
           <SectionTitle
             action={
               <button
@@ -489,7 +489,7 @@ export default function DashboardView() {
             Incoming Orders
           </SectionTitle>
 
-          <div className="overflow-x-auto owner-scroll">
+          <div className="h-[272px] min-h-[272px] overflow-auto owner-scroll">
             <table className="w-full min-w-[760px] border-collapse">
               <thead>
                 <tr>
@@ -539,7 +539,7 @@ export default function DashboardView() {
           </div>
         </GlassCard>
 
-        <GlassCard className="p-5">
+        <GlassCard className="p-5 overflow-hidden flex flex-col min-h-0">
           <SectionTitle
             action={
               <button
@@ -554,7 +554,7 @@ export default function DashboardView() {
           >
             Stock Alerts
           </SectionTitle>
-          <div className="flex flex-col gap-2.5">
+          <div className="h-[272px] min-h-[272px] overflow-y-auto owner-scroll flex flex-col gap-2.5">
             {stockAlertRows.length ? (
               stockAlertRows.map((item) => (
                 <div
