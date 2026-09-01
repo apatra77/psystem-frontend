@@ -148,7 +148,7 @@ export const INITIAL_PROMOS = [
   { id: 'pr2', name: 'Free delivery ₹499+', desc: 'Free delivery above ₹499', type: 'threshold', code: 'AUTO', status: 'active', used: 18420, validTill: 'Ongoing' },
 ]
 
-export const REV_LABELS = ['Jul 7', 'Jul 8', 'Jul 9', 'Jul 10', 'Jul 11', 'Jul 12', 'Jul 13', 'Jul 14', 'Jul 15', 'Jul 16', 'Jul 17', 'Jul 18', 'Jul 19', 'Jul 20']
+export const REV_LABELS = ['7 Jul', '8 Jul', '9 Jul', '10 Jul', '11 Jul', '12 Jul', '13 Jul', '14 Jul', '15 Jul', '16 Jul', '17 Jul', '18 Jul', '19 Jul', '20 Jul']
 export const REV_VALUES = [128400, 134200, 119800, 142600, 151300, 146900, 163200, 158700, 171400, 166900, 179800, 175300, 192100, 184320]
 
 export const KPI_DATA = [

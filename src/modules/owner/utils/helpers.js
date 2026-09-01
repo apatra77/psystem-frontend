@@ -191,21 +191,159 @@ export function buildRevenueChart(revValues) {
   const topPad = 14
   const bottomPad = 26
   const baseline = chartH - bottomPad
-  const maxRev = Math.max(...revValues)
-  const minRev = Math.min(...revValues)
-  const stepX = chartW / (revValues.length - 1)
+
+  if (!Array.isArray(revValues) || revValues.length === 0) {
+    return {
+      revenueLinePath: '',
+      revenueAreaPath: '',
+      revenueLastX: '0',
+      revenueLastY: '0',
+      points: [],
+      stepX: chartW,
+      chartW,
+      chartH,
+      baseline,
+      maxRev: 0,
+      minRev: 0,
+    }
+  }
+
+  const leftPad = 0
+  const plotW = chartW - leftPad
+  const maxRev = Math.max(...revValues, 0)
+  const minRev = Math.min(...revValues, 0)
+  const stepX = revValues.length > 1 ? plotW / (revValues.length - 1) : plotW
   const pts = revValues.map((v, i) => [
-    i * stepX,
+    leftPad + i * stepX,
     topPad + (1 - (v - minRev) / (maxRev - minRev || 1)) * (chartH - topPad - bottomPad),
   ])
-  const revenueLinePoints = pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
-  const revenueAreaPath = `M${pts[0][0].toFixed(1)},${baseline} L${pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L')} L${pts[pts.length - 1][0].toFixed(1)},${baseline} Z`
+  const points = pts.map(([x, y], index) => ({
+    x: Number(x.toFixed(2)),
+    y: Number(y.toFixed(2)),
+    index,
+  }))
+  const revenueLinePath = buildSmoothLinePath(points)
+  const revenueAreaPath = buildSmoothAreaPath(points, baseline)
+
   return {
-    revenueLinePoints,
+    revenueLinePath,
     revenueAreaPath,
-    revenueLastX: pts[pts.length - 1][0].toFixed(1),
-    revenueLastY: pts[pts.length - 1][1].toFixed(1),
+    revenueLastX: points[points.length - 1]?.x?.toFixed(1) ?? '0',
+    revenueLastY: points[points.length - 1]?.y?.toFixed(1) ?? '0',
+    points,
+    stepX: Number(stepX.toFixed(1)),
+    chartW,
+    chartH,
+    baseline,
+    maxRev,
+    minRev,
   }
+}
+
+function buildSmoothLinePath(points) {
+  if (!points.length) return ''
+  if (points.length === 1) return `M ${points[0].x},${points[0].y}`
+
+  let path = `M ${points[0].x},${points[0].y}`
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[i - 1] ?? points[i]
+    const p1 = points[i]
+    const p2 = points[i + 1]
+    const p3 = points[i + 2] ?? p2
+    const cp1x = p1.x + (p2.x - p0.x) / 6
+    const cp1y = p1.y + (p2.y - p0.y) / 6
+    const cp2x = p2.x - (p3.x - p1.x) / 6
+    const cp2y = p2.y - (p3.y - p1.y) / 6
+    path += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`
+  }
+  return path
+}
+
+function buildSmoothAreaPath(points, baseline) {
+  if (!points.length) return ''
+  const line = buildSmoothLinePath(points)
+  const last = points[points.length - 1]
+  const first = points[0]
+  return `${line} L ${last.x},${baseline} L ${first.x},${baseline} Z`
+}
+
+export function getRevenueHoverIndex(pointerRatio, count) {
+  if (count <= 1) return 0
+  const ratio = Math.max(0, Math.min(1, pointerRatio))
+  return Math.round(ratio * (count - 1))
+}
+
+function evenlySpacedIndexes(count, labelCount) {
+  if (count <= 0) return []
+  if (count === 1) return [0]
+  if (labelCount >= count) {
+    return Array.from({ length: count }, (_, index) => index)
+  }
+  if (labelCount <= 1) return [0]
+
+  const indexes = [0]
+  for (let slot = 1; slot < labelCount - 1; slot += 1) {
+    const index = Math.round((slot / (labelCount - 1)) * (count - 1))
+    if (index > indexes[indexes.length - 1]) indexes.push(index)
+  }
+  if (indexes[indexes.length - 1] !== count - 1) indexes.push(count - 1)
+  return indexes
+}
+
+const REVENUE_AXIS_LABEL_COUNT = 7
+
+/** Pick readable x-axis ticks — always up to 7 evenly spaced date labels. */
+export function buildRevenueAxisLabelIndexes(count) {
+  if (count <= 0) return []
+  if (count === 1) return [0]
+  if (count <= REVENUE_AXIS_LABEL_COUNT) {
+    return Array.from({ length: count }, (_, index) => index)
+  }
+  return evenlySpacedIndexes(count, REVENUE_AXIS_LABEL_COUNT)
+}
+
+export function buildSparklinePath(values, width = 112, height = 28) {
+  if (!Array.isArray(values) || values.length === 0) return ''
+
+  const max = Math.max(...values, 0)
+  const min = Math.min(...values, 0)
+  const step = values.length > 1 ? width / (values.length - 1) : width
+
+  return values
+    .map((value, index) => {
+      const x = index * step
+      const y = height - 3 - ((Number(value) - min) / (max - min || 1)) * (height - 6)
+      return `${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+}
+
+export function buildRevenueYAxisTicks(maxValue, count = 5) {
+  const max = Math.max(Number(maxValue) || 0, 1)
+  const step = max / Math.max(count - 1, 1)
+
+  return Array.from({ length: count }, (_, index) => {
+    const value = max - step * index
+    const label =
+      value >= 1000 ? `₹${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k` : `₹${Math.round(value)}`
+    return { label, value, pct: index / Math.max(count - 1, 1) }
+  })
+}
+
+export function buildDonutSegments(segments, radius = 52, strokeWidth = 14) {
+  const circumference = 2 * Math.PI * radius
+  let offset = 0
+
+  return segments.map((segment) => {
+    const length = (Math.max(segment.percent, 0) / 100) * circumference
+    const item = {
+      ...segment,
+      dashArray: `${length} ${circumference}`,
+      dashOffset: -offset,
+    }
+    offset += length
+    return item
+  })
 }
 
 export const PAGE_META = {
