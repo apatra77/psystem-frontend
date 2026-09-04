@@ -129,6 +129,28 @@ export function formatOrderedOn(order) {
   return '—'
 }
 
+export function formatPlacedLabel(order) {
+  if (order.placedMinAgo != null) return `${order.placedMinAgo} min ago`
+  if (order.orderedAt) {
+    const diffMs = Date.now() - new Date(order.orderedAt).getTime()
+    if (Number.isNaN(diffMs)) return '—'
+    const diffMin = Math.max(0, Math.floor(diffMs / 60_000))
+    if (diffMin < 1) return 'Just now'
+    if (diffMin < 60) return `${diffMin} min ago`
+    const diffHr = Math.floor(diffMin / 60)
+    if (diffHr < 24) return `${diffHr} hr ago`
+    return formatOrderedOn(order)
+  }
+  if (order.date && order.time) return `${order.date}, ${order.time}`
+  return '—'
+}
+
+export function formatOrderDisplayId(id) {
+  const raw = String(id ?? '').trim()
+  if (!raw) return '#—'
+  return raw.startsWith('#') ? raw : `#${raw}`
+}
+
 export function stockMeta(stock) {
   if (stock <= 0) {
     return { label: 'Out of stock', color: '#ff8a80', bg: 'rgba(255,138,128,0.14)', border: 'rgba(255,138,128,0.34)' }
@@ -181,7 +203,7 @@ export function mapOrder(o) {
     orderedOn: formatOrderedOn(o),
     orderedAtMs,
     phone: o.phone ?? '—',
-    placedLabel: o.placedMinAgo != null ? `${o.placedMinAgo} min ago` : `${o.date}, ${o.time}`,
+    placedLabel: formatPlacedLabel(o),
   }
 }
 

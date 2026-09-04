@@ -11,13 +11,6 @@ import { useProductsQuery } from '../../hooks/useProductsQuery'
 import { stockMeta } from '../../utils/helpers'
 import { colors } from '@/theme/colors'
 
-const STOCK_FILTERS = [
-  { key: 'all', label: 'All stock' },
-  { key: 'in', label: 'In stock' },
-  { key: 'low', label: 'Low stock' },
-  { key: 'out', label: 'Out of stock' },
-]
-
 function ProductThumb() {
   return (
     <div
@@ -77,7 +70,6 @@ export default function ProductsList() {
     searchQuery: search,
     refreshKey: productsRefreshKey,
   })
-  const [stockFilter, setStockFilter] = useState('all')
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -95,36 +87,9 @@ export default function ProductsList() {
   )
   const isLoading = productsLoading || categoriesLoading
 
-  const filtered = useMemo(() => {
-    return products.filter((p) => {
-      if (stockFilter === 'low' && !(p.stock > 0 && p.stock <= 20)) return false
-      if (stockFilter === 'out' && p.stock !== 0) return false
-      if (stockFilter === 'in' && p.stock <= 20) return false
-      return true
-    })
-  }, [products, stockFilter])
-
   const handleSearchChange = (e) => {
     setSearch(e.target.value)
   }
-
-  const stockChips = STOCK_FILTERS.map((f) => {
-    const active = stockFilter === f.key
-    const meta =
-      f.key === 'all'
-        ? { color: '#fff', bg: 'rgba(255,255,255,.12)', border: 'rgba(255,255,255,.22)' }
-        : f.key === 'in'
-          ? stockMeta(999)
-          : f.key === 'low'
-            ? stockMeta(10)
-            : stockMeta(0)
-    return {
-      ...f,
-      bg: active ? meta.bg : 'rgba(255,255,255,.05)',
-      color: active ? meta.color : colors.textSecondary,
-      border: active ? meta.border : 'rgba(255,255,255,.14)',
-    }
-  })
 
   const closeDeleteModal = () => {
     if (deleting) return
@@ -152,9 +117,9 @@ export default function ProductsList() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2.5 flex-wrap">
+      <div className="flex items-center gap-2.5">
         <div
-          className="flex-1 min-w-[220px] flex items-center gap-2.5 rounded-xl px-3.5 py-2.5"
+          className="flex-1 min-w-0 flex items-center gap-2.5 rounded-xl px-3.5 py-2.5"
           style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)' }}
         >
           <Search size={14} style={{ color: '#68d9b4', flexShrink: 0 }} />
@@ -163,31 +128,17 @@ export default function ProductsList() {
             placeholder="Search products or SKU…"
             value={search}
             onChange={handleSearchChange}
-            className="flex-1 bg-transparent border-none outline-none text-white text-[12.5px] font-[inherit]"
+            className="flex-1 min-w-0 bg-transparent border-none outline-none text-white text-[12.5px] font-[inherit]"
           />
         </div>
 
         <ModalSelect
-          className="min-w-[190px] flex-shrink-0"
+          className="w-[190px] flex-shrink-0"
           value={catFilter}
           onChange={(e) => setCatFilter(e.target.value)}
           options={categoryOptions}
           placeholder="All categories"
         />
-
-        <div className="flex gap-1.5 flex-wrap">
-          {stockChips.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => setStockFilter(f.key)}
-              className="text-[11.5px] font-bold px-[13px] py-2 rounded-full cursor-pointer whitespace-nowrap transition-colors"
-              style={{ background: f.bg, color: f.color, border: `1px solid ${f.border}` }}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
 
         <div className="relative flex flex-shrink-0">
           <button
@@ -296,14 +247,14 @@ export default function ProductsList() {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {products.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-14 text-center text-[13px]" style={{ color: colors.textDim }}>
                   No products found.
                 </td>
               </tr>
             ) : (
-            filtered.map((p) => {
+            products.map((p) => {
               const sm = stockMeta(p.stock)
               const isActive = p.status === 'active'
               return (
@@ -469,12 +420,12 @@ export default function ProductsList() {
           </div>
         )}
 
-        {isSearchMode && filtered.length > 0 && (
+        {isSearchMode && products.length > 0 && (
           <div
             className="px-4 py-3.5 text-[12px]"
             style={{ color: colors.textSecondary, borderTop: `1px solid ${colors.borderSubtle}` }}
           >
-            Showing {filtered.length} search result{filtered.length === 1 ? '' : 's'}
+            Showing {products.length} search result{products.length === 1 ? '' : 's'}
           </div>
         )}
         </>

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
 import { useOwnerPage } from '../routes'
 import { clearAuthSession, getUserInitials } from '@/services/auth'
-import { PAGE_META } from '../utils/helpers'
+import { PAGE_META, formatOrderDisplayId } from '../utils/helpers'
 import { colors } from '@/theme/colors'
 
 export default function TopBar() {
@@ -29,6 +29,8 @@ export default function TopBar() {
     cycleStoreStatus,
     incomingCount,
     incomingPreview,
+    incomingOrdersLoading,
+    goToPage,
     authUser,
     addressesLoading,
   } = useOwnerPortal()
@@ -258,23 +260,32 @@ export default function TopBar() {
               <div className="text-[11px] font-extrabold tracking-wide px-2.5 py-1.5 pb-2" style={{ color: '#5f7d73' }}>
                 INCOMING ORDERS
               </div>
-              {incomingCount > 0 ? (
-                <div className="flex flex-col gap-1.5">
+              {incomingOrdersLoading ? (
+                <div className="text-xs py-4 text-center" style={{ color: colors.textDim }}>
+                  Loading orders…
+                </div>
+              ) : incomingCount > 0 ? (
+                <div className="flex flex-col gap-1.5 max-h-[280px] overflow-y-auto owner-scroll">
                   {incomingPreview.map((o) => (
-                    <div key={o.id} className="flex items-center gap-2.5 p-2.5 rounded-[10px] hover:bg-white/6">
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => goToPage('orders')}
+                      className="flex items-center gap-2.5 p-2.5 rounded-[10px] hover:bg-white/6 text-left w-full cursor-pointer"
+                    >
                       <span
                         className="w-[7px] h-[7px] rounded-full flex-shrink-0"
                         style={{ background: colors.blue, boxShadow: `0 0 8px ${colors.blue}` }}
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-white">
-                          {o.id} · {o.customer}
+                        <div className="text-xs font-bold text-white truncate">
+                          {formatOrderDisplayId(o.id)} · {o.customer}
                         </div>
-                        <div className="text-[10.5px] mt-px" style={{ color: colors.textSecondary }}>
-                          {o.itemsCount} items · {o.totalFmt} · {o.placedLabel}
+                        <div className="text-[10.5px] mt-px truncate" style={{ color: colors.textSecondary }}>
+                          {o.itemsCount} {o.itemsCount === 1 ? 'item' : 'items'} · {o.totalFmt} · {o.placedLabel}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : (

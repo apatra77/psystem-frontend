@@ -137,7 +137,7 @@ export default function DashboardView() {
     incomingCount,
     goToPage,
   } = useOwnerPortal()
-  const { dashboard, loading } = useAdminDashboardQuery()
+  const { dashboard, loading, error, reload } = useAdminDashboardQuery()
   const [revenuePeriod, setRevenuePeriod] = useState(REVENUE_PERIOD_DEFAULT)
   const [chartLabels, setChartLabels] = useState([])
   const [chartValues, setChartValues] = useState([])
@@ -145,19 +145,19 @@ export default function DashboardView() {
   const revenuePeriodDirtyRef = useRef(false)
 
   const {
-    kpiData,
-    revLabels,
-    revValues,
-    orderValues,
-    avgOrderValues,
-    customerOverview,
-    orderStatus,
-    bestSellers,
-    peakHours,
-    peakHourLabel,
-    incomingOrders,
-    stockAlerts,
-  } = dashboard
+    kpiData = [],
+    revLabels = [],
+    revValues = [],
+    orderValues = [],
+    avgOrderValues = [],
+    customerOverview = { newPercent: 0, returningPercent: 0 },
+    orderStatus = { total: 0, segments: [] },
+    bestSellers = [],
+    peakHours = [],
+    peakHourLabel = '',
+    incomingOrders = null,
+    stockAlerts = null,
+  } = dashboard ?? {}
 
   useEffect(() => {
     if (revenuePeriodDirtyRef.current) return
@@ -287,6 +287,35 @@ export default function DashboardView() {
 
   if (loading) {
     return <DashboardShimmer />
+  }
+
+  if (error) {
+    return (
+      <GlassCard className="p-10 flex flex-col items-center justify-center text-center min-h-[360px]">
+        <div
+          className="w-12 h-12 rounded-[14px] flex items-center justify-center mb-4"
+          style={{ background: 'rgba(255,138,128,0.12)', border: '1px solid rgba(255,138,128,0.28)' }}
+        >
+          <AlertTriangle size={22} style={{ color: '#ff8a80' }} />
+        </div>
+        <h2 className="text-[16px] font-extrabold text-white mb-2">Unable to load dashboard</h2>
+        <p className="text-[13px] max-w-md leading-relaxed mb-5" style={{ color: colors.textSecondary }}>
+          {error}
+        </p>
+        <button
+          type="button"
+          onClick={reload}
+          className="text-[12.5px] font-extrabold px-5 py-2.5 rounded-[10px] cursor-pointer transition-opacity hover:opacity-90"
+          style={{ color: colors.accentText, background: colors.primaryBtn }}
+        >
+          Retry
+        </button>
+      </GlassCard>
+    )
+  }
+
+  if (!dashboard) {
+    return null
   }
 
   return (

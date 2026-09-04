@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
 import AdminOrderDetailPanel from './orders/AdminOrderDetailPanel'
+import { useOwnerPortal } from '../context/OwnerPortalContext'
 import { useAdminOrdersQuery, ADMIN_ORDERS_PAGE_SIZE } from '../hooks/useAdminOrdersQuery'
 import { colors } from '@/theme/colors'
 
@@ -98,6 +99,7 @@ function Th({ children, align = 'left', className = '' }) {
 }
 
 export default function OrdersView() {
+  const { reloadIncomingOrders } = useOwnerPortal()
   const [statusFilter, setStatusFilter] = useState('all')
   const [paymentFilter, setPaymentFilter] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
@@ -118,6 +120,11 @@ export default function OrdersView() {
     updateOrderStatus,
     printInvoice,
   } = useAdminOrdersQuery({ statusFilter, paymentFilter, sortBy, searchQuery, page })
+
+  const handleOrderUpdated = useCallback(async () => {
+    await refetchOrders()
+    reloadIncomingOrders({ force: true })
+  }, [refetchOrders, reloadIncomingOrders])
 
   useEffect(() => {
     if (page > totalPages) setPage(Math.max(1, totalPages))
@@ -365,7 +372,7 @@ export default function OrdersView() {
           updateOrderStatus={updateOrderStatus}
           printInvoice={printInvoice}
           actionState={actionState}
-          onOrderUpdated={refetchOrders}
+          onOrderUpdated={handleOrderUpdated}
         />
       ) : null}
     </div>

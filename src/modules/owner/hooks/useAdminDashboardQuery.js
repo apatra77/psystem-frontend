@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { fetchAdminDashboardHome, parseAdminDashboardHome } from '@/services/dashboard'
 import {
   BEST_SELLERS,
@@ -73,25 +73,26 @@ function withDefaults(parsed) {
 }
 
 export function useAdminDashboardQuery() {
-  const [dashboard, setDashboard] = useState(() => withDefaults(null))
+  const [dashboard, setDashboard] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [usingFallback, setUsingFallback] = useState(true)
+  const [error, setError] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
 
     const run = async () => {
       setLoading(true)
+      setError(null)
 
       try {
-        const payload = await fetchAdminDashboardHome()
+        const payload = await fetchAdminDashboardHome({ force: reloadKey > 0 })
         if (cancelled) return
         setDashboard(withDefaults(parseAdminDashboardHome(payload)))
-        setUsingFallback(false)
       } catch (err) {
         if (cancelled) return
-        setDashboard(withDefaults(null))
-        setUsingFallback(true)
+        setDashboard(null)
+        setError(err instanceof Error ? err.message : 'Could not load dashboard')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -102,7 +103,9 @@ export function useAdminDashboardQuery() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [reloadKey])
 
-  return { dashboard, loading, usingFallback }
+  const reload = useCallback(() => setReloadKey((key) => key + 1), [])
+
+  return { dashboard, loading, error, reload }
 }

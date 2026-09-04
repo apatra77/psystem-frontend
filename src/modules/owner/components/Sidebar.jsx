@@ -8,7 +8,7 @@ const NAV = [
   {
     section: 'OPERATIONS',
     items: [
-      { id: 'orders', label: 'Orders', icon: ClipboardList, badgeKey: 'incomingCount', badgeStyle: 'mint' },
+      { id: 'orders', label: 'Orders', icon: ClipboardList, badgeKey: 'totalOrdersCount', badgeStyle: 'mint' },
       { id: 'logistics', label: 'Logistics', icon: Truck },
     ],
   },
@@ -77,12 +77,12 @@ export default function Sidebar() {
     goToPage,
     sidebarCollapsed,
     setSidebarCollapsed,
-    incomingCount,
+    totalOrdersCount,
     lowStockCount,
   } = useOwnerPortal()
 
   const expanded = !sidebarCollapsed
-  const badges = { incomingCount, lowStockCount }
+  const badges = { totalOrdersCount, lowStockCount }
 
   return (
     <aside

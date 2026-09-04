@@ -14,6 +14,11 @@ import {
   fetchCategories,
   deleteProductById,
 } from '@/services/products'
+import {
+  fetchAdminOrders,
+  mapUiSortToApi,
+  parseAdminOrdersPage,
+} from '@/services/orders'
 import { fetchUserProfile, updateAdminStoreStatus } from '@/services/user'
 import { toast } from '@/app/store/uiStore'
 
@@ -72,6 +77,10 @@ export function OwnerPortalProvider({ children }) {
   const [profileAddresses, setProfileAddresses] = useState([])
   const [addressesLoading, setAddressesLoading] = useState(true)
   const [orders, setOrders] = useState(INITIAL_ORDERS)
+  const [incomingOrders, setIncomingOrders] = useState([])
+  const [incomingOrdersCount, setIncomingOrdersCount] = useState(0)
+  const [totalOrdersCount, setTotalOrdersCount] = useState(0)
+  const [incomingOrdersLoading, setIncomingOrdersLoading] = useState(true)
   const [products, setProducts] = useState([])
   const [productsLoading, setProductsLoading] = useState(false)
   const [productsError, setProductsError] = useState(null)
@@ -117,6 +126,42 @@ export function OwnerPortalProvider({ children }) {
   useEffect(() => {
     loadOutletAddresses()
   }, [loadOutletAddresses])
+
+  const loadIncomingOrders = useCallback(async ({ force = false } = {}) => {
+    setIncomingOrdersLoading(true)
+    try {
+      const [allPayload, initiatedPayload] = await Promise.all([
+        fetchAdminOrders({
+          sort: mapUiSortToApi('newest'),
+          size: 1,
+          page: 0,
+          force,
+        }),
+        fetchAdminOrders({
+          status: 'I',
+          sort: mapUiSortToApi('newest'),
+          size: 50,
+          page: 0,
+          force,
+        }),
+      ])
+      const allResult = parseAdminOrdersPage(allPayload)
+      const initiatedResult = parseAdminOrdersPage(initiatedPayload)
+      setTotalOrdersCount(Number(allResult.totalElements) || 0)
+      setIncomingOrders(Array.isArray(initiatedResult.orders) ? initiatedResult.orders : [])
+      setIncomingOrdersCount(Number(initiatedResult.totalElements) || 0)
+    } catch {
+      setTotalOrdersCount(0)
+      setIncomingOrders([])
+      setIncomingOrdersCount(0)
+    } finally {
+      setIncomingOrdersLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadIncomingOrders()
+  }, [loadIncomingOrders])
 
   useEffect(() => {
     if (profileAddresses.length === 0) return
@@ -306,7 +351,9 @@ export function OwnerPortalProvider({ children }) {
       storeProfiles[activeOutlet] ??
       (activeAddress ? createStoreProfileFromAddress(activeAddress) : DEFAULT_STORE_PROFILE)
     const ordersMapped = orders.map(mapOrder)
-    const incoming = ordersMapped.filter((o) => o.status === 'new')
+    const incomingFromApi = incomingOrders
+      .map(mapOrder)
+      .filter((order) => order.status === 'new')
     const lowStock = products.filter((p) => p.stock <= 20)
 
     const productCategories = categories.length > 0
@@ -342,8 +389,11 @@ export function OwnerPortalProvider({ children }) {
       storeStatusMeta: STORE_STATUS[resolveStoreStatusKey(storeProfile.status)],
       storeStatusUpdating,
       cycleStoreStatus,
-      incomingCount: incoming.length,
-      incomingPreview: incoming.slice(0, 3),
+      incomingCount: incomingOrdersLoading ? 0 : incomingOrdersCount,
+      totalOrdersCount: incomingOrdersLoading ? 0 : totalOrdersCount,
+      incomingPreview: incomingFromApi,
+      incomingOrdersLoading,
+      reloadIncomingOrders: loadIncomingOrders,
       lowStockCount: lowStock.length,
       stockAlertsPreview: lowStock.slice(0, 4).map((p) => ({
         ...p,
@@ -388,6 +438,11 @@ export function OwnerPortalProvider({ children }) {
     addressesLoading,
     loadOutletAddresses,
     orders,
+    incomingOrders,
+    incomingOrdersCount,
+    totalOrdersCount,
+    incomingOrdersLoading,
+    loadIncomingOrders,
     acceptOrder,
     rejectOrder,
     updateOrderStatus,
