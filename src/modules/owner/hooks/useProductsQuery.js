@@ -9,7 +9,12 @@ import {
 
 const SEARCH_DEBOUNCE_MS = 350
 
-export function useProductsQuery({ categoryId = 'all', searchQuery = '', refreshKey = 0 }) {
+export function useProductsQuery({
+  categoryId = 'all',
+  searchQuery = '',
+  refreshKey = 0,
+  pageSize = OWNER_PRODUCTS_PAGE_SIZE,
+}) {
   const [products, setProducts] = useState([])
   const [totalElements, setTotalElements] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -33,7 +38,7 @@ export function useProductsQuery({ categoryId = 'all', searchQuery = '', refresh
 
   useEffect(() => {
     setPage(1)
-  }, [categoryId, debouncedSearch])
+  }, [categoryId, debouncedSearch, pageSize])
 
   const trimmedSearch = debouncedSearch.trim()
   const isSearchMode = Boolean(trimmedSearch)
@@ -73,12 +78,12 @@ export function useProductsQuery({ categoryId = 'all', searchQuery = '', refresh
           categoryId === 'all'
             ? await fetchProductsPage(cats, {
                 page: page - 1,
-                size: OWNER_PRODUCTS_PAGE_SIZE,
+                size: pageSize,
                 force,
               })
             : await fetchProductsByCategoryPage(categoryId, cats, {
                 page: page - 1,
-                size: OWNER_PRODUCTS_PAGE_SIZE,
+                size: pageSize,
                 force,
               })
 
@@ -95,7 +100,7 @@ export function useProductsQuery({ categoryId = 'all', searchQuery = '', refresh
         setLoading(false)
       }
     },
-    [categoryId, isSearchMode, page, trimmedSearch],
+    [categoryId, isSearchMode, page, pageSize, trimmedSearch],
   )
 
   useEffect(() => {
@@ -107,10 +112,8 @@ export function useProductsQuery({ categoryId = 'all', searchQuery = '', refresh
   }, [page, totalPages])
 
   const currentPage = Math.min(page, totalPages)
-  const rangeStart = totalElements === 0 ? 0 : (currentPage - 1) * OWNER_PRODUCTS_PAGE_SIZE + 1
-  const rangeEnd = isSearchMode
-    ? totalElements
-    : Math.min(currentPage * OWNER_PRODUCTS_PAGE_SIZE, totalElements)
+  const rangeStart = totalElements === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const rangeEnd = isSearchMode ? totalElements : Math.min(currentPage * pageSize, totalElements)
 
   const pageNumbers = useMemo(() => {
     if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1)

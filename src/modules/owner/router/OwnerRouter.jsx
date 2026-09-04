@@ -9,9 +9,9 @@ import CategoriesView from '../views/CategoriesView'
 import ProductsLayout from '../views/products/ProductsLayout'
 import ProductFormModal from '../views/products/ProductFormModal'
 import MyProfileView from '../views/MyProfileView'
+import InventoryView from '../views/InventoryView'
 import {
   DiscountsView,
-  InventoryView,
   LogisticsView,
   StaffView,
   StoreView,

@@ -351,7 +351,7 @@ export const PAGE_META = {
   orders: { title: 'Orders', subtitle: 'Manage and review customer orders.' },
   products: { title: 'Products', subtitle: 'Catalog, pricing and stock' },
   categories: { title: 'Categories', subtitle: 'Organize your storefront aisles' },
-  inventory: { title: 'Inventory', subtitle: 'Stock levels and price sync' },
+  inventory: { title: 'Inventory', subtitle: 'Manage your pharmacy inventory and stock levels.' },
   discounts: { title: 'Discounts & Promotions', subtitle: 'Offers, codes and Circle perks' },
   logistics: { title: 'Logistics', subtitle: 'Riders, couriers and live deliveries' },
   staff: { title: 'Staff & Roles', subtitleKey: 'staffOutlet' },

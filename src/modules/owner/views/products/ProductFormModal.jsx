@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Camera, Info } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput, ModalSelect, ModalTextarea } from '../../components/PortalModal'
 import Spinner from '@/components/ui/Spinner'
@@ -204,6 +204,7 @@ function recalcPricingOnMrpChange(mrp, prev) {
 
 export default function ProductFormModal() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id: routeId } = useParams()
   const isEdit = Boolean(routeId)
   const { categories, categoriesLoading, reloadProducts } = useOwnerPortal()
@@ -289,7 +290,12 @@ export default function ProductFormModal() {
     setDraft(mapProductDetailToFormDraft(productDetail, categories))
   }, [productDetail, categories])
 
-  const close = () => navigate('/owner/products')
+  const returnTo = useMemo(() => {
+    const candidate = location.state?.returnTo
+    return typeof candidate === 'string' && candidate.startsWith('/owner') ? candidate : '/owner/products'
+  }, [location.state?.returnTo])
+
+  const close = () => navigate(returnTo)
 
   const setField = (field, value) => {
     setFieldErrors((prev) => {

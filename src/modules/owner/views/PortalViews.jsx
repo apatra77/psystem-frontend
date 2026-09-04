@@ -1,6 +1,5 @@
 import GlassCard from '../components/GlassCard'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
-import { stockMeta } from '../utils/helpers'
 import { colors } from '@/theme/colors'
 
 function TableShell({ children }) {
@@ -22,75 +21,6 @@ function Th({ children }) {
   )
 }
 
-export function InventoryView() {
-  const { products, categories, lowStockCount } = useOwnerPortal()
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          { label: 'Tracked SKUs', value: products.length, color: '#fff' },
-          { label: 'Low stock', value: lowStockCount, color: colors.gold },
-          { label: 'Out of stock', value: products.filter((p) => p.stock === 0).length, color: '#ff8a80' },
-          { label: 'Distributor sync', value: '12 min ago', color: colors.accent, small: true },
-        ].map((k) => (
-          <GlassCard key={k.label} className="px-[22px] py-5">
-            <div className="text-[11px] font-bold tracking-[0.1em] uppercase" style={{ color: colors.textDim }}>
-              {k.label}
-            </div>
-            <div
-              className={`font-extrabold tracking-tight mt-2.5 ${k.small ? 'text-[15px]' : 'text-[27px]'}`}
-              style={{ color: k.color }}
-            >
-              {k.value}
-            </div>
-          </GlassCard>
-        ))}
-      </div>
-      <TableShell>
-        <thead>
-          <tr>
-            <Th>Product</Th>
-            <Th>Category</Th>
-            <Th>Stock</Th>
-            <Th>Price</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((p) => {
-            const cat = categories.find((c) => c.id === p.cat)
-            const sm = stockMeta(p.stock)
-            return (
-              <tr key={p.id} className="border-b border-white/6">
-                <td className="px-4 py-2.5">
-                  <div className="text-[12.5px] font-bold text-white">{p.name}</div>
-                  <div className="text-[10.5px]" style={{ color: colors.textDim }}>
-                    {p.sku}
-                  </div>
-                </td>
-                <td className="px-4 py-2.5 text-xs" style={{ color: '#cfe6dc' }}>
-                  {cat?.name}
-                </td>
-                <td className="px-4 py-2.5">
-                  <span className="text-[12.5px] font-bold" style={{ color: '#cfe6dc' }}>
-                    {p.stock}
-                  </span>
-                  <span
-                    className="text-[9.5px] font-extrabold px-[7px] py-0.5 rounded-full ml-1.5"
-                    style={{ background: sm.bg, color: sm.color, border: `1px solid ${sm.border}` }}
-                  >
-                    {sm.label}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 text-[12.5px] font-bold text-white tabular-nums">₹{p.price}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </TableShell>
-    </div>
-  )
-}
 
 export function DiscountsView() {
   const { promos } = useOwnerPortal()
