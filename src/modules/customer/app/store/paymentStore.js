@@ -10,7 +10,7 @@ const uid = () => `pm${Date.now().toString().slice(-6)}`
 export const usePaymentStore = create((set, get) => ({
   methods: INITIAL_PAYMENT_METHODS,
   channels: PAYMENT_METHODS,
-  selectedChannel: 'upi',
+  selectedChannel: 'cod',
   status: 'idle', // idle | processing | success | failed
   transaction: null,
   transactions: [],

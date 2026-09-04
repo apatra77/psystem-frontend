@@ -23,6 +23,7 @@ export default function CustomerProfileGate({ children }) {
       {children}
       {showProfileSetup && authUser && (
         <ProfileSetupModal
+          initialFullName={authUser?.fullName ?? ''}
           initialEmail={authUser?.email ?? ''}
           initialMobile={authUser?.mobile ?? ''}
           initialCountryCode={authUser?.countryCode ?? '+91'}

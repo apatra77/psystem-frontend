@@ -6,6 +6,7 @@ import PageHeader from '@/shared/ui/PageHeader'
 import EmptyState from '@/shared/ui/EmptyState'
 import Button from '@/shared/ui/Button'
 import Spinner from '@/shared/ui/Spinner'
+import ProfileSetupModal from '@/components/modals/ProfileSetupModal'
 import { Form, RadioCardGroup, TextField, CheckboxField, SubmitButton } from '@/shared/components/form'
 import { checkoutSchema } from '@/app/validations/schemas/customer.schema'
 import { useAuthStore } from '@/app/store/authStore'
@@ -34,17 +35,17 @@ function PaymentDetails() {
 /** Checkout payment options — card & wallet entries commented out below. */
 const CHECKOUT_PAYMENT_OPTIONS = [
   {
+    value: 'cod',
+    label: 'Cash on delivery',
+    hint: 'Pay the rider',
+    icon: Bike,
+  },
+  {
     value: 'upi',
     label: 'Generate QR',
     hint: 'Scan and pay using any UPI app',
     icon: QrCode,
     badge: 'Instant payment',
-  },
-  {
-    value: 'cod',
-    label: 'Cash on delivery',
-    hint: 'Pay the rider',
-    icon: Bike,
   },
 ]
 
@@ -72,7 +73,7 @@ function resolveUserId() {
   return null
 }
 
-function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, clear, placeOrder }) {
+function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, clear, placeOrder, onAddAddress }) {
   const navigate = useNavigate()
 
   const addressOptions = addresses.map((a) => ({
@@ -140,7 +141,7 @@ function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, 
       <EmptyState
         icon={MapPin}
         title="No delivery address saved"
-        action={<Button onClick={() => navigate(PATHS.customer.addresses)}>Add address</Button>}
+        action={<Button onClick={onAddAddress}>Add address</Button>}
       />
     )
   }
@@ -151,7 +152,7 @@ function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, 
       schema={checkoutSchema}
       defaultValues={{
         addressId: defaultAddressId,
-        paymentMethod: 'upi',
+        paymentMethod: 'cod',
         scheduleLater: false,
         scheduledFor: '',
         upiId: '',
@@ -206,6 +207,7 @@ function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, 
 
 export default function CheckoutPage() {
   const navigate = useNavigate()
+  const authUser = useAuthStore((s) => s.user)
   const { items, scheduledFor, prescriptionId, clear } = useCartStore()
   const totals = useCartStore((s) => s.totals())
   const addresses = useOrderStore((s) => s.addresses)
@@ -214,6 +216,21 @@ export default function CheckoutPage() {
   const placeOrder = useOrderStore((s) => s.placeOrder)
   const [cartReady, setCartReady] = useState(() => useCartStore.getState().items.length > 0)
   const [addressesLoading, setAddressesLoading] = useState(() => !useOrderStore.getState().addressesLoadedFromApi)
+  const [showAddAddressModal, setShowAddAddressModal] = useState(false)
+  const [profile, setProfile] = useState(null)
+
+  const closeAddAddressModal = () => setShowAddAddressModal(false)
+
+  const handleAddressSaved = async () => {
+    try {
+      const data = await fetchUserProfile({ force: true })
+      setProfile(data)
+      setAddressesFromApi(data?.addresses ?? [])
+      closeAddAddressModal()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not refresh addresses')
+    }
+  }
 
   useEffect(() => {
     if (useCartStore.getState().items.length > 0) {
@@ -245,9 +262,10 @@ export default function CheckoutPage() {
 
     ;(async () => {
       try {
-        const profile = await fetchUserProfile()
+        const data = await fetchUserProfile()
         if (!cancelled) {
-          setAddressesFromApi(profile?.addresses ?? [])
+          setProfile(data)
+          setAddressesFromApi(data?.addresses ?? [])
         }
       } catch {
         if (!cancelled) setAddressesFromApi([])
@@ -260,6 +278,12 @@ export default function CheckoutPage() {
       cancelled = true
     }
   }, [addressesLoadedFromApi, setAddressesFromApi])
+
+  useEffect(() => {
+    if (!addressesLoading && addresses.length === 0) {
+      setShowAddAddressModal(true)
+    }
+  }, [addressesLoading, addresses.length])
 
   if (!cartReady) {
     return (
@@ -295,6 +319,20 @@ export default function CheckoutPage() {
           prescriptionId={prescriptionId}
           clear={clear}
           placeOrder={placeOrder}
+          onAddAddress={() => setShowAddAddressModal(true)}
+        />
+      )}
+
+      {showAddAddressModal && (
+        <ProfileSetupModal
+          mode="addAddress"
+          initialFullName={profile?.fullName || authUser?.fullName || ''}
+          initialEmail={profile?.email || authUser?.email || ''}
+          initialMobile={profile?.mobile || authUser?.mobile || ''}
+          initialCountryCode={profile?.countryCode || authUser?.countryCode || '+91'}
+          onClose={closeAddAddressModal}
+          onComplete={handleAddressSaved}
+          onSkip={closeAddAddressModal}
         />
       )}
     </div>

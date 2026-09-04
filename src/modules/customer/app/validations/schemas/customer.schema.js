@@ -53,6 +53,7 @@ export const checkoutSchema = yup.object({
   addressId: yup.string().required(msg('validation.required', { field: 'Delivery address' })),
   paymentMethod: yup
     .string()
+    .default('cod')
     .required(msg('validation.required', { field: 'Payment method' }))
     .oneOf(['upi', 'card', 'wallet', 'cod'], msg('validation.mixed.oneOf')),
   scheduleLater: yup.boolean().default(false),

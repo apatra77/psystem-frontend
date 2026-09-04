@@ -23,6 +23,7 @@ import {
   saveUserDetails,
   updateUserAddress,
 } from '../../services/user'
+import { updateStoredUserProfile } from '../../services/auth'
 import { colors } from '../../theme/colors'
 
 const INDIAN_STATES = [
@@ -513,6 +514,7 @@ export default function ProfileSetupModal({
         await saveUserAddress(profile)
       } else {
         await saveUserDetails(profile)
+        updateStoredUserProfile(profile)
       }
       onComplete?.(profile)
     } catch (error) {
@@ -801,7 +803,7 @@ export default function ProfileSetupModal({
                   </>
                 ) : (
                   <>
-                    Continue to dashboard
+                    Save & Continue
                     <ArrowRight size={14} />
                   </>
                 )}
