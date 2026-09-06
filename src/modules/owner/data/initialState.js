@@ -137,6 +137,12 @@ export const INITIAL_STAFF = [
   { id: 'st3', name: 'Sunita Devi', email: 'sunita.devi@mediq.co', role: 'Inventory Staff', status: 'active', lastActive: '35 min ago' },
 ]
 
+export const INITIAL_DOCTORS = [
+  { id: 'dr1', name: 'Dr. Ananya Rao', email: 'ananya.rao@mediq.co', specialization: 'General Physician', status: 'active', lastActive: 'Active now' },
+  { id: 'dr2', name: 'Dr. Vikram Mehta', email: 'vikram.mehta@mediq.co', specialization: 'Pediatrician', status: 'active', lastActive: '1 hr ago' },
+  { id: 'dr3', name: 'Dr. Priya Nair', email: 'priya.nair@mediq.co', specialization: 'Dermatologist', status: 'inactive', lastActive: '2 days ago' },
+]
+
 export const INITIAL_RIDERS = [
   { id: 'r1', name: 'Suresh Kumar', fleet: 'inhouse', vehicle: 'Bike', status: 'busy', rating: 4.8, mapX: 62, mapY: 38 },
   { id: 'r2', name: 'Manoj Toppo', fleet: 'inhouse', vehicle: 'Scooter', status: 'busy', rating: 4.7, mapX: 30, mapY: 62 },

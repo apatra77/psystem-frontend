@@ -377,6 +377,7 @@ export const PAGE_META = {
   discounts: { title: 'Discounts & Promotions', subtitle: 'Offers, codes and Circle perks' },
   logistics: { title: 'Logistics', subtitle: 'Riders, couriers and live deliveries' },
   staff: { title: 'Staff & Roles', subtitleKey: 'staffOutlet' },
+  doctors: { title: 'Doctor Management', subtitle: 'Manage consulting doctors and availability' },
   store: { title: 'Store Profile', subtitle: 'Hours, location and delivery radius' },
   profile: { title: 'My Profile', subtitle: 'Manage your personal information' },
 }

@@ -37,33 +37,58 @@ function slugify(value) {
 const CATEGORY_ACCENTS = ['#40deaa', '#ffd58f', '#6fc2ff', '#b287ff']
 
 export function mapCategoryFromApi(item, index = 0) {
-  const name = pick(item, 'categoryName', 'name') ?? 'Unnamed category'
-  const slug = slugify(name)
+  const categoryName = pick(item, 'categoryName', 'name') ?? 'Unnamed category'
+  const slug = slugify(categoryName)
+  const productCount =
+    Number(
+      pick(
+        item,
+        'productCount',
+        'productsCount',
+        'count',
+        'totalProducts',
+        'noOfProducts',
+        'numberOfProducts',
+      ),
+    ) || 0
 
   return {
-    id: String(pick(item, 'id', 'categoryId') ?? slug),
+    id: String(pick(item, 'categoryId', 'id') ?? slug),
     slug,
-    name,
-    icon: name.charAt(0).toUpperCase(),
+    name: categoryName,
+    categoryName,
+    icon: categoryName.charAt(0).toUpperCase(),
     accent: CATEGORY_ACCENTS[index % CATEGORY_ACCENTS.length],
-    count: Number(pick(item, 'count', 'productCount')) || 0,
+    count: productCount,
+    productCount,
   }
 }
 
 let inFlightCategoriesRequest = null
+let cachedCategoriesResult = null
 let inFlightCreateCategoryRequest = null
 
 export async function fetchCategories({ force = false } = {}) {
-  if (!force && inFlightCategoriesRequest) {
+  if (inFlightCategoriesRequest) {
     return inFlightCategoriesRequest
   }
 
+  if (!force && cachedCategoriesResult) {
+    return cachedCategoriesResult
+  }
+
+  if (force) {
+    cachedCategoriesResult = null
+  }
+
   inFlightCategoriesRequest = authFetch('/api/categories', {}, PRODUCT_API_BASE)
-    .then((payload) =>
-      extractApiList(payload, ['categories']).map((item, index) =>
+    .then((payload) => {
+      const categories = extractApiList(payload, ['categories']).map((item, index) =>
         mapCategoryFromApi(item, index),
-      ),
-    )
+      )
+      cachedCategoriesResult = categories
+      return categories
+    })
     .finally(() => {
       inFlightCategoriesRequest = null
     })
@@ -81,6 +106,8 @@ export async function createCategory({ name }) {
   if (inFlightCreateCategoryRequest) {
     return inFlightCreateCategoryRequest
   }
+
+  cachedCategoriesResult = null
 
   inFlightCreateCategoryRequest = authFetch(
     '/api/categories',
@@ -117,12 +144,16 @@ export async function updateCategory(categoryId, { name }) {
     PRODUCT_API_BASE,
   )
 
+  cachedCategoriesResult = null
+
   const item = payload?.data ?? payload
   return mapCategoryFromApi(item)
 }
 
 /** DELETE /api/categories/{categoryId} — remove a product category. */
 export async function deleteCategory(categoryId) {
+  cachedCategoriesResult = null
+
   return authFetch(
     `/api/categories/${encodeURIComponent(categoryId)}`,
     { method: 'DELETE' },

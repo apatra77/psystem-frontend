@@ -6,6 +6,7 @@ import {
   INITIAL_PROMOS,
   INITIAL_RIDERS,
   INITIAL_STAFF,
+  INITIAL_DOCTORS,
   INITIAL_STORE_PROFILES,
 } from '../data/initialState'
 import { mapOrder, stockMeta } from '../utils/helpers'
@@ -89,6 +90,7 @@ export function OwnerPortalProvider({ children }) {
   const [catalogLoaded, setCatalogLoaded] = useState(false)
   const [productsRefreshKey, setProductsRefreshKey] = useState(0)
   const [staff] = useState(INITIAL_STAFF)
+  const [doctors] = useState(INITIAL_DOCTORS)
   const [riders] = useState(INITIAL_RIDERS)
   const [promos] = useState(INITIAL_PROMOS)
   const [storeProfiles, setStoreProfiles] = useState(INITIAL_STORE_PROFILES)
@@ -290,14 +292,14 @@ export function OwnerPortalProvider({ children }) {
     setCategoriesError(null)
 
     try {
-      const cats = await fetchCategories({ force })
+      const cats = await fetchCategories({ force: force || !catalogLoaded })
       setCategories(cats)
       setCategoriesError(null)
       setCatalogLoaded(true)
       return cats
     } catch (err) {
       setCategoriesError(err?.message ?? 'Failed to load categories')
-      setCategories([])
+      if (!catalogLoaded) setCategories([])
       return []
     } finally {
       setCategoriesLoading(false)
@@ -418,6 +420,7 @@ export function OwnerPortalProvider({ children }) {
       deleteProduct,
       toggleProductStatus,
       staff,
+      doctors,
       riders,
       promos,
       authUser,
@@ -458,6 +461,7 @@ export function OwnerPortalProvider({ children }) {
     productsRefreshKey,
     catalogLoaded,
     staff,
+    doctors,
     riders,
     promos,
     storeProfiles,

@@ -1,4 +1,4 @@
-import { ChevronLeft, LayoutGrid, Package, Percent, Store, Truck, Users, ClipboardList, BarChart3, Archive } from 'lucide-react'
+import { ChevronLeft, LayoutGrid, Package, Users, ClipboardList, BarChart3, Archive, Stethoscope } from 'lucide-react'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
 import { useOwnerPage } from '../routes'
 import { colors } from '@/theme/colors'
@@ -9,7 +9,6 @@ const NAV = [
     section: 'OPERATIONS',
     items: [
       { id: 'orders', label: 'Orders', icon: ClipboardList, badgeKey: 'totalOrdersCount', badgeStyle: 'mint' },
-      { id: 'logistics', label: 'Logistics', icon: Truck },
     ],
   },
   {
@@ -21,14 +20,10 @@ const NAV = [
     ],
   },
   {
-    section: 'GROWTH',
-    items: [{ id: 'discounts', label: 'Discounts', icon: Percent }],
-  },
-  {
     section: 'ORGANIZATION',
     items: [
       { id: 'staff', label: 'Staff & Roles', icon: Users },
-      { id: 'store', label: 'Store Profile', icon: Store },
+      { id: 'doctors', label: 'Doctor Management', icon: Stethoscope },
     ],
   },
 ]

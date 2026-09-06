@@ -176,6 +176,67 @@ export function StaffView() {
   )
 }
 
+export function DoctorManagementView() {
+  const { doctors } = useOwnerPortal()
+
+  return (
+    <TableShell>
+      <thead>
+        <tr>
+          <Th>Doctor</Th>
+          <Th>Specialization</Th>
+          <Th>Status</Th>
+          <Th>Last active</Th>
+        </tr>
+      </thead>
+      <tbody>
+        {doctors.map((doctor) => (
+          <tr key={doctor.id} className="border-b border-white/6">
+            <td className="px-4 py-2.5">
+              <div className="flex items-center gap-3">
+                <span
+                  className="w-[34px] h-[34px] rounded-full flex items-center justify-center font-extrabold text-[11.5px]"
+                  style={{
+                    background: 'rgba(64,222,170,0.14)',
+                    color: colors.accent,
+                    border: '1px solid rgba(64,222,170,0.36)',
+                  }}
+                >
+                  {doctor.name.split(' ').filter((w) => w !== 'Dr.').map((w) => w[0]).slice(0, 2).join('')}
+                </span>
+                <div>
+                  <div className="text-[12.5px] font-bold text-white">{doctor.name}</div>
+                  <div className="text-[10.5px]" style={{ color: colors.textDim }}>
+                    {doctor.email}
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td className="px-4 py-2.5 text-xs" style={{ color: '#cfe6dc' }}>
+              {doctor.specialization}
+            </td>
+            <td className="px-4 py-2.5">
+              <span
+                className="text-[10px] font-extrabold px-2.5 py-1 rounded-full"
+                style={{
+                  background: doctor.status === 'active' ? 'rgba(64,222,170,0.14)' : 'rgba(255,255,255,0.06)',
+                  color: doctor.status === 'active' ? colors.accent : colors.textDim,
+                  border: doctor.status === 'active' ? '1px solid rgba(64,222,170,0.36)' : '1px solid rgba(255,255,255,0.12)',
+                }}
+              >
+                {doctor.status === 'active' ? 'Active' : 'Inactive'}
+              </span>
+            </td>
+            <td className="px-4 py-2.5 text-xs whitespace-nowrap" style={{ color: colors.textSecondary }}>
+              {doctor.lastActive}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </TableShell>
+  )
+}
+
 export function StoreView() {
   const { storeProfile, outlets, activeOutlet, selectOutlet } = useOwnerPortal()
 

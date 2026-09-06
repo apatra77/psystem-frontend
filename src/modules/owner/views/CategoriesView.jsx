@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Baby,
   ChevronLeft,
@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput } from '../components/PortalModal'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
-import { INITIAL_CATEGORIES } from '../data/initialState'
+import { useAdminCategoriesQuery } from '../hooks/useAdminCategoriesQuery'
 import { getAccentMeta, getCategoryInitials } from '../utils/helpers'
 import { createCategory, deleteCategory, updateCategory } from '@/services/products'
 import { toast } from '@/app/store/uiStore'
@@ -94,12 +94,6 @@ function CategoryFormModal({ category, onClose, onSaved }) {
 
     try {
       if (isEdit) {
-        if (category.isFallback) {
-          await onSaved({ ...category, name: trimmed })
-          toast.success(`Category "${trimmed}" updated`)
-          onClose()
-          return
-        }
         const updated = await updateCategory(category.id, { name: trimmed })
         toast.success(`Category "${trimmed}" updated`)
         await onSaved(updated)
@@ -176,9 +170,7 @@ function DeleteCategoryModal({ category, onClose, onDeleted }) {
     setError('')
 
     try {
-      if (!category.isFallback) {
-        await deleteCategory(category.id)
-      }
+      await deleteCategory(category.id)
       toast.success(`Category "${category.name}" deleted`)
       await onDeleted(category.id)
       onClose()
@@ -226,42 +218,14 @@ function DeleteCategoryModal({ category, onClose, onDeleted }) {
 }
 
 export default function CategoriesView() {
-  const {
-    categories,
-    categoriesLoading,
-    categoriesError,
-    loadCategories,
-    addCategory,
-    updateCategoryInList,
-    removeCategoryFromList,
-  } = useOwnerPortal()
+  const { addCategory, updateCategoryInList, removeCategoryFromList } = useOwnerPortal()
+  const { categories, loading, error, refetchCategories, setCategories } = useAdminCategoriesQuery()
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState(null)
   const [deletingCategory, setDeletingCategory] = useState(null)
-  const [hiddenCategoryIds, setHiddenCategoryIds] = useState([])
-  const [fallbackOverrides, setFallbackOverrides] = useState({})
 
-  useEffect(() => {
-    loadCategories()
-  }, [loadCategories])
-
-  const usingFallbackCategories = categories.length === 0
-
-  const displayCategories = useMemo(() => {
-    const source = usingFallbackCategories ? INITIAL_CATEGORIES : categories
-    return source
-      .filter((category) => !hiddenCategoryIds.includes(category.id))
-      .map((category) => {
-        const override = fallbackOverrides[category.id]
-        return {
-          ...category,
-          ...override,
-          isFallback: usingFallbackCategories,
-        }
-      })
-  }, [categories, hiddenCategoryIds, fallbackOverrides, usingFallbackCategories])
-
+  const displayCategories = categories
   const totalElements = displayCategories.length
   const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -291,26 +255,22 @@ export default function CategoriesView() {
   }
 
   const handleCategorySaved = async (category) => {
-    if (editingCategory?.isFallback) {
-      setFallbackOverrides((prev) => ({
-        ...prev,
-        [category.id]: { ...prev[category.id], name: category.name },
-      }))
-      return
-    }
     if (editingCategory) {
       updateCategoryInList({ ...editingCategory, ...category })
+      setCategories((prev) =>
+        prev.map((item) => (item.id === editingCategory.id ? { ...item, ...category } : item)),
+      )
       return
     }
+
     addCategory(category)
+    setCategories((prev) => [...prev, category])
+    await refetchCategories({ force: true })
   }
 
   const handleCategoryDeleted = async (categoryId) => {
-    if (usingFallbackCategories) {
-      setHiddenCategoryIds((prev) => (prev.includes(categoryId) ? prev : [...prev, categoryId]))
-      return
-    }
     removeCategoryFromList(categoryId)
+    setCategories((prev) => prev.filter((item) => item.id !== categoryId))
   }
 
   return (
@@ -330,18 +290,30 @@ export default function CategoriesView() {
         </button>
       </div>
 
-      {categoriesError ? (
+      {error ? (
         <div
-          className="rounded-[12px] px-4 py-3 text-[12px] font-bold text-red-400"
+          className="rounded-[12px] px-4 py-3 flex flex-wrap items-center justify-between gap-3"
           style={{ background: 'rgba(255,138,128,0.08)', border: '1px solid rgba(255,138,128,0.24)' }}
         >
-          {categoriesError}
+          <span className="text-[12px] font-bold text-red-400">{error}</span>
+          <button
+            type="button"
+            onClick={() => refetchCategories({ force: true })}
+            className="text-[12px] font-extrabold px-3 py-1.5 rounded-[8px] cursor-pointer"
+            style={{ color: colors.accent, border: '1px solid rgba(64,222,170,0.34)' }}
+          >
+            Retry
+          </button>
         </div>
       ) : null}
 
-      {categoriesLoading ? (
+      {loading ? (
         <div className="py-16 text-center text-[13px]" style={{ color: colors.textDim }}>
           Loading categories…
+        </div>
+      ) : displayCategories.length === 0 ? (
+        <div className="py-16 text-center text-[13px]" style={{ color: colors.textDim }}>
+          No categories found. Add your first category to get started.
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -383,9 +355,11 @@ export default function CategoriesView() {
                 </div>
 
                 <div>
-                  <div className="text-[14.5px] font-extrabold text-white">{category.name}</div>
+                  <div className="text-[14.5px] font-extrabold text-white">
+                    {category.categoryName ?? category.name}
+                  </div>
                   <div className="text-[11.5px] mt-0.5" style={{ color: colors.textSecondary }}>
-                    {category.count != null ? `${category.count} products` : '0 products'}
+                    {category.productCount ?? category.count ?? 0} products
                   </div>
                 </div>
               </div>
@@ -394,7 +368,7 @@ export default function CategoriesView() {
         </div>
       )}
 
-      {!categoriesLoading && totalElements > 0 ? (
+      {!loading && totalElements > 0 ? (
         <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
           <div className="text-[12px]" style={{ color: colors.textSecondary }}>
             Showing {rangeStart} to {rangeEnd} of {totalElements} categories
@@ -403,7 +377,7 @@ export default function CategoriesView() {
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              disabled={categoriesLoading || currentPage === 1}
+              disabled={loading || currentPage === 1}
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }}
@@ -436,7 +410,7 @@ export default function CategoriesView() {
 
             <button
               type="button"
-              disabled={categoriesLoading || currentPage === totalPages}
+              disabled={loading || currentPage === totalPages}
               onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               className="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ color: colors.textMuted, border: `1px solid ${colors.borderSubtle}` }}

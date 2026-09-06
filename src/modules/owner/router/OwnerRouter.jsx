@@ -12,6 +12,7 @@ import MyProfileView from '../views/MyProfileView'
 import InventoryView from '../views/InventoryView'
 import {
   DiscountsView,
+  DoctorManagementView,
   LogisticsView,
   StaffView,
   StoreView,
@@ -39,6 +40,7 @@ export default function OwnerRouter() {
         <Route path="inventory" element={<InventoryView />} />
         <Route path="discounts" element={<DiscountsView />} />
         <Route path="staff" element={<StaffView />} />
+        <Route path="doctors" element={<DoctorManagementView />} />
         <Route path="store" element={<StoreView />} />
         <Route path="profile" element={<MyProfileView />} />
         <Route path="*" element={<Navigate to="/owner" replace />} />

@@ -9,6 +9,7 @@ export const OWNER_PAGES = [
   'inventory',
   'discounts',
   'staff',
+  'doctors',
   'store',
   'profile',
 ]
