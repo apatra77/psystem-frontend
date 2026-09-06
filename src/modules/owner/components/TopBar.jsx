@@ -5,6 +5,7 @@ import { useOwnerPortal } from '../context/OwnerPortalContext'
 import { useOwnerPage } from '../routes'
 import { clearAuthSession, getUserInitials } from '@/services/auth'
 import { PAGE_META, formatOrderDisplayId } from '../utils/helpers'
+import { INITIATED_ORDERS_URL_STATUS, ORDERS_STATUS_URL_KEY } from '../utils/orderFilters'
 import { colors } from '@/theme/colors'
 
 export default function TopBar() {
@@ -59,6 +60,10 @@ export default function TopBar() {
       : meta.subtitleKey === 'staffOutlet'
         ? `Team access for ${activeOutletName}`
         : meta.subtitle
+
+  const openInitiatedOrders = () => {
+    goToPage('orders', { search: { [ORDERS_STATUS_URL_KEY]: INITIATED_ORDERS_URL_STATUS } })
+  }
 
   const toggleOutlet = () => {
     setOutletMenuOpen(!outletMenuOpen)
@@ -270,7 +275,7 @@ export default function TopBar() {
                     <button
                       key={o.id}
                       type="button"
-                      onClick={() => goToPage('orders')}
+                      onClick={openInitiatedOrders}
                       className="flex items-center gap-2.5 p-2.5 rounded-[10px] hover:bg-white/6 text-left w-full cursor-pointer"
                     >
                       <span

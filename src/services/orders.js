@@ -354,6 +354,49 @@ export function parseAdminOrdersPage(payload) {
 
 let inFlightAdminOrdersRequest = null
 let inFlightAdminOrdersKey = null
+let inFlightAdminOrdersOverview = null
+let cachedAdminOrdersOverview = null
+
+/** Single bootstrap fetch for sidebar total + notification initiated orders. */
+export async function fetchAdminOrdersOverview({ force = false } = {}) {
+  if (force) cachedAdminOrdersOverview = null
+
+  if (!force && inFlightAdminOrdersOverview) {
+    return inFlightAdminOrdersOverview
+  }
+
+  if (!force && cachedAdminOrdersOverview) {
+    return cachedAdminOrdersOverview
+  }
+
+  inFlightAdminOrdersOverview = fetchAdminOrders({
+    sort: mapUiSortToApi('newest'),
+    page: 0,
+    size: 50,
+    force,
+  })
+    .then((payload) => {
+      cachedAdminOrdersOverview = payload
+      return payload
+    })
+    .finally(() => {
+      inFlightAdminOrdersOverview = null
+    })
+
+  return inFlightAdminOrdersOverview
+}
+
+/** Derive sidebar badge + notification data from one orders list response. */
+export function parseAdminOrdersOverview(payload) {
+  const page = parseAdminOrdersPage(payload)
+  const initiatedOrders = page.orders.filter((order) => order.status === 'new')
+
+  return {
+    totalOrdersCount: page.totalElements,
+    initiatedOrders,
+    initiatedCount: initiatedOrders.length,
+  }
+}
 
 function buildAdminOrdersQuery({ status, paymentMode, fromDate, toDate, search, page, size, sort } = {}) {
   const params = new URLSearchParams()

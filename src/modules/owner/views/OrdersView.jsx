@@ -1,14 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
 import AdminOrderDetailPanel from './orders/AdminOrderDetailPanel'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
 import { useAdminOrdersQuery, ADMIN_ORDERS_PAGE_SIZE } from '../hooks/useAdminOrdersQuery'
+import {
+  ORDERS_STATUS_URL_KEY,
+  resolveOrdersStatusFilterFromUrl,
+  toOrdersStatusUrlValue,
+} from '../utils/orderFilters'
 import { colors } from '@/theme/colors'
 
 const STATUS_FILTERS = [
   { id: 'all', label: 'All' },
-  { id: 'pending', label: 'Pending' },
+  { id: 'pending', label: 'Initiated' },
   { id: 'approved', label: 'Approved' },
   { id: 'cancelled', label: 'Cancelled' },
   { id: 'rejected', label: 'Rejected' },
@@ -100,12 +106,39 @@ function Th({ children, align = 'left', className = '' }) {
 
 export default function OrdersView() {
   const { reloadIncomingOrders } = useOwnerPortal()
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [statusFilter, setStatusFilter] = useState(() =>
+    resolveOrdersStatusFilterFromUrl(searchParams.get(ORDERS_STATUS_URL_KEY)),
+  )
   const [paymentFilter, setPaymentFilter] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [selectedOrderId, setSelectedOrderId] = useState(null)
+
+  useEffect(() => {
+    const fromUrl = resolveOrdersStatusFilterFromUrl(searchParams.get(ORDERS_STATUS_URL_KEY))
+    setStatusFilter((current) => (current === fromUrl ? current : fromUrl))
+    setPage(1)
+  }, [searchParams])
+
+  const handleStatusFilterChange = useCallback(
+    (value) => {
+      setStatusFilter(value)
+      setPage(1)
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          const urlValue = toOrdersStatusUrlValue(value)
+          if (urlValue) next.set(ORDERS_STATUS_URL_KEY, urlValue)
+          else next.delete(ORDERS_STATUS_URL_KEY)
+          return next
+        },
+        { replace: true },
+      )
+    },
+    [setSearchParams],
+  )
 
   const {
     ordersMapped,
@@ -154,10 +187,7 @@ export default function OrdersView() {
           value={statusFilter}
           options={STATUS_FILTERS}
           minWidth={168}
-          onChange={(value) => {
-            setStatusFilter(value)
-            setPage(1)
-          }}
+          onChange={handleStatusFilterChange}
         />
 
         <FilterSelect

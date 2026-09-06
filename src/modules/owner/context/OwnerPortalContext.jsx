@@ -15,9 +15,8 @@ import {
   deleteProductById,
 } from '@/services/products'
 import {
-  fetchAdminOrders,
-  mapUiSortToApi,
-  parseAdminOrdersPage,
+  fetchAdminOrdersOverview,
+  parseAdminOrdersOverview,
 } from '@/services/orders'
 import { fetchUserProfile, updateAdminStoreStatus } from '@/services/user'
 import { toast } from '@/app/store/uiStore'
@@ -130,26 +129,13 @@ export function OwnerPortalProvider({ children }) {
   const loadIncomingOrders = useCallback(async ({ force = false } = {}) => {
     setIncomingOrdersLoading(true)
     try {
-      const [allPayload, initiatedPayload] = await Promise.all([
-        fetchAdminOrders({
-          sort: mapUiSortToApi('newest'),
-          size: 1,
-          page: 0,
-          force,
-        }),
-        fetchAdminOrders({
-          status: 'I',
-          sort: mapUiSortToApi('newest'),
-          size: 50,
-          page: 0,
-          force,
-        }),
-      ])
-      const allResult = parseAdminOrdersPage(allPayload)
-      const initiatedResult = parseAdminOrdersPage(initiatedPayload)
-      setTotalOrdersCount(Number(allResult.totalElements) || 0)
-      setIncomingOrders(Array.isArray(initiatedResult.orders) ? initiatedResult.orders : [])
-      setIncomingOrdersCount(Number(initiatedResult.totalElements) || 0)
+      const payload = await fetchAdminOrdersOverview({ force })
+      const { totalOrdersCount: total, initiatedOrders, initiatedCount } =
+        parseAdminOrdersOverview(payload)
+
+      setTotalOrdersCount(total)
+      setIncomingOrders(Array.isArray(initiatedOrders) ? initiatedOrders : [])
+      setIncomingOrdersCount(initiatedCount)
     } catch {
       setTotalOrdersCount(0)
       setIncomingOrders([])
@@ -197,8 +183,19 @@ export function OwnerPortalProvider({ children }) {
   }
 
   const goToPage = useCallback(
-    (next) => {
-      navigate(pageToPath(next))
+    (next, { search } = {}) => {
+      let target = pageToPath(next)
+
+      if (search && typeof search === 'object') {
+        const params = new URLSearchParams()
+        Object.entries(search).forEach(([key, value]) => {
+          if (value != null && value !== '') params.set(key, String(value))
+        })
+        const query = params.toString()
+        if (query) target = `${target}?${query}`
+      }
+
+      navigate(target)
       setOutletMenuOpen(false)
       setNotifOpen(false)
       setProfileMenuOpen(false)
