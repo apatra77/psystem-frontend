@@ -1,18 +1,39 @@
+import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { colors } from '@/app/themes/colors'
 
-export default function PortalModal({ onClose, children, width = 520 }) {
-  return (
+export default function PortalModal({ onClose, children, width = 520, accentBorder = false }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose?.()
+    }
+    window.addEventListener('keydown', onKey)
+
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [onClose])
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-6"
-      style={{ background: 'rgba(4,10,8,0.72)', backdropFilter: 'blur(6px)' }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6"
+      style={{ background: 'rgba(3,8,6,0.82)', backdropFilter: 'blur(10px)' }}
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="max-w-[92vw] max-h-[88vh] overflow-y-auto rounded-[22px] shadow-[0_40px_100px_rgba(0,0,0,0.6)]"
+        className="w-full max-w-[92vw] max-h-[90vh] overflow-y-auto rounded-[20px]"
         style={{
           width,
-          background: '#0d211a',
+          background: 'linear-gradient(180deg, #0f221b 0%, #0a1712 100%)',
+          border: accentBorder
+            ? '1px solid rgba(64,222,170,0.32)'
+            : `1px solid ${colors.border}`,
+          boxShadow: '0 40px 100px rgba(0,0,0,0.7), 0 0 40px rgba(64,222,170,0.06)',
           animation: 'modalIn 0.22s cubic-bezier(0.2,0.7,0.2,1)',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -21,7 +42,8 @@ export default function PortalModal({ onClose, children, width = 520 }) {
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

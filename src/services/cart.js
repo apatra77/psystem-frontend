@@ -1,4 +1,5 @@
 import { authFetch, CART_API_BASE } from './api'
+import { resolveProductLooseMeta } from '@/modules/customer/utils/looseQuantity'
 
 function pick(obj, ...keys) {
   for (const key of keys) {
@@ -73,6 +74,7 @@ export function mapCartLineToStoreItem(line) {
   const cartItemId = pick(line, ...LINE_ITEM_ID_KEYS)
   const packings = product.packings ?? line.packings
   const primaryPacking = Array.isArray(packings) ? packings[0] : null
+  const looseMeta = resolveProductLooseMeta({ ...product, packings })
 
   const price =
     Number(pick(line, 'price', 'unitPrice', 'sellingPrice', 'salePrice')) ||
@@ -82,7 +84,20 @@ export function mapCartLineToStoreItem(line) {
     Number(pick(line, 'mrp', 'originalPrice', 'maxRetailPrice')) ||
     Number(pick(product, 'mrp')) ||
     price
-  const qty = Number(pick(line, ...QTY_KEYS)) || 0
+  const fullPackQty = Number(
+    pick(line, 'packQuantity', 'packQty', 'fullPackQuantity', 'fullPackQty'),
+  )
+  const looseUnitQty = Number(
+    pick(line, 'looseQuantity', 'looseQty', 'looseUnitQuantity', 'looseUnitQty'),
+  )
+  const hasLooseBreakdown =
+    (Number.isFinite(fullPackQty) || Number.isFinite(looseUnitQty)) &&
+    (fullPackQty > 0 || looseUnitQty > 0)
+
+  let qty = Number(pick(line, ...QTY_KEYS)) || 0
+  if (!qty && hasLooseBreakdown) {
+    qty = (Number.isFinite(fullPackQty) ? fullPackQty : 0) * looseMeta.unitsPerPack + (Number.isFinite(looseUnitQty) ? looseUnitQty : 0)
+  }
 
   let pack = pick(line, 'pack', 'packing', 'packLabel')
   if (!pack && primaryPacking) {
@@ -91,7 +106,7 @@ export function mapCartLineToStoreItem(line) {
     pack = Number.isFinite(quantity) && quantity > 0 ? `${quantity} ${unit}` : unit
   }
 
-  return {
+  const base = {
     id: String(productId ?? cartItemId ?? ''),
     cartItemId: cartItemId ? String(cartItemId) : null,
     name:
@@ -110,7 +125,21 @@ export function mapCartLineToStoreItem(line) {
       pick(line, 'imageUrl', 'image', 'thumbnailUrl') ??
       pick(product, 'imageUrl', 'image', 'thumbnailUrl') ??
       null,
+    unitsPerPack: looseMeta.unitsPerPack,
+    packLabel: looseMeta.packLabel,
+    unitLabel: looseMeta.unitLabel,
   }
+
+  if (hasLooseBreakdown) {
+    return {
+      ...base,
+      looseQuantity: true,
+      fullPackQty: Number.isFinite(fullPackQty) ? fullPackQty : 0,
+      looseUnitQty: Number.isFinite(looseUnitQty) ? looseUnitQty : 0,
+    }
+  }
+
+  return base
 }
 
 /** Map GET /api/carts/me (or similar) into store-ready cart lines. */
@@ -135,29 +164,47 @@ export async function fetchMyCart({ force = false } = {}) {
   return inFlightCartRequest
 }
 
-/** POST /api/carts/me/items — add a product to the cart (quantity 1 on first add). */
-export async function addCartItem({ productId, quantity = 1, price }) {
+/** POST /api/carts/me/items — add a product to the cart. */
+export async function addCartItem({ productId, quantity, price, packQuantity, looseQuantity }) {
+  const body = {
+    productId: Number(productId),
+    price: Number(price),
+  }
+
+  if (packQuantity != null || looseQuantity != null) {
+    body.packQuantity = Number(packQuantity ?? 0)
+    body.looseQuantity = Number(looseQuantity ?? 0)
+  } else {
+    body.quantity = Number(quantity ?? 1)
+  }
+
   return authFetch(
     '/api/carts/me/items',
     {
       method: 'POST',
-      body: JSON.stringify({
-        productId: Number(productId),
-        quantity,
-        price: Number(price),
-      }),
+      body: JSON.stringify(body),
     },
     CART_API_BASE,
   )
 }
 
 /** PUT /api/carts/me/items/{itemId} — update line-item quantity. */
-export async function updateCartItem(itemId, quantity) {
+export async function updateCartItem(itemId, payload) {
+  const options = typeof payload === 'object' && payload != null ? payload : { quantity: payload }
+
+  const body =
+    options.packQuantity != null || options.looseQuantity != null
+      ? {
+          packQuantity: Number(options.packQuantity ?? 0),
+          looseQuantity: Number(options.looseQuantity ?? 0),
+        }
+      : { quantity: Number(options.quantity ?? 1) }
+
   return authFetch(
     `/api/carts/me/items/${encodeURIComponent(itemId)}`,
     {
       method: 'PUT',
-      body: JSON.stringify({ quantity }),
+      body: JSON.stringify(body),
     },
     CART_API_BASE,
   )

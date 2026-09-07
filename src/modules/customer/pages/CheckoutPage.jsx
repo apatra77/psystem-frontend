@@ -20,6 +20,7 @@ import { jwtSubject } from '@/shared/api/jwt'
 import { getAccessToken } from '@/shared/api/tokenBridge'
 import { PATHS, buildPath } from '@/app/router/paths'
 import { fmtINR } from '@/app/utils/format'
+import { formatLooseCartSummary, getCartLineSubtotal } from '@/modules/customer/utils/looseQuantity'
 import { msg } from '@/shared/messages/messages'
 import { colors } from '@/app/themes/colors'
 
@@ -188,12 +189,18 @@ function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, 
         <aside className="rounded-[18px] p-5 h-fit sticky top-[84px]" style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}>
           <p className="text-[14px] font-extrabold mb-4" style={{ color: colors.textBright }}>Order summary</p>
           <ul className="space-y-2 text-[12.5px] mb-4" style={{ color: colors.textMuted }}>
-            {items.map((i) => (
+            {items.map((i) => {
+              const looseSummary = i.looseQuantity ? formatLooseCartSummary(i) : null
+              return (
               <li key={i.id} className="flex justify-between gap-3">
-                <span className="truncate">{i.name} × {i.qty}</span>
-                <span>{fmtINR(i.price * i.qty)}</span>
+                <span className="truncate">
+                  {i.name}
+                  {looseSummary ? ` — ${looseSummary.short}` : ` × ${i.qty}`}
+                </span>
+                <span>{fmtINR(getCartLineSubtotal(i))}</span>
               </li>
-            ))}
+              )
+            })}
           </ul>
           <div className="flex justify-between text-[16px] font-extrabold pt-3" style={{ borderTop: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}>
             <span>To pay</span><span>{fmtINR(totals.total)}</span>

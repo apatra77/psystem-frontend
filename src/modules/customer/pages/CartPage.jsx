@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Minus, Plus, ShoppingCart, Tag, Trash2 } from 'lucide-react'
+import { ShoppingCart, Tag, Trash2 } from 'lucide-react'
 import Button from '@/shared/ui/Button'
 import Badge from '@/shared/ui/Badge'
 import EmptyState from '@/shared/ui/EmptyState'
@@ -8,10 +8,12 @@ import PageHeader from '@/shared/ui/PageHeader'
 import CartShimmer from '@/shared/components/shimmer/pages/CartShimmer'
 import PortalModal from '@/shared/ui/PortalModal'
 import Spinner from '@/shared/ui/Spinner'
+import CartLineQuantity from '@/modules/customer/components/CartLineQuantity'
 import { useCartStore } from '@/app/store/cartStore'
 import { PATHS } from '@/app/router/paths'
 import { fmtINR } from '@/app/utils/format'
 import { msg } from '@/shared/messages/messages'
+import { formatLooseCartSummary, getCartLineSubtotal } from '@/modules/customer/utils/looseQuantity'
 import { colors } from '@/app/themes/colors'
 
 export default function CartPage() {
@@ -20,7 +22,7 @@ export default function CartPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
-  const { items, coupon, loading, setQty, removeItem, clear, applyCoupon, removeCoupon } =
+  const { items, coupon, loading, removeItem, clear, applyCoupon, removeCoupon } =
     useCartStore()
   const totals = useCartStore((s) => s.totals())
   const needsRx = useCartStore((s) => s.requiresPrescription())
@@ -73,7 +75,11 @@ export default function CartPage() {
 
       <div className="grid gap-6" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,340px)' }}>
         <div className="space-y-3">
-          {items.map((item) => (
+          {items.map((item) => {
+            const looseSummary = item.looseQuantity ? formatLooseCartSummary(item) : null
+            const lineTotal = getCartLineSubtotal(item)
+
+            return (
             <div key={item.cartItemId ?? item.id} className="flex items-center gap-4 p-4 rounded-[16px]" style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}>
               <span className="w-14 h-14 rounded-[12px] flex items-center justify-center text-2xl font-extrabold" style={{ background: 'rgba(255,255,255,0.05)', color: colors.accent }}>
                 {item.name.charAt(0).toUpperCase()}
@@ -81,19 +87,16 @@ export default function CartPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-extrabold truncate" style={{ color: colors.textBright }}>{item.name}</p>
                 <p className="text-[12px] mt-0.5" style={{ color: colors.textDim }}>
-                  {item.pack || fmtINR(item.price)}
+                  {looseSummary ? looseSummary.short : (item.pack || fmtINR(item.price))}
                 </p>
                 {item.rx && <Badge tone="purple" className="mt-1.5">Rx</Badge>}
               </div>
-              <div className="flex items-center rounded-[11px]" style={{ border: `1px solid ${colors.border}` }}>
-                <button type="button" className="px-2.5 py-2" onClick={() => setQty(item.id, item.qty - 1)} aria-label="Decrease"><Minus size={13} /></button>
-                <span className="px-3 text-[13px] font-extrabold" style={{ color: colors.textBright }}>{item.qty}</span>
-                <button type="button" className="px-2.5 py-2" onClick={() => setQty(item.id, item.qty + 1)} aria-label="Increase"><Plus size={13} /></button>
-              </div>
-              <p className="w-[86px] text-right text-[14px] font-extrabold" style={{ color: colors.textBright }}>{fmtINR(item.price * item.qty)}</p>
+              <CartLineQuantity item={item} />
+              <p className="w-[86px] text-right text-[14px] font-extrabold" style={{ color: colors.textBright }}>{fmtINR(lineTotal)}</p>
               <button type="button" onClick={() => setDeleteTarget(item)} aria-label="Remove" style={{ color: colors.textDim }}><Trash2 size={16} /></button>
             </div>
-          ))}
+            )
+          })}
 
           {needsRx && (
             <p className="text-[12.5px] px-4 py-3 rounded-[13px]" style={{ background: 'rgba(178,135,255,.10)', border: '1px solid rgba(178,135,255,.3)', color: colors.purpleLight }}>

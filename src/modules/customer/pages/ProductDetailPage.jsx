@@ -5,11 +5,13 @@ import Badge from '@/shared/ui/Badge'
 import Button from '@/shared/ui/Button'
 import EmptyState from '@/shared/ui/EmptyState'
 import ProductCard from '@/modules/customer/components/ProductCard'
+import CartAddControl from '@/modules/customer/components/CartAddControl'
 import { useCatalogStore } from '@/app/store/catalogStore'
 import { useCartStore } from '@/app/store/cartStore'
 import { PATHS } from '@/app/router/paths'
 import { fmtINR } from '@/app/utils/format'
 import { msg } from '@/shared/messages/messages'
+import { productAllowsLoose } from '@/modules/customer/utils/looseQuantity'
 import { colors } from '@/app/themes/colors'
 
 export default function ProductDetailPage() {
@@ -23,6 +25,7 @@ export default function ProductDetailPage() {
 
   const related = products.filter((p) => p.cat === product.cat && p.id !== product.id).slice(0, 4)
   const off = product.mrp > product.price ? Math.round(((product.mrp - product.price) / product.mrp) * 100) : 0
+  const allowsLoose = productAllowsLoose(product)
 
   return (
     <div className="space-y-10">
@@ -35,6 +38,11 @@ export default function ProductDetailPage() {
           <div className="flex gap-2 mb-3">
             {product.rx && <Badge tone="purple">Prescription required</Badge>}
             {off > 0 && <Badge tone="success">{off}% off</Badge>}
+            {allowsLoose && (
+              <Badge tone="success" className="!bg-[rgba(64,222,170,0.12)] !text-[#9ff0d4] !border-[rgba(64,222,170,0.3)]">
+                Loose available
+              </Badge>
+            )}
             <Badge tone={product.stock > 0 ? 'success' : 'danger'}>{product.stock > 0 ? 'In stock' : 'Out of stock'}</Badge>
           </div>
 
@@ -60,12 +68,18 @@ export default function ProductDetailPage() {
           )}
 
           <div className="flex flex-wrap items-center gap-3 mt-6">
-            <div className="flex items-center rounded-[12px]" style={{ border: `1px solid ${colors.border}` }}>
-              <button type="button" className="px-3 py-2.5" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease"><Minus size={14} /></button>
-              <span className="px-4 text-[14px] font-extrabold" style={{ color: colors.textBright }}>{qty}</span>
-              <button type="button" className="px-3 py-2.5" onClick={() => setQty((q) => q + 1)} aria-label="Increase"><Plus size={14} /></button>
-            </div>
-            <Button size="lg" disabled={product.stock <= 0} onClick={() => addItem(product, qty)}>Add to cart</Button>
+            {allowsLoose ? (
+              <CartAddControl product={product} size="lg" showPrice={false} />
+            ) : (
+              <>
+                <div className="flex items-center rounded-[12px]" style={{ border: `1px solid ${colors.border}` }}>
+                  <button type="button" className="px-3 py-2.5" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease"><Minus size={14} /></button>
+                  <span className="px-4 text-[14px] font-extrabold" style={{ color: colors.textBright }}>{qty}</span>
+                  <button type="button" className="px-3 py-2.5" onClick={() => setQty((q) => q + 1)} aria-label="Increase"><Plus size={14} /></button>
+                </div>
+                <Button size="lg" disabled={product.stock <= 0} onClick={() => addItem(product, qty)}>Add to cart</Button>
+              </>
+            )}
             <Button as={Link} to={PATHS.customer.cart} size="lg" variant="secondary">Go to cart</Button>
           </div>
 

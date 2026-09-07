@@ -1,5 +1,6 @@
 import { authFetch, authHeaders, getErrorMessage, parseJsonResponse, PRODUCT_API_BASE } from './api'
 import { notifyUnauthorized } from '@/shared/api/tokenBridge'
+import { resolveProductLooseMeta } from '@/modules/customer/utils/looseQuantity'
 
 function pick(obj, ...keys) {
   for (const key of keys) {
@@ -353,6 +354,7 @@ function formatPackingLabel(packing) {
 export function mapProductToCustomerCatalog(item, categories = []) {
   const base = mapProductFromApi(item, categories)
   const packings = Array.isArray(item.packings) ? item.packings : []
+  const looseMeta = resolveProductLooseMeta(item)
   const idNum = Number(base.id) || 0
   const mrp = base.mrp || base.price
   const price = base.price
@@ -367,6 +369,10 @@ export function mapProductToCustomerCatalog(item, categories = []) {
     eta: idNum % 4 === 0 ? 'Tomorrow' : '2 hrs',
     desc: pick(item, 'description', 'desc') ?? '',
     off,
+    looseQuantity: looseMeta.looseQuantity,
+    unitsPerPack: looseMeta.unitsPerPack,
+    packLabel: looseMeta.packLabel,
+    unitLabel: looseMeta.unitLabel,
   }
 }
 
@@ -390,8 +396,19 @@ export function mapProductToRailItem(product) {
         ? product.reviews.toLocaleString('en-IN')
         : String(product.reviews ?? ''),
     eta: product.eta ?? '2 hrs',
-    chip: genericName && off >= 20 ? `GENERIC — SAVE ${off}%` : off >= 20 ? `SAVE ${off}%` : null,
+    chip:
+      product.looseQuantity
+        ? 'Loose available'
+        : genericName && off >= 20
+          ? `GENERIC — SAVE ${off}%`
+          : off >= 20
+            ? `SAVE ${off}%`
+            : null,
     stock: product.stock,
+    looseQuantity: product.looseQuantity,
+    unitsPerPack: product.unitsPerPack,
+    packLabel: product.packLabel,
+    unitLabel: product.unitLabel,
   }
 }
 

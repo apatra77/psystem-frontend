@@ -19,6 +19,11 @@ export default function ProductCard({ product }) {
         <div className="flex gap-1.5 flex-wrap">
           {product.rx && <Badge tone="purple">Rx</Badge>}
           {off > 0 && <Badge tone="success">{off}% off</Badge>}
+          {product.looseQuantity && (
+            <Badge tone="success" className="!bg-[rgba(64,222,170,0.12)] !text-[#9ff0d4] !border-[rgba(64,222,170,0.3)]">
+              Loose available
+            </Badge>
+          )}
           {product.stock <= 0 && <Badge tone="danger">Out of stock</Badge>}
         </div>
         <button type="button" onClick={() => toggleWishlist(product.id)} aria-label="Wishlist">

@@ -3,23 +3,40 @@ import { msg } from '@/shared/messages/messages'
 import { toast } from './uiStore'
 import { COUPONS, DELIVERY_FEE, FREE_DELIVERY_ABOVE, PACKAGING_FEE } from '@/shared/mocks/pricing'
 import { addCartItem, deleteCartItem, fetchMyCart, mapCartFromApi, mapCartItemFromApi, resolveCartItemId, updateCartItem } from '@/services/cart'
+import { formatLooseCartSummary, getCartLineMrpTotal, getCartLineSubtotal } from '@/modules/customer/utils/looseQuantity'
 import { memoizeDerived } from './memoize'
 
 const round = (n) => Math.round(n * 100) / 100
 
 let inFlightLoadCart = null
 
-const buildLocalItem = (product, qty, cartItemId = null) => ({
-  id: String(product.id),
-  cartItemId: cartItemId ? String(cartItemId) : null,
-  name: product.name,
-  price: product.price,
-  mrp: product.mrp ?? product.price,
-  image: product.image ?? product.imageUrl ?? null,
-  rx: !!product.rx,
-  pack: product.pack ?? '',
-  qty,
-})
+const buildLocalItem = (product, qty, cartItemId = null, looseMeta = null) => {
+  const base = {
+    id: String(product.id),
+    cartItemId: cartItemId ? String(cartItemId) : null,
+    name: product.name,
+    price: product.price,
+    mrp: product.mrp ?? product.price,
+    image: product.image ?? product.imageUrl ?? null,
+    rx: !!product.rx,
+    pack: product.pack ?? '',
+    unitsPerPack: product.unitsPerPack,
+    packLabel: product.packLabel,
+    unitLabel: product.unitLabel,
+  }
+
+  if (looseMeta) {
+    return {
+      ...base,
+      looseQuantity: true,
+      fullPackQty: looseMeta.fullPackQty,
+      looseUnitQty: looseMeta.looseUnitQty,
+      qty: looseMeta.totalUnits,
+    }
+  }
+
+  return { ...base, qty }
+}
 
 async function resolveLineItemId(productId, postResponse = null) {
   if (postResponse) {
@@ -53,8 +70,8 @@ function patchCartItemId(set, productId, cartItemId, quantity) {
  * `useCartStore((s) => s.totals())` loop forever — see ./memoize.
  */
 const computeTotals = memoizeDerived((items, coupon) => {
-  const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0)
-  const mrpTotal = items.reduce((sum, i) => sum + (i.mrp || i.price) * i.qty, 0)
+  const subtotal = items.reduce((sum, i) => sum + getCartLineSubtotal(i), 0)
+  const mrpTotal = items.reduce((sum, i) => sum + getCartLineMrpTotal(i), 0)
   const couponDiscount = !coupon
     ? 0
     : coupon.type === 'percent'
@@ -108,9 +125,69 @@ export const useCartStore = create((set, get) => ({
     return inFlightLoadCart
   },
 
-  addItem: async (product, qty = 1) => {
+  addItem: async (product, qtyOrLoose = 1) => {
     const productId = String(product.id)
+    const isLooseAdd = typeof qtyOrLoose === 'object' && qtyOrLoose?.loose === true
     const existing = get().items.find((i) => String(i.id) === productId)
+
+    if (isLooseAdd) {
+      const { fullPackQty, looseUnitQty, totalUnits } = qtyOrLoose
+
+      if (!totalUnits) {
+        if (existing) await get().removeItem(productId)
+        return
+      }
+
+      const previousItems = get().items
+      const looseMeta = { fullPackQty, looseUnitQty, totalUnits }
+      const nextItems = existing
+        ? previousItems.map((i) =>
+            String(i.id) === productId ? buildLocalItem(product, totalUnits, i.cartItemId, looseMeta) : i,
+          )
+        : [...previousItems, buildLocalItem(product, totalUnits, null, looseMeta)]
+
+      set({ items: nextItems })
+
+      try {
+        let cartItemId = existing?.cartItemId
+        let quantity = totalUnits
+
+        if (existing?.cartItemId) {
+          await updateCartItem(existing.cartItemId, {
+            packQuantity: fullPackQty,
+            looseQuantity: looseUnitQty,
+          })
+        } else {
+          const response = await addCartItem({
+            productId: product.id,
+            price: product.price,
+            packQuantity: fullPackQty,
+            looseQuantity: looseUnitQty,
+          })
+          const resolved = await resolveLineItemId(productId, response)
+          cartItemId = resolved.cartItemId
+          quantity = resolved.quantity ?? totalUnits
+        }
+
+        if (!cartItemId) {
+          throw new Error('Cart item id missing from server response')
+        }
+
+        patchCartItemId(set, productId, cartItemId, quantity ?? totalUnits)
+        const summary = formatLooseCartSummary(buildLocalItem(product, totalUnits, cartItemId, looseMeta))
+        toast.success(
+          summary?.long
+            ? `${product.name} added to cart — ${summary.long}`
+            : msg('customer.addedToCart', { name: product.name }),
+        )
+      } catch (error) {
+        set({ items: previousItems })
+        toast.error(error?.message ?? 'Could not add item to cart')
+      }
+      return
+    }
+
+    const qty = Number(qtyOrLoose) || 1
     if (existing) {
       await get().setQty(productId, existing.qty + qty)
       return
@@ -143,6 +220,7 @@ export const useCartStore = create((set, get) => ({
     const productId = String(id)
     const item = get().items.find((i) => String(i.id) === productId)
     if (!item) return
+    if (item.looseQuantity) return
 
     const previousItems = get().items
     const nextQty = qty
@@ -175,7 +253,7 @@ export const useCartStore = create((set, get) => ({
         return
       }
 
-      await updateCartItem(cartItemId, nextQty)
+      await updateCartItem(cartItemId, { quantity: nextQty })
     } catch (error) {
       set({ items: previousItems })
       toast.error(error?.message ?? 'Could not update cart quantity')
