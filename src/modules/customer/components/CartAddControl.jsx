@@ -132,7 +132,7 @@ export default function CartAddControl({
               stop(e)
               setModalOpen(true)
             }}
-            className={`rounded-full font-bold transition-opacity disabled:cursor-not-allowed disabled:opacity-45 ${fullWidth ? 'w-full' : 'self-start'} px-4 py-2 text-[11px]`}
+            className={`rounded-full font-bold transition-opacity disabled:cursor-not-allowed disabled:opacity-45 ${fullWidth ? 'w-full' : 'self-start'} px-4 py-2 text-[10px]`}
             style={{
               color: colors.accent,
               background: 'rgba(64,222,170,0.10)',

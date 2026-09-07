@@ -11,7 +11,7 @@ import Spinner from '@/shared/ui/Spinner'
 import CartLineQuantity from '@/modules/customer/components/CartLineQuantity'
 import { useCartStore } from '@/app/store/cartStore'
 import { PATHS } from '@/app/router/paths'
-import { fmtINR } from '@/app/utils/format'
+import { fmtDecimalINR } from '@/app/utils/format'
 import { msg } from '@/shared/messages/messages'
 import { formatLooseCartSummary, getCartLineSubtotal } from '@/modules/customer/utils/looseQuantity'
 import { colors } from '@/app/themes/colors'
@@ -77,7 +77,7 @@ export default function CartPage() {
         <div className="space-y-3">
           {items.map((item) => {
             const looseSummary = item.looseQuantity ? formatLooseCartSummary(item) : null
-            const lineTotal = getCartLineSubtotal(item)
+            const lineTotal = item.lineTotal ?? getCartLineSubtotal(item)
 
             return (
             <div key={item.cartItemId ?? item.id} className="flex items-center gap-4 p-4 rounded-[16px]" style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}>
@@ -87,12 +87,12 @@ export default function CartPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-extrabold truncate" style={{ color: colors.textBright }}>{item.name}</p>
                 <p className="text-[12px] mt-0.5" style={{ color: colors.textDim }}>
-                  {looseSummary ? looseSummary.short : (item.pack || fmtINR(item.price))}
+                  {looseSummary ? looseSummary.short : (item.pack || fmtDecimalINR(item.price))}
                 </p>
                 {item.rx && <Badge tone="purple" className="mt-1.5">Rx</Badge>}
               </div>
               <CartLineQuantity item={item} />
-              <p className="w-[86px] text-right text-[14px] font-extrabold" style={{ color: colors.textBright }}>{fmtINR(lineTotal)}</p>
+              <p className="w-[86px] text-right text-[14px] font-extrabold" style={{ color: colors.textBright }}>{fmtDecimalINR(lineTotal)}</p>
               <button type="button" onClick={() => setDeleteTarget(item)} aria-label="Remove" style={{ color: colors.textDim }}><Trash2 size={16} /></button>
             </div>
             )
@@ -126,15 +126,14 @@ export default function CartPage() {
           )}
 
           <dl className="space-y-2 text-[13px]" style={{ color: colors.textMuted }}>
-            <div className="flex justify-between"><dt>Item total</dt><dd>{fmtINR(totals.subtotal)}</dd></div>
-            {totals.savings > 0 && <div className="flex justify-between" style={{ color: colors.accent }}><dt>MRP savings</dt><dd>−{fmtINR(totals.savings)}</dd></div>}
-            {totals.couponDiscount > 0 && <div className="flex justify-between" style={{ color: colors.accent }}><dt>Coupon</dt><dd>−{fmtINR(totals.couponDiscount)}</dd></div>}
-            <div className="flex justify-between"><dt>Delivery</dt><dd>{totals.delivery === 0 ? 'Free' : fmtINR(totals.delivery)}</dd></div>
-            <div className="flex justify-between"><dt>Packaging</dt><dd>{fmtINR(totals.packaging)}</dd></div>
+            <div className="flex justify-between"><dt>Item total</dt><dd>{fmtDecimalINR(totals.subtotal)}</dd></div>
+            {totals.couponDiscount > 0 && <div className="flex justify-between" style={{ color: colors.accent }}><dt>Coupon</dt><dd>−{fmtDecimalINR(totals.couponDiscount)}</dd></div>}
+            <div className="flex justify-between"><dt>Delivery</dt><dd>{totals.delivery === 0 ? 'Free' : fmtDecimalINR(totals.delivery)}</dd></div>
+            <div className="flex justify-between"><dt>Packaging</dt><dd>{fmtDecimalINR(totals.packaging)}</dd></div>
           </dl>
 
           <div className="flex justify-between items-center mt-4 pt-4 text-[16px] font-extrabold" style={{ borderTop: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}>
-            <span>To pay</span><span>{fmtINR(totals.total)}</span>
+            <span>To pay</span><span>{fmtDecimalINR(totals.total)}</span>
           </div>
 
           <Button className="w-full mt-5" size="lg" onClick={() => navigate(PATHS.customer.checkout)}>Proceed to checkout</Button>

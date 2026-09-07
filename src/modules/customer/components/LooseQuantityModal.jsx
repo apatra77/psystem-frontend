@@ -7,7 +7,7 @@ import {
   formatLoosePackLine,
   formatLooseUnitLine,
 } from '@/modules/customer/utils/looseQuantity'
-import { fmtINR } from '@/app/utils/format'
+import { fmtDecimalINR } from '@/app/utils/format'
 import { colors } from '@/app/themes/colors'
 
 function QuantityRow({ icon: Icon, title, subtitle, value, onDecrease, onIncrease, disabled }) {
@@ -150,11 +150,11 @@ export default function LooseQuantityModal({
                 <div className="text-right shrink-0">
                   <div className="flex items-baseline justify-end gap-1.5">
                     <span className="text-[16px] font-extrabold tabular-nums text-white">
-                      {fmtINR(product.price)}
+                      {fmtDecimalINR(product.price)}
                     </span>
                     {off > 0 && (
                       <span className="text-[11px] line-through" style={{ color: colors.textDim }}>
-                        {fmtINR(product.mrp)}
+                        {fmtDecimalINR(product.mrp)}
                       </span>
                     )}
                   </div>
@@ -225,12 +225,12 @@ export default function LooseQuantityModal({
             </div>
             <div className="text-right">
               <div className="text-[20px] font-extrabold tabular-nums text-white leading-none">
-                {fmtINR(amounts.subtotal)}
+                {fmtDecimalINR(amounts.subtotal)}
               </div>
               {amounts.mrpTotal > amounts.subtotal && (
                 <div className="flex items-center justify-end gap-2 mt-1.5 flex-wrap">
                   <span className="text-[12px] line-through" style={{ color: colors.textDim }}>
-                    {fmtINR(amounts.mrpTotal)}
+                    {fmtDecimalINR(amounts.mrpTotal)}
                   </span>
                   <span
                     className="text-[10px] font-extrabold rounded-full px-2 py-0.5"
@@ -239,7 +239,7 @@ export default function LooseQuantityModal({
                       background: colors.primaryBtn,
                     }}
                   >
-                    You save {fmtINR(savings)}
+                    You save {fmtDecimalINR(savings)}
                   </span>
                 </div>
               )}

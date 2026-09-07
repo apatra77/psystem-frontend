@@ -130,6 +130,9 @@ export function mapCartLineToStoreItem(line) {
     unitLabel: looseMeta.unitLabel,
   }
 
+  const lineTotal = Number(pick(line, 'lineTotal', 'totalPrice', 'itemTotal', 'subtotal', 'total'))
+  if (Number.isFinite(lineTotal)) base.lineTotal = lineTotal
+
   if (hasLooseBreakdown) {
     return {
       ...base,
@@ -147,6 +150,19 @@ export function mapCartFromApi(payload) {
   return extractCartItems(payload)
     .map(mapCartLineToStoreItem)
     .filter((item) => item.id && item.qty > 0)
+}
+
+/** Extract cart lines + server totals from GET /api/carts/me. */
+export function parseCartPayload(payload) {
+  const root = payload?.data ?? payload ?? {}
+  const cartTotal = Number(pick(root, 'cartTotal', 'totalAmount', 'grandTotal'))
+  const subtotal = Number(pick(root, 'subtotal', 'subTotal', 'itemsTotal', 'itemTotal', 'cartSubtotal'))
+
+  return {
+    items: mapCartFromApi(payload),
+    cartTotal: Number.isFinite(cartTotal) ? cartTotal : null,
+    subtotal: Number.isFinite(subtotal) ? subtotal : null,
+  }
 }
 
 let inFlightCartRequest = null

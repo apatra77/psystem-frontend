@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { msg } from '@/shared/messages/messages'
 import { toast } from './uiStore'
 import { COUPONS, DELIVERY_FEE, FREE_DELIVERY_ABOVE, PACKAGING_FEE } from '@/shared/mocks/pricing'
-import { addCartItem, deleteCartItem, fetchMyCart, mapCartFromApi, mapCartItemFromApi, resolveCartItemId, updateCartItem } from '@/services/cart'
+import { addCartItem, deleteCartItem, fetchMyCart, mapCartItemFromApi, parseCartPayload, resolveCartItemId, updateCartItem } from '@/services/cart'
 import { formatLooseCartSummary, getCartLineMrpTotal, getCartLineSubtotal } from '@/modules/customer/utils/looseQuantity'
 import { memoizeDerived } from './memoize'
 
@@ -64,27 +64,37 @@ function patchCartItemId(set, productId, cartItemId, quantity) {
   }))
 }
 
+async function refreshCartFromServer(set) {
+  const payload = await fetchMyCart({ force: true })
+  const { items, cartTotal, subtotal } = parseCartPayload(payload)
+  set({ items, cartTotal, subtotal })
+}
+
 /**
  * Bill maths, memoised on (items, coupon) so `totals()` returns the same object
  * reference until the cart actually changes. A fresh object here would make
  * `useCartStore((s) => s.totals())` loop forever — see ./memoize.
  */
-const computeTotals = memoizeDerived((items, coupon) => {
-  const subtotal = items.reduce((sum, i) => sum + getCartLineSubtotal(i), 0)
+const computeTotals = memoizeDerived((items, coupon, cartTotal, subtotal) => {
+  const computedSubtotal = items.reduce(
+    (sum, i) => sum + (Number(i.lineTotal) || getCartLineSubtotal(i)),
+    0,
+  )
   const mrpTotal = items.reduce((sum, i) => sum + getCartLineMrpTotal(i), 0)
+  const resolvedSubtotal = subtotal ?? cartTotal ?? computedSubtotal
   const couponDiscount = !coupon
     ? 0
     : coupon.type === 'percent'
-      ? Math.min((subtotal * coupon.value) / 100, coupon.maxDiscount ?? Infinity)
-      : Math.min(coupon.value, subtotal)
-  const taxable = Math.max(subtotal - couponDiscount, 0)
+      ? Math.min((resolvedSubtotal * coupon.value) / 100, coupon.maxDiscount ?? Infinity)
+      : Math.min(coupon.value, resolvedSubtotal)
+  const taxable = Math.max(resolvedSubtotal - couponDiscount, 0)
   const delivery =
-    items.length === 0 ? 0 : subtotal >= FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE
+    items.length === 0 ? 0 : resolvedSubtotal >= FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE
   const packaging = items.length === 0 ? 0 : PACKAGING_FEE
 
   return {
-    subtotal: round(subtotal),
-    savings: round(mrpTotal - subtotal),
+    subtotal: round(resolvedSubtotal),
+    savings: round(mrpTotal - resolvedSubtotal),
     couponDiscount: round(couponDiscount),
     delivery: round(delivery),
     packaging: round(packaging),
@@ -95,6 +105,8 @@ const computeTotals = memoizeDerived((items, coupon) => {
 /** Cart synced with GET/POST/PUT /api/carts/me on load and quantity changes. */
 export const useCartStore = create((set, get) => ({
   items: [],
+  cartTotal: null,
+  subtotal: null,
   coupon: null,
   scheduledFor: null,
   prescriptionId: null,
@@ -108,12 +120,13 @@ export const useCartStore = create((set, get) => ({
     inFlightLoadCart = (async () => {
       try {
         const payload = await fetchMyCart()
-        set({ items: mapCartFromApi(payload), loading: false })
+        const { items, cartTotal, subtotal } = parseCartPayload(payload)
+        set({ items, cartTotal, subtotal, loading: false })
       } catch (error) {
         set({ loading: false })
         const message = error?.message ?? 'Could not load cart'
         if (/404|not found|empty/i.test(message)) {
-          set({ items: [] })
+          set({ items: [], cartTotal: null, subtotal: null })
           return
         }
         if (!silent) toast.error(message)
@@ -174,7 +187,11 @@ export const useCartStore = create((set, get) => ({
         }
 
         patchCartItemId(set, productId, cartItemId, quantity ?? totalUnits)
-        const summary = formatLooseCartSummary(buildLocalItem(product, totalUnits, cartItemId, looseMeta))
+        await refreshCartFromServer(set)
+        const summary = formatLooseCartSummary(
+          get().items.find((i) => String(i.id) === productId) ??
+            buildLocalItem(product, totalUnits, cartItemId, looseMeta),
+        )
         toast.success(
           summary?.long
             ? `${product.name} added to cart — ${summary.long}`
@@ -209,6 +226,7 @@ export const useCartStore = create((set, get) => ({
       }
 
       patchCartItemId(set, productId, cartItemId, quantity ?? qty)
+      await refreshCartFromServer(set)
       toast.success(msg('customer.addedToCart', { name: product.name }))
     } catch (error) {
       set({ items: previousItems })
@@ -249,11 +267,13 @@ export const useCartStore = create((set, get) => ({
 
       if (nextQty <= 0) {
         await deleteCartItem(cartItemId)
+        await refreshCartFromServer(set)
         toast.info(msg('customer.removedFromCart', { name: item.name }))
         return
       }
 
       await updateCartItem(cartItemId, { quantity: nextQty })
+      await refreshCartFromServer(set)
     } catch (error) {
       set({ items: previousItems })
       toast.error(error?.message ?? 'Could not update cart quantity')
@@ -280,6 +300,7 @@ export const useCartStore = create((set, get) => ({
 
     try {
       await deleteCartItem(cartItemId)
+      await refreshCartFromServer(set)
       toast.info(msg('customer.removedFromCart', { name: item.name }))
     } catch (error) {
       set({ items: previousItems })
@@ -288,7 +309,7 @@ export const useCartStore = create((set, get) => ({
     }
   },
 
-  clear: () => set({ items: [], coupon: null, scheduledFor: null, prescriptionId: null }),
+  clear: () => set({ items: [], cartTotal: null, subtotal: null, coupon: null, scheduledFor: null, prescriptionId: null }),
 
   applyCoupon: (code) => {
     const found = COUPONS.find((c) => c.code.toUpperCase() === String(code).trim().toUpperCase())
@@ -305,10 +326,10 @@ export const useCartStore = create((set, get) => ({
   setSchedule: (iso) => set({ scheduledFor: iso }),
   setPrescription: (id) => set({ prescriptionId: id }),
 
-  count: () => get().items.reduce((sum, i) => sum + i.qty, 0),
+  count: () => get().items.length,
   requiresPrescription: () => get().items.some((i) => i.rx),
 
-  totals: () => computeTotals(get().items, get().coupon),
+  totals: () => computeTotals(get().items, get().coupon, get().cartTotal, get().subtotal),
 }))
 
 export default useCartStore

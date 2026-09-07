@@ -19,7 +19,7 @@ import { getStoredAuthUser } from '@/services/auth'
 import { jwtSubject } from '@/shared/api/jwt'
 import { getAccessToken } from '@/shared/api/tokenBridge'
 import { PATHS, buildPath } from '@/app/router/paths'
-import { fmtINR } from '@/app/utils/format'
+import { fmtDecimalINR } from '@/app/utils/format'
 import { formatLooseCartSummary, getCartLineSubtotal } from '@/modules/customer/utils/looseQuantity'
 import { msg } from '@/shared/messages/messages'
 import { colors } from '@/app/themes/colors'
@@ -197,13 +197,13 @@ function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, 
                   {i.name}
                   {looseSummary ? ` — ${looseSummary.short}` : ` × ${i.qty}`}
                 </span>
-                <span>{fmtINR(getCartLineSubtotal(i))}</span>
+                <span>{fmtDecimalINR(i.lineTotal ?? getCartLineSubtotal(i))}</span>
               </li>
               )
             })}
           </ul>
           <div className="flex justify-between text-[16px] font-extrabold pt-3" style={{ borderTop: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}>
-            <span>To pay</span><span>{fmtINR(totals.total)}</span>
+            <span>To pay</span><span>{fmtDecimalINR(totals.total)}</span>
           </div>
           <SubmitButton className="w-full mt-5" size="lg">Place order</SubmitButton>
         </aside>

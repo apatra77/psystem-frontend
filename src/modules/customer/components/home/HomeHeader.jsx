@@ -34,7 +34,7 @@ export default function HomeHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [addressMenuOpen, setAddressMenuOpen] = useState(false)
 
-  const cartCount = useCartStore((s) => s.items.reduce((sum, item) => sum + item.qty, 0))
+  const cartCount = useCartStore((s) => s.items.length)
   const setFilter = useCatalogStore((s) => s.setFilter)
   const addresses = useOrderStore((s) => s.addresses)
   const addressesLoadedFromApi = useOrderStore((s) => s.addressesLoadedFromApi)
