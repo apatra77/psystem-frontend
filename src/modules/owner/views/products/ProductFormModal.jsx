@@ -222,7 +222,7 @@ export default function ProductFormModal() {
   const [saveError, setSaveError] = useState(null)
 
   const categoryOptions = useMemo(
-    () => categories.map((c) => ({ value: c.id, label: c.name })),
+    () => categories.map((c) => ({ value: String(c.id), label: c.categoryName ?? c.name })),
     [categories],
   )
 
@@ -605,7 +605,7 @@ export default function ProductFormModal() {
             />
           </div>
           <div>
-            <RequiredLabel>With full pack (Unit 3)</RequiredLabel>
+            <RequiredLabel>With full pack</RequiredLabel>
             <ModalInput
               type="number"
               min="0"
@@ -617,7 +617,7 @@ export default function ProductFormModal() {
             <FieldError message={fieldErrors.fullPackQty} />
           </div>
           <div>
-            <ModalFieldLabel>Loose quantity (Unit 4)</ModalFieldLabel>
+            <ModalFieldLabel>Loose quantity</ModalFieldLabel>
             <ModalInput
               type="number"
               min="0"

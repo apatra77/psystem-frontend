@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
@@ -42,6 +42,7 @@ export default function ProductsList() {
   const {
     categories: contextCategories,
     categoriesLoading,
+    loadCategories,
     deleteProduct,
     reloadProducts,
     productsRefreshKey,
@@ -76,12 +77,27 @@ export default function ProductsList() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
-  const categories = contextCategories.length > 0 ? contextCategories : fetchedCategories
+  useEffect(() => {
+    loadCategories()
+  }, [loadCategories])
+
+  const categories = useMemo(() => {
+    const merged = new Map()
+    ;[...contextCategories, ...fetchedCategories].forEach((category) => {
+      if (category?.id != null && category.id !== '') {
+        merged.set(String(category.id), category)
+      }
+    })
+    return [...merged.values()]
+  }, [contextCategories, fetchedCategories])
 
   const categoryOptions = useMemo(
     () => [
       { value: 'all', label: 'All categories' },
-      ...categories.map((c) => ({ value: c.id, label: c.name })),
+      ...categories.map((c) => ({
+        value: String(c.id),
+        label: c.categoryName ?? c.name ?? 'Unnamed category',
+      })),
     ],
     [categories],
   )
@@ -277,7 +293,10 @@ export default function ProductsList() {
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-xs whitespace-nowrap" style={{ color: '#cfe6dc' }}>
-                    {categories.find((c) => c.id === p.cat)?.name ?? p.catName ?? p.cat}
+                    {categories.find((c) => String(c.id) === String(p.cat))?.categoryName ??
+                      categories.find((c) => String(c.id) === String(p.cat))?.name ??
+                      p.catName ??
+                      p.cat}
                   </td>
                   <td className="px-4 py-2.5 whitespace-nowrap">
                     <span className="text-[12.5px] font-bold text-white tabular-nums">₹{p.price}</span>

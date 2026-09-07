@@ -94,9 +94,10 @@ export function ModalSelect({
   const openDropdown = () => {
     if (disabled || open) return
     setOpen(true)
-    setQuery(selected?.label ?? '')
-    setHighlightIndex(0)
-    requestAnimationFrame(() => inputRef.current?.select())
+    setQuery('')
+    const selectedIndex = options.findIndex((opt) => opt.value === value)
+    setHighlightIndex(selectedIndex >= 0 ? selectedIndex : 0)
+    requestAnimationFrame(() => inputRef.current?.focus())
   }
 
   const selectOption = (opt) => {

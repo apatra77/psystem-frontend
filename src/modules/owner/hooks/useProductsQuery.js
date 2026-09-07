@@ -43,6 +43,22 @@ export function useProductsQuery({
   const trimmedSearch = debouncedSearch.trim()
   const isSearchMode = Boolean(trimmedSearch)
 
+  useEffect(() => {
+    let cancelled = false
+
+    fetchCategories()
+      .then((cats) => {
+        if (cancelled) return
+        categoriesRef.current = cats
+        setCategories(cats)
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [refreshKey])
+
   const fetchProductsList = useCallback(
     async (force = false) => {
       setLoading(true)
