@@ -3,7 +3,7 @@ import { msg } from '@/shared/messages/messages'
 import { toast } from './uiStore'
 import { COUPONS, DELIVERY_FEE, FREE_DELIVERY_ABOVE, PACKAGING_FEE } from '@/shared/mocks/pricing'
 import { addCartItem, deleteCartItem, fetchMyCart, mapCartItemFromApi, parseCartPayload, resolveCartItemId, updateCartItem } from '@/services/cart'
-import { formatLooseCartSummary, getCartLineMrpTotal, getCartLineSubtotal } from '@/modules/customer/utils/looseQuantity'
+import { formatLooseCartSummary, getCartLineMrpTotal, getCartLineSubtotal, productAllowsLoose } from '@/modules/customer/utils/looseQuantity'
 import { memoizeDerived } from './memoize'
 
 const round = (n) => Math.round(n * 100) / 100
@@ -15,6 +15,7 @@ const buildLocalItem = (product, qty, cartItemId = null, looseMeta = null) => {
     id: String(product.id),
     cartItemId: cartItemId ? String(cartItemId) : null,
     name: product.name,
+    genericName: product.genericName ?? product.brand ?? '',
     price: product.price,
     mrp: product.mrp ?? product.price,
     image: product.image ?? product.imageUrl ?? null,
@@ -23,19 +24,23 @@ const buildLocalItem = (product, qty, cartItemId = null, looseMeta = null) => {
     unitsPerPack: product.unitsPerPack,
     packLabel: product.packLabel,
     unitLabel: product.unitLabel,
+    looseSaleAllowed: productAllowsLoose(product),
+    packBased: productAllowsLoose(product),
   }
 
   if (looseMeta) {
     return {
       ...base,
+      looseSaleAllowed: true,
       looseQuantity: true,
+      packBased: true,
       fullPackQty: looseMeta.fullPackQty,
       looseUnitQty: looseMeta.looseUnitQty,
       qty: looseMeta.totalUnits,
     }
   }
 
-  return { ...base, qty }
+  return { ...base, qty, fullPackQty: qty, packBased: true }
 }
 
 async function resolveLineItemId(productId, postResponse = null) {
@@ -64,10 +69,47 @@ function patchCartItemId(set, productId, cartItemId, quantity) {
   }))
 }
 
-async function refreshCartFromServer(set) {
+function preserveCartItemOrder(previousItems, nextItems) {
+  if (!previousItems.length) return nextItems
+
+  const nextByCartItemId = new Map()
+  const nextByProductId = new Map()
+  for (const item of nextItems) {
+    if (item.cartItemId) nextByCartItemId.set(String(item.cartItemId), item)
+    nextByProductId.set(String(item.id), item)
+  }
+
+  const ordered = []
+  const placed = new Set()
+
+  for (const prev of previousItems) {
+    const match =
+      (prev.cartItemId && nextByCartItemId.get(String(prev.cartItemId))) ||
+      nextByProductId.get(String(prev.id))
+    if (!match) continue
+
+    const key = String(match.cartItemId ?? match.id)
+    if (placed.has(key)) continue
+    ordered.push(match)
+    placed.add(key)
+  }
+
+  for (const item of nextItems) {
+    const key = String(item.cartItemId ?? item.id)
+    if (!placed.has(key)) {
+      ordered.push(item)
+      placed.add(key)
+    }
+  }
+
+  return ordered
+}
+
+async function refreshCartFromServer(set, get) {
   const payload = await fetchMyCart({ force: true })
   const { items, cartTotal, subtotal } = parseCartPayload(payload)
-  set({ items, cartTotal, subtotal })
+  const mergedItems = preserveCartItemOrder(get().items, items)
+  set({ items: mergedItems, cartTotal, subtotal })
 }
 
 /**
@@ -121,7 +163,8 @@ export const useCartStore = create((set, get) => ({
       try {
         const payload = await fetchMyCart()
         const { items, cartTotal, subtotal } = parseCartPayload(payload)
-        set({ items, cartTotal, subtotal, loading: false })
+        const mergedItems = preserveCartItemOrder(get().items, items)
+        set({ items: mergedItems, cartTotal, subtotal, loading: false })
       } catch (error) {
         set({ loading: false })
         const message = error?.message ?? 'Could not load cart'
@@ -187,7 +230,7 @@ export const useCartStore = create((set, get) => ({
         }
 
         patchCartItemId(set, productId, cartItemId, quantity ?? totalUnits)
-        await refreshCartFromServer(set)
+        await refreshCartFromServer(set, get)
         const summary = formatLooseCartSummary(
           get().items.find((i) => String(i.id) === productId) ??
             buildLocalItem(product, totalUnits, cartItemId, looseMeta),
@@ -226,7 +269,7 @@ export const useCartStore = create((set, get) => ({
       }
 
       patchCartItemId(set, productId, cartItemId, quantity ?? qty)
-      await refreshCartFromServer(set)
+      await refreshCartFromServer(set, get)
       toast.success(msg('customer.addedToCart', { name: product.name }))
     } catch (error) {
       set({ items: previousItems })
@@ -247,7 +290,9 @@ export const useCartStore = create((set, get) => ({
       items:
         nextQty <= 0
           ? s.items.filter((i) => String(i.id) !== productId)
-          : s.items.map((i) => (String(i.id) === productId ? { ...i, qty: nextQty } : i)),
+          : s.items.map((i) =>
+              String(i.id) === productId ? { ...i, qty: nextQty, fullPackQty: nextQty } : i,
+            ),
     }))
 
     try {
@@ -267,17 +312,52 @@ export const useCartStore = create((set, get) => ({
 
       if (nextQty <= 0) {
         await deleteCartItem(cartItemId)
-        await refreshCartFromServer(set)
+        await refreshCartFromServer(set, get)
         toast.info(msg('customer.removedFromCart', { name: item.name }))
         return
       }
 
-      await updateCartItem(cartItemId, { quantity: nextQty })
-      await refreshCartFromServer(set)
+      const updatePayload = item.packBased
+        ? { packQuantity: nextQty, looseQuantity: 0 }
+        : { quantity: nextQty }
+
+      await updateCartItem(cartItemId, updatePayload)
+      await refreshCartFromServer(set, get)
     } catch (error) {
       set({ items: previousItems })
       toast.error(error?.message ?? 'Could not update cart quantity')
     }
+  },
+
+  setLooseQty: async (id, { fullPackQty, looseUnitQty, totalUnits }) => {
+    const productId = String(id)
+    const item = get().items.find((i) => String(i.id) === productId)
+    if (!item) return
+
+    if (!totalUnits) {
+      await get().removeItem(productId)
+      return
+    }
+
+    const product = {
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      mrp: item.mrp,
+      pack: item.pack,
+      unitsPerPack: item.unitsPerPack,
+      packLabel: item.packLabel,
+      unitLabel: item.unitLabel,
+      looseSaleAllowed: true,
+      looseQuantity: true,
+    }
+
+    await get().addItem(product, {
+      loose: true,
+      fullPackQty,
+      looseUnitQty,
+      totalUnits,
+    })
   },
 
   removeItem: async (id) => {
@@ -300,7 +380,7 @@ export const useCartStore = create((set, get) => ({
 
     try {
       await deleteCartItem(cartItemId)
-      await refreshCartFromServer(set)
+      await refreshCartFromServer(set, get)
       toast.info(msg('customer.removedFromCart', { name: item.name }))
     } catch (error) {
       set({ items: previousItems })

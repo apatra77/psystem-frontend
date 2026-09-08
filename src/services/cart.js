@@ -1,5 +1,5 @@
 import { authFetch, CART_API_BASE } from './api'
-import { resolveProductLooseMeta } from '@/modules/customer/utils/looseQuantity'
+import { resolveProductLooseMeta, resolveLooseSaleAllowed } from '@/modules/customer/utils/looseQuantity'
 
 function pick(obj, ...keys) {
   for (const key of keys) {
@@ -75,6 +75,7 @@ export function mapCartLineToStoreItem(line) {
   const packings = product.packings ?? line.packings
   const primaryPacking = Array.isArray(packings) ? packings[0] : null
   const looseMeta = resolveProductLooseMeta({ ...product, packings })
+  const looseSaleAllowed = resolveLooseSaleAllowed(line, product)
 
   const price =
     Number(pick(line, 'price', 'unitPrice', 'sellingPrice', 'salePrice')) ||
@@ -84,19 +85,30 @@ export function mapCartLineToStoreItem(line) {
     Number(pick(line, 'mrp', 'originalPrice', 'maxRetailPrice')) ||
     Number(pick(product, 'mrp')) ||
     price
-  const fullPackQty = Number(
-    pick(line, 'packQuantity', 'packQty', 'fullPackQuantity', 'fullPackQty'),
-  )
-  const looseUnitQty = Number(
-    pick(line, 'looseQuantity', 'looseQty', 'looseUnitQuantity', 'looseUnitQty'),
-  )
-  const hasLooseBreakdown =
-    (Number.isFinite(fullPackQty) || Number.isFinite(looseUnitQty)) &&
-    (fullPackQty > 0 || looseUnitQty > 0)
+
+  const fullPackQtyRaw = pick(line, 'packQuantity', 'packQty', 'fullPackQuantity', 'fullPackQty')
+  const looseUnitQtyRaw = pick(line, 'looseQty', 'looseUnitQuantity', 'looseUnitQty')
+  const fullPackQty = fullPackQtyRaw != null && fullPackQtyRaw !== '' ? Number(fullPackQtyRaw) : NaN
+  const looseUnitQty =
+    looseSaleAllowed && looseUnitQtyRaw != null && looseUnitQtyRaw !== ''
+      ? Number(looseUnitQtyRaw)
+      : looseSaleAllowed && pick(line, 'looseQuantity') != null && pick(line, 'looseQuantity') !== ''
+        ? Number(pick(line, 'looseQuantity'))
+        : NaN
+
+  const unitsPerPack =
+    Number(pick(line, 'stockQuantityPerPack', 'unitsPerPack') ?? looseMeta.unitsPerPack) || 1
 
   let qty = Number(pick(line, ...QTY_KEYS)) || 0
-  if (!qty && hasLooseBreakdown) {
-    qty = (Number.isFinite(fullPackQty) ? fullPackQty : 0) * looseMeta.unitsPerPack + (Number.isFinite(looseUnitQty) ? looseUnitQty : 0)
+  const hasPackFields = Number.isFinite(fullPackQty) || Number.isFinite(looseUnitQty)
+
+  if (!qty && hasPackFields) {
+    qty = looseSaleAllowed
+      ? (Number.isFinite(fullPackQty) ? fullPackQty : 0) * unitsPerPack +
+        (Number.isFinite(looseUnitQty) ? looseUnitQty : 0)
+      : Number.isFinite(fullPackQty)
+        ? fullPackQty
+        : 0
   }
 
   let pack = pick(line, 'pack', 'packing', 'packLabel')
@@ -106,6 +118,8 @@ export function mapCartLineToStoreItem(line) {
     pack = Number.isFinite(quantity) && quantity > 0 ? `${quantity} ${unit}` : unit
   }
 
+  const genericName = pick(line, 'genericName', 'brand') ?? pick(product, 'genericName', 'brand') ?? ''
+
   const base = {
     id: String(productId ?? cartItemId ?? ''),
     cartItemId: cartItemId ? String(cartItemId) : null,
@@ -113,6 +127,7 @@ export function mapCartLineToStoreItem(line) {
       pick(line, 'productName', 'name', 'title') ??
       pick(product, 'productName', 'name', 'title') ??
       'Product',
+    genericName,
     price,
     mrp,
     qty,
@@ -125,20 +140,33 @@ export function mapCartLineToStoreItem(line) {
       pick(line, 'imageUrl', 'image', 'thumbnailUrl') ??
       pick(product, 'imageUrl', 'image', 'thumbnailUrl') ??
       null,
-    unitsPerPack: looseMeta.unitsPerPack,
+    unitsPerPack,
     packLabel: looseMeta.packLabel,
     unitLabel: looseMeta.unitLabel,
+    looseSaleAllowed,
+    packBased: hasPackFields,
   }
 
   const lineTotal = Number(pick(line, 'lineTotal', 'totalPrice', 'itemTotal', 'subtotal', 'total'))
   if (Number.isFinite(lineTotal)) base.lineTotal = lineTotal
 
-  if (hasLooseBreakdown) {
+  if (looseSaleAllowed && hasPackFields) {
+    const fp = Number.isFinite(fullPackQty) ? fullPackQty : 0
+    const lu = Number.isFinite(looseUnitQty) ? looseUnitQty : 0
     return {
       ...base,
       looseQuantity: true,
-      fullPackQty: Number.isFinite(fullPackQty) ? fullPackQty : 0,
-      looseUnitQty: Number.isFinite(looseUnitQty) ? looseUnitQty : 0,
+      fullPackQty: fp,
+      looseUnitQty: lu,
+      qty: fp * unitsPerPack + lu,
+    }
+  }
+
+  if (Number.isFinite(fullPackQty) && fullPackQty > 0) {
+    return {
+      ...base,
+      fullPackQty,
+      qty: fullPackQty,
     }
   }
 
@@ -149,7 +177,11 @@ export function mapCartLineToStoreItem(line) {
 export function mapCartFromApi(payload) {
   return extractCartItems(payload)
     .map(mapCartLineToStoreItem)
-    .filter((item) => item.id && item.qty > 0)
+    .filter(
+      (item) =>
+        item.id &&
+        (item.qty > 0 || (Number(item.fullPackQty) || 0) > 0 || (Number(item.looseUnitQty) || 0) > 0),
+    )
 }
 
 /** Extract cart lines + server totals from GET /api/carts/me. */

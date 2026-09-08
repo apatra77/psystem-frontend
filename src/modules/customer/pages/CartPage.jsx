@@ -1,19 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingCart, Tag, Trash2 } from 'lucide-react'
+import { ShoppingCart, Tag } from 'lucide-react'
 import Button from '@/shared/ui/Button'
-import Badge from '@/shared/ui/Badge'
 import EmptyState from '@/shared/ui/EmptyState'
 import PageHeader from '@/shared/ui/PageHeader'
 import CartShimmer from '@/shared/components/shimmer/pages/CartShimmer'
 import PortalModal from '@/shared/ui/PortalModal'
 import Spinner from '@/shared/ui/Spinner'
-import CartLineQuantity from '@/modules/customer/components/CartLineQuantity'
+import CartLineItem from '@/modules/customer/components/CartLineItem'
 import { useCartStore } from '@/app/store/cartStore'
 import { PATHS } from '@/app/router/paths'
 import { fmtDecimalINR } from '@/app/utils/format'
 import { msg } from '@/shared/messages/messages'
-import { formatLooseCartSummary, getCartLineSubtotal } from '@/modules/customer/utils/looseQuantity'
 import { colors } from '@/app/themes/colors'
 
 export default function CartPage() {
@@ -22,8 +20,7 @@ export default function CartPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
-  const { items, coupon, loading, removeItem, clear, applyCoupon, removeCoupon } =
-    useCartStore()
+  const { items, coupon, loading, removeItem, applyCoupon, removeCoupon } = useCartStore()
   const totals = useCartStore((s) => s.totals())
   const needsRx = useCartStore((s) => s.requiresPrescription())
 
@@ -68,75 +65,104 @@ export default function CartPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Your cart"
-        subtitle={`${items.length} item(s)`}
-      />
+      <PageHeader title="Your cart" subtitle={`${items.length} item(s)`} />
 
       <div className="grid gap-6" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,340px)' }}>
         <div className="space-y-3">
-          {items.map((item) => {
-            const looseSummary = item.looseQuantity ? formatLooseCartSummary(item) : null
-            const lineTotal = item.lineTotal ?? getCartLineSubtotal(item)
-
-            return (
-            <div key={item.cartItemId ?? item.id} className="flex items-center gap-4 p-4 rounded-[16px]" style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}>
-              <span className="w-14 h-14 rounded-[12px] flex items-center justify-center text-2xl font-extrabold" style={{ background: 'rgba(255,255,255,0.05)', color: colors.accent }}>
-                {item.name.charAt(0).toUpperCase()}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-extrabold truncate" style={{ color: colors.textBright }}>{item.name}</p>
-                <p className="text-[12px] mt-0.5" style={{ color: colors.textDim }}>
-                  {looseSummary ? looseSummary.short : (item.pack || fmtDecimalINR(item.price))}
-                </p>
-                {item.rx && <Badge tone="purple" className="mt-1.5">Rx</Badge>}
-              </div>
-              <CartLineQuantity item={item} />
-              <p className="w-[86px] text-right text-[14px] font-extrabold" style={{ color: colors.textBright }}>{fmtDecimalINR(lineTotal)}</p>
-              <button type="button" onClick={() => setDeleteTarget(item)} aria-label="Remove" style={{ color: colors.textDim }}><Trash2 size={16} /></button>
-            </div>
-            )
-          })}
+          {items.map((item) => (
+            <CartLineItem
+              key={item.cartItemId ?? item.id}
+              item={item}
+              onRemove={setDeleteTarget}
+            />
+          ))}
 
           {needsRx && (
-            <p className="text-[12.5px] px-4 py-3 rounded-[13px]" style={{ background: 'rgba(178,135,255,.10)', border: '1px solid rgba(178,135,255,.3)', color: colors.purpleLight }}>
+            <p
+              className="text-[12.5px] px-4 py-3 rounded-[13px]"
+              style={{
+                background: 'rgba(178,135,255,.10)',
+                border: '1px solid rgba(178,135,255,.3)',
+                color: colors.purpleLight,
+              }}
+            >
               {msg('customer.rxRequired')}{' '}
-              <Link to={PATHS.customer.prescription} className="font-bold underline">Upload now</Link>
+              <Link to={PATHS.customer.prescription} className="font-bold underline">
+                Upload now
+              </Link>
             </p>
           )}
         </div>
 
-        <aside className="rounded-[18px] p-5 h-fit sticky top-[84px]" style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}>
-          <p className="text-[14px] font-extrabold mb-4" style={{ color: colors.textBright }}>Bill summary</p>
+        <aside
+          className="rounded-[18px] p-5 h-fit sticky top-[84px]"
+          style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}
+        >
+          <p className="text-[14px] font-extrabold mb-4" style={{ color: colors.textBright }}>
+            Bill summary
+          </p>
 
           <div className="flex gap-2 mb-4">
             <input
-              value={code} onChange={(e) => setCode(e.target.value)} placeholder="Coupon code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Coupon code"
               className="flex-1 rounded-[11px] px-3 py-2.5 text-[12.5px] outline-none uppercase"
-              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${colors.borderSubtle}`,
+                color: colors.textBright,
+              }}
             />
-            <Button size="sm" icon={Tag} onClick={() => applyCoupon(code)}>Apply</Button>
+            <Button size="sm" icon={Tag} onClick={() => applyCoupon(code)}>
+              Apply
+            </Button>
           </div>
 
           {coupon && (
-            <div className="flex items-center justify-between text-[12.5px] mb-3 px-3 py-2 rounded-[10px]" style={{ background: 'rgba(64,222,170,.10)', color: colors.accent }}>
+            <div
+              className="flex items-center justify-between text-[12.5px] mb-3 px-3 py-2 rounded-[10px]"
+              style={{ background: 'rgba(64,222,170,.10)', color: colors.accent }}
+            >
               {coupon.code} applied
-              <button type="button" onClick={removeCoupon} className="font-bold">Remove</button>
+              <button type="button" onClick={removeCoupon} className="font-bold">
+                Remove
+              </button>
             </div>
           )}
 
           <dl className="space-y-2 text-[13px]" style={{ color: colors.textMuted }}>
-            <div className="flex justify-between"><dt>Item total</dt><dd>{fmtDecimalINR(totals.subtotal)}</dd></div>
-            {totals.couponDiscount > 0 && <div className="flex justify-between" style={{ color: colors.accent }}><dt>Coupon</dt><dd>−{fmtDecimalINR(totals.couponDiscount)}</dd></div>}
-            <div className="flex justify-between"><dt>Delivery</dt><dd>{totals.delivery === 0 ? 'Free' : fmtDecimalINR(totals.delivery)}</dd></div>
-            <div className="flex justify-between"><dt>Packaging</dt><dd>{fmtDecimalINR(totals.packaging)}</dd></div>
+            <div className="flex justify-between">
+              <dt>Item total</dt>
+              <dd>{fmtDecimalINR(totals.subtotal)}</dd>
+            </div>
+            {totals.couponDiscount > 0 && (
+              <div className="flex justify-between" style={{ color: colors.accent }}>
+                <dt>Coupon</dt>
+                <dd>−{fmtDecimalINR(totals.couponDiscount)}</dd>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <dt>Delivery</dt>
+              <dd>{totals.delivery === 0 ? 'Free' : fmtDecimalINR(totals.delivery)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt>Packaging</dt>
+              <dd>{fmtDecimalINR(totals.packaging)}</dd>
+            </div>
           </dl>
 
-          <div className="flex justify-between items-center mt-4 pt-4 text-[16px] font-extrabold" style={{ borderTop: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}>
-            <span>To pay</span><span>{fmtDecimalINR(totals.total)}</span>
+          <div
+            className="flex justify-between items-center mt-4 pt-4 text-[16px] font-extrabold"
+            style={{ borderTop: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}
+          >
+            <span>To pay</span>
+            <span>{fmtDecimalINR(totals.total)}</span>
           </div>
 
-          <Button className="w-full mt-5" size="lg" onClick={() => navigate(PATHS.customer.checkout)}>Proceed to checkout</Button>
+          <Button className="w-full mt-5" size="lg" onClick={() => navigate(PATHS.customer.checkout)}>
+            Proceed to checkout
+          </Button>
         </aside>
       </div>
 
@@ -148,15 +174,15 @@ export default function CartPage() {
             </div>
             <p className="text-[13px] leading-relaxed mb-1" style={{ color: colors.textSecondary }}>
               Are you sure you want to remove{' '}
-              <span className="font-semibold" style={{ color: colors.textBright }}>{deleteTarget.name}</span>{' '}
+              <span className="font-semibold" style={{ color: colors.textBright }}>
+                {deleteTarget.name}
+              </span>{' '}
               from your cart?
             </p>
             <p className="text-[12px]" style={{ color: colors.textDim }}>
               This action cannot be undone.
             </p>
-            {deleteError && (
-              <div className="mt-3 text-[12px] font-bold text-red-400">{deleteError}</div>
-            )}
+            {deleteError && <div className="mt-3 text-[12px] font-bold text-red-400">{deleteError}</div>}
             <div className="flex justify-end gap-2.5 mt-5">
               <button
                 type="button"

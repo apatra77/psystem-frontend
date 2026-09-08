@@ -49,8 +49,30 @@ export function resolveProductLooseMeta(item) {
   }
 }
 
+export function resolveLooseSaleAllowed(item, product = {}) {
+  const allowed = pick(item, 'looseSaleAllowed', 'looseSaleEnabled', 'allowLoose')
+  if (allowed === true || allowed === 'true') return true
+  if (allowed === false || allowed === 'false') return false
+
+  const productFlag = pick(product, 'looseSaleAllowed', 'looseSaleEnabled', 'allowLoose')
+  if (productFlag === true || productFlag === 'true') return true
+  if (productFlag === false || productFlag === 'false') return false
+
+  if (product?.looseQuantity === true || product?.looseQuantity === 'true') return true
+  return false
+}
+
 export function productAllowsLoose(product) {
-  return product?.looseQuantity === true || product?.looseQuantity === 'true'
+  return (
+    product?.looseSaleAllowed === true ||
+    product?.looseSaleAllowed === 'true' ||
+    product?.looseQuantity === true ||
+    product?.looseQuantity === 'true'
+  )
+}
+
+export function isLooseCartLine(item) {
+  return item?.looseSaleAllowed === true && item?.looseQuantity === true
 }
 
 export function getProductUnitsPerPack(product) {
@@ -93,7 +115,7 @@ export function formatLooseUnitLine(product) {
 }
 
 export function formatLooseCartSummary(item) {
-  if (!item?.looseQuantity) return null
+  if (!isLooseCartLine(item)) return null
 
   const parts = []
   const packLabel = item.packLabel ?? 'Pack'
@@ -120,16 +142,33 @@ export function formatLooseCartSummary(item) {
   }
 }
 
+export function formatPackCartSummary(item) {
+  const packLabel = item?.packLabel ?? 'Pack'
+  const unitLabel = item?.unitLabel ?? 'Unit'
+  const packCount = Number(item?.fullPackQty ?? item?.qty) || 0
+  const unitsPerPack = getProductUnitsPerPack(item)
+  const totalUnits = packCount * unitsPerPack
+  const packLower = packLabel.toLowerCase()
+  const unitLower = unitLabel.toLowerCase()
+
+  return {
+    short: `${packCount} ${packLower}${packCount === 1 ? '' : 's'}`,
+    detail: `${packCount} ${packLower}${packCount === 1 ? '' : 's'} (${totalUnits} ${totalUnits === 1 ? unitLower : `${unitLower}s`})`,
+    totalUnits,
+  }
+}
+
 export function getCartLineSubtotal(item) {
-  if (item?.looseQuantity) {
+  if (isLooseCartLine(item)) {
     const { subtotal } = calcLooseLineAmounts(item, item.fullPackQty, item.looseUnitQty)
     return subtotal
   }
+  if (Number.isFinite(Number(item?.lineTotal))) return Number(item.lineTotal)
   return (Number(item?.price) || 0) * (Number(item?.qty) || 0)
 }
 
 export function getCartLineMrpTotal(item) {
-  if (item?.looseQuantity) {
+  if (isLooseCartLine(item)) {
     const { mrpTotal } = calcLooseLineAmounts(item, item.fullPackQty, item.looseUnitQty)
     return mrpTotal
   }
