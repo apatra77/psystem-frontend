@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Camera, Info } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput, ModalSelect, ModalTextarea } from '../../components/PortalModal'
+import GenericNameAutocomplete from '../../components/GenericNameAutocomplete'
+import GroupNameAutocomplete from '../../components/GroupNameAutocomplete'
 import Spinner from '@/components/ui/Spinner'
 import { useOwnerPortal } from '../../context/OwnerPortalContext'
 import {
@@ -19,6 +21,7 @@ import { colors } from '@/theme/colors'
 const EMPTY_DRAFT = {
   name: '',
   genericName: '',
+  groupName: '',
   description: '',
   cat: '',
   purchaseTax: '',
@@ -361,6 +364,7 @@ export default function ProductFormModal() {
 
     const productName = draft.name.trim()
     const genericName = draft.genericName.trim()
+    const groupName = draft.groupName.trim()
     const description = draft.description.trim()
     const categoryName =
       categories.find((c) => c.id === draft.cat)?.name ?? detail.categoryName ?? ''
@@ -382,6 +386,7 @@ export default function ProductFormModal() {
       mrp: draft.mrp,
       price: sellingPrice,
       genericName,
+      groupName,
       categoryName,
       purchTaxCode: draft.purchaseTax,
       salesTaxCode: draft.salesTax,
@@ -499,14 +504,24 @@ export default function ProductFormModal() {
             <FieldError message={fieldErrors.name} />
           </div>
           <div>
-            <ModalFieldLabel>Generic name</ModalFieldLabel>
-            <ModalInput
-              value={draft.genericName}
-              onChange={(e) => setField('genericName', e.target.value)}
-              placeholder="e.g. Amlodipine"
+            <ModalFieldLabel>MFR/MKT Name</ModalFieldLabel>
+            <GroupNameAutocomplete
+              value={draft.groupName}
+              onChange={({ name }) => setField('groupName', name)}
+              placeholder="e.g. OZONE PHARMACEUTICALS LTD."
             />
-            <FieldError message={fieldErrors.genericName} />
+            <FieldError message={fieldErrors.groupName} />
           </div>
+        </div>
+
+        <div>
+          <ModalFieldLabel>Generic name</ModalFieldLabel>
+          <GenericNameAutocomplete
+            value={draft.genericName}
+            onChange={({ name }) => setField('genericName', name)}
+            placeholder="e.g. Amlodipine"
+          />
+          <FieldError message={fieldErrors.genericName} />
         </div>
 
         <div>

@@ -733,6 +733,7 @@ export function mapProductDetailToFormDraft(detail, categories = []) {
     id: String(pick(d, 'productId', 'id') ?? ''),
     name: pick(d, 'productName', 'name') ?? '',
     genericName: d.genericName ?? '',
+    groupName: d.groupName ?? '',
     description: d.description ?? '',
     cat,
     purchaseTax: d.purchTaxCode ?? '',

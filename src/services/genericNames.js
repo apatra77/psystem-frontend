@@ -102,14 +102,44 @@ export function buildGenericNamesSearchQuery({
 export function parseGenericNamesPage(payload) {
   const data = payload?.data ?? payload ?? {}
   const content = extractApiList(payload, ['generics']).map(mapGenericNameFromApi)
+  const totalElements = Number(data.totalElements ?? data.total ?? content.length) || 0
+  const size = Number(data.size ?? content.length) || GENERIC_NAMES_PAGE_SIZE
+  const reportedTotalPages = Number(data.totalPages)
+  const totalPages =
+    reportedTotalPages > 0
+      ? reportedTotalPages
+      : totalElements > 0
+        ? Math.ceil(totalElements / size)
+        : content.length > 0
+          ? 1
+          : 0
 
   return {
     items: content,
-    totalElements: Number(data.totalElements ?? data.total ?? content.length) || 0,
-    totalPages: Math.max(1, Number(data.totalPages) || 1),
+    totalElements,
+    totalPages,
     page: Number(data.page ?? data.number ?? 0) || 0,
-    size: Number(data.size ?? content.length) || GENERIC_NAMES_PAGE_SIZE,
+    size,
+    isLast: data.last === true || data.hasNext === false,
   }
+}
+
+function genericItemKey(item) {
+  const id = String(item?.id ?? '').trim()
+  if (id) return `id:${id}`
+  return `name:${String(item?.name ?? '').trim().toLowerCase()}`
+}
+
+export function mergeGenericNameItems(existing = [], incoming = []) {
+  const seen = new Set(existing.map(genericItemKey))
+  const merged = [...existing]
+  incoming.forEach((item) => {
+    const key = genericItemKey(item)
+    if (seen.has(key)) return
+    seen.add(key)
+    merged.push(item)
+  })
+  return merged
 }
 
 let inFlightGenericNamesListRequest = null

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
 import { colors } from '@/theme/colors'
 
@@ -10,11 +11,25 @@ export default function PortalModal({
   closeOnBackdrop = true,
   minHeight,
   maxHeight,
+  zIndex = 200,
 }) {
-  return (
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [])
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-6"
-      style={{ background: 'rgba(4,10,8,0.72)', backdropFilter: 'blur(6px)' }}
+      className="fixed inset-0 flex items-center justify-center p-6"
+      style={{
+        zIndex,
+        background: 'rgba(4,10,8,0.72)',
+        backdropFilter: 'blur(6px)',
+      }}
       onClick={closeOnBackdrop ? onClose : undefined}
       role="presentation"
     >
@@ -33,7 +48,8 @@ export default function PortalModal({
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -45,11 +61,17 @@ export function ModalFieldLabel({ children }) {
   )
 }
 
-export function ModalInput({ className = '', disabled = false, style, ...props }) {
+const HIDE_NUMBER_SPINNER_CLASS =
+  '[appearance:textfield] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+
+export function ModalInput({ className = '', disabled = false, style, type, ...props }) {
   return (
     <input
+      type={type}
       disabled={disabled}
-      className={`w-full rounded-[10px] px-3 py-2 text-[13px] text-white font-[inherit] outline-none disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
+      className={`w-full rounded-[10px] px-3 py-2 text-[13px] text-white font-[inherit] outline-none disabled:opacity-60 disabled:cursor-not-allowed ${
+        type === 'number' ? HIDE_NUMBER_SPINNER_CLASS : ''
+      } ${className}`}
       style={{
         background: 'rgba(255,255,255,0.06)',
         border: '1px solid rgba(255,255,255,0.16)',
