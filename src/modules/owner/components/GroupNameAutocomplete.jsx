@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, Plus } from 'lucide-react'
+import { ChevronDown, Loader2, Plus } from 'lucide-react'
 import PortalModal from './PortalModal'
 import Spinner from '@/components/ui/Spinner'
 import { toast } from '@/app/store/uiStore'
@@ -68,9 +68,11 @@ export default function GroupNameAutocomplete({
 }) {
   const containerRef = useRef(null)
   const listRef = useRef(null)
-  const sentinelRef = useRef(null)
   const blurTimerRef = useRef(null)
   const loadMoreRef = useRef(() => {})
+  const hasMoreRef = useRef(false)
+  const loadingRef = useRef(false)
+  const loadingMoreRef = useRef(false)
 
   const [open, setOpen] = useState(false)
   const [inputText, setInputText] = useState(value)
@@ -91,8 +93,12 @@ export default function GroupNameAutocomplete({
   } = useGroupSearch(inputText)
 
   loadMoreRef.current = loadMore
+  hasMoreRef.current = hasMore
+  loadingRef.current = loading
+  loadingMoreRef.current = loadingMore
 
   const trimmedInput = inputText.trim()
+  const displayValue = open ? inputText : value
   const showDropdown = open && trimmedInput.length > 0 && !confirmOpen
   const isSearchPending = trimmedInput.length > 0 && debouncedQuery !== trimmedInput
   const showEmptyAddState =
@@ -130,30 +136,6 @@ export default function GroupNameAutocomplete({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showDropdown])
 
-  useEffect(() => {
-    if (!showDropdown || !hasMore || loading || loadingMore) return undefined
-
-    const root = listRef.current
-    const sentinel = sentinelRef.current
-    if (!root || !sentinel) return undefined
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          loadMoreRef.current()
-        }
-      },
-      {
-        root,
-        rootMargin: '24px',
-        threshold: 0,
-      },
-    )
-
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [showDropdown, hasMore, loading, loadingMore, suggestions.length])
-
   const commitSelection = (item) => {
     const name = item?.name ?? ''
     setInputText(name)
@@ -183,8 +165,13 @@ export default function GroupNameAutocomplete({
   const handleScroll = (event) => {
     const node = event.currentTarget
     const remaining = node.scrollHeight - node.scrollTop - node.clientHeight
-    if (remaining < 48 && hasMore && !loadingMore && !loading) {
-      loadMore()
+    if (
+      remaining < 48 &&
+      hasMoreRef.current &&
+      !loadingMoreRef.current &&
+      !loadingRef.current
+    ) {
+      loadMoreRef.current()
     }
   }
 
@@ -248,25 +235,39 @@ export default function GroupNameAutocomplete({
   return (
     <>
       <div ref={containerRef} className="relative">
-        <input
-          type="text"
-          disabled={disabled}
-          value={inputText}
-          placeholder={placeholder}
-          onChange={handleInputChange}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          className="w-full rounded-[10px] px-3 py-2 text-[13px] text-white font-[inherit] outline-none disabled:opacity-60 disabled:cursor-not-allowed"
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.16)',
-          }}
-          role="combobox"
-          aria-expanded={showDropdown}
-          aria-autocomplete="list"
-          aria-haspopup="listbox"
-        />
+        <div className="relative">
+          <input
+            type="text"
+            disabled={disabled}
+            value={displayValue}
+            placeholder={placeholder}
+            onChange={handleInputChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            className="w-full rounded-[10px] px-3 py-2 pr-8 text-[13px] text-white font-[inherit] outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.16)',
+              color: displayValue ? '#ffffff' : colors.textDim,
+            }}
+            role="combobox"
+            aria-expanded={showDropdown}
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+          />
+          <ChevronDown
+            size={14}
+            strokeWidth={2.2}
+            className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{
+              color: colors.textDim,
+              transform: open ? 'rotate(180deg)' : undefined,
+              transition: 'transform 0.15s ease',
+            }}
+            aria-hidden="true"
+          />
+        </div>
 
         {showDropdown && (
           <div
@@ -321,23 +322,20 @@ export default function GroupNameAutocomplete({
                     type="button"
                     role="option"
                     aria-selected={isSelected}
+                    onMouseEnter={() => setHighlightIndex(index)}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => commitSelection(item)}
-                    className="w-full text-left px-3 py-2 rounded-[8px] text-[12.5px] font-bold cursor-pointer transition-colors"
+                    className="w-full text-left px-3 py-2 rounded-[8px] text-[13px] font-bold cursor-pointer transition-colors hover:bg-[rgba(64,222,170,0.08)]"
                     style={{
-                      color: isHighlighted || isSelected ? colors.accentText : colors.textHighlight,
+                      color: isHighlighted || isSelected ? colors.accent : '#cfe6dc',
                       background:
-                        isHighlighted || isSelected ? 'rgba(64,222,170,0.16)' : 'transparent',
+                        isHighlighted || isSelected ? 'rgba(64,222,170,0.1)' : 'transparent',
                     }}
                   >
                     {item.name}
                   </button>
                 )
               })
-            )}
-
-            {hasMore && suggestions.length > 0 && (
-              <div ref={sentinelRef} className="min-h-[1px] w-full" aria-hidden="true" />
             )}
 
             {loadingMore && (

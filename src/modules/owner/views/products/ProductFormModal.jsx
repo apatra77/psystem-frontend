@@ -157,6 +157,16 @@ function formatAmount(value) {
   return String(Number(n.toFixed(2)))
 }
 
+function resolveCategoryDiscountPercent(category) {
+  if (!category) return null
+  const raw =
+    category.categoryDiscountPercentage ?? category.discountPercentage ?? category.discountPercent
+  if (raw == null || raw === '') return null
+  const num = Number(raw)
+  if (!Number.isFinite(num)) return null
+  return formatAmount(num)
+}
+
 function applyPricingFromPercent(mrp, discountPercent) {
   const m = Number(mrp) || 0
   const pct = Number(discountPercent) || 0
@@ -337,6 +347,15 @@ export default function ProductFormModal() {
         if (normalized) {
           next.fullPackQty = normalized.fullPackQty
           next.looseQty = normalized.looseQty
+        }
+      }
+
+      if (field === 'cat') {
+        const selectedCategory = categories.find((c) => String(c.id) === String(value))
+        const categoryDiscount = resolveCategoryDiscountPercent(selectedCategory)
+        if (categoryDiscount != null) {
+          next.discountPercent = categoryDiscount
+          Object.assign(next, applyPricingFromPercent(next.mrp, categoryDiscount))
         }
       }
 

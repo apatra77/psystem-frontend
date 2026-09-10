@@ -28,6 +28,7 @@ export function useGenericNameSearch(query = '') {
   const [error, setError] = useState('')
   const requestIdRef = useRef(0)
   const loadingMoreRef = useRef(false)
+  const fetchingPageRef = useRef(null)
 
   const stateRef = useRef({
     debouncedQuery: '',
@@ -70,9 +71,11 @@ export function useGenericNameSearch(query = '') {
       setPage(0)
       setError('')
       setLoading(false)
+      fetchingPageRef.current = null
       return undefined
     }
 
+    fetchingPageRef.current = null
     const requestId = ++requestIdRef.current
     let cancelled = false
 
@@ -155,7 +158,9 @@ export function useGenericNameSearch(query = '') {
     })
 
     if (!trimmed || isLoading || !shouldLoad) return
+    if (fetchingPageRef.current === nextPage) return
 
+    fetchingPageRef.current = nextPage
     loadingMoreRef.current = true
     setLoadingMore(true)
     setError('')
@@ -186,6 +191,7 @@ export function useGenericNameSearch(query = '') {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load more generic names')
     } finally {
+      if (fetchingPageRef.current === nextPage) fetchingPageRef.current = null
       loadingMoreRef.current = false
       setLoadingMore(false)
     }
