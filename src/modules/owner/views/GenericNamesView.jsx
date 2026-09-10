@@ -48,8 +48,6 @@ function Td({ children, className = '', align = 'left' }) {
 function GenericNameFormModal({ item, onClose, onSaved }) {
   const isEdit = Boolean(item)
   const [name, setName] = useState(item?.name ?? '')
-  const [alternateNames, setAlternateNames] = useState(item?.alternateNames ?? '')
-  const [active, setActive] = useState(item?.active ?? true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -68,8 +66,8 @@ function GenericNameFormModal({ item, onClose, onSaved }) {
 
     try {
       const saved = isEdit
-        ? await updateGenericName(item.id, { name: trimmedName, alternateNames, active })
-        : await createGenericName({ name: trimmedName, alternateNames, active })
+        ? await updateGenericName(item.id, { name: trimmedName })
+        : await createGenericName({ name: trimmedName })
 
       toast.success(isEdit ? `Generic name "${trimmedName}" updated` : `Generic name "${trimmedName}" added`)
       await onSaved(saved)
@@ -91,40 +89,14 @@ function GenericNameFormModal({ item, onClose, onSaved }) {
           Manage salt/composition names used across products.
         </p>
 
-        <div className="space-y-4">
-          <div>
-            <ModalFieldLabel>Generic name</ModalFieldLabel>
-            <ModalInput
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="e.g. Azithromycin"
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <ModalFieldLabel>Alternate names</ModalFieldLabel>
-            <ModalInput
-              value={alternateNames}
-              onChange={(event) => setAlternateNames(event.target.value)}
-              placeholder="e.g. Azithromycin Dihydrate, Acetaminophen"
-            />
-            <p className="text-[10.5px] mt-1.5" style={{ color: colors.textDim }}>
-              Separate multiple names with commas.
-            </p>
-          </div>
-
-          <label className="inline-flex items-center gap-2.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={active}
-              onChange={(event) => setActive(event.target.checked)}
-              className="accent-[#40deaa]"
-            />
-            <span className="text-[12.5px] font-bold" style={{ color: colors.textHighlight }}>
-              Active
-            </span>
-          </label>
+        <div>
+          <ModalFieldLabel>Generic name</ModalFieldLabel>
+          <ModalInput
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="e.g. Azithromycin"
+            autoFocus
+          />
         </div>
 
         {error && (

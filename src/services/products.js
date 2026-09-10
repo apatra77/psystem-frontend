@@ -53,11 +53,18 @@ export function mapCategoryFromApi(item, index = 0) {
       ),
     ) || 0
 
+  const categoryDiscountPercentage = Number(
+    pick(item, 'categoryDiscountPercentage', 'discountPercentage', 'discountPercent'),
+  )
+
   return {
     id: String(pick(item, 'categoryId', 'id') ?? slug),
     slug,
     name: categoryName,
     categoryName,
+    categoryDiscountPercentage: Number.isFinite(categoryDiscountPercentage)
+      ? categoryDiscountPercentage
+      : 0,
     icon: categoryName.charAt(0).toUpperCase(),
     accent: CATEGORY_ACCENTS[index % CATEGORY_ACCENTS.length],
     count: productCount,
@@ -97,12 +104,25 @@ export async function fetchCategories({ force = false } = {}) {
   return inFlightCategoriesRequest
 }
 
+function normalizeCategoryDiscountPercentage(value) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) {
+    throw new Error('Category discount percentage must be a valid number')
+  }
+  if (parsed < 0 || parsed > 100) {
+    throw new Error('Category discount percentage must be between 0 and 100')
+  }
+  return parsed
+}
+
 /** POST /api/categories — create a new product category. */
-export async function createCategory({ name }) {
+export async function createCategory({ name, categoryDiscountPercentage = 0 }) {
   const categoryName = String(name ?? '').trim()
   if (!categoryName) {
     throw new Error('Category name is required')
   }
+
+  const discount = normalizeCategoryDiscountPercentage(categoryDiscountPercentage)
 
   if (inFlightCreateCategoryRequest) {
     return inFlightCreateCategoryRequest
@@ -114,7 +134,7 @@ export async function createCategory({ name }) {
     '/api/categories',
     {
       method: 'POST',
-      body: JSON.stringify({ categoryName }),
+      body: JSON.stringify({ categoryName, categoryDiscountPercentage: discount }),
     },
     PRODUCT_API_BASE,
   )
@@ -130,17 +150,19 @@ export async function createCategory({ name }) {
 }
 
 /** PUT /api/categories/{categoryId} — update a product category. */
-export async function updateCategory(categoryId, { name }) {
+export async function updateCategory(categoryId, { name, categoryDiscountPercentage = 0 }) {
   const categoryName = String(name ?? '').trim()
   if (!categoryName) {
     throw new Error('Category name is required')
   }
 
+  const discount = normalizeCategoryDiscountPercentage(categoryDiscountPercentage)
+
   const payload = await authFetch(
     `/api/categories/${encodeURIComponent(categoryId)}`,
     {
       method: 'PUT',
-      body: JSON.stringify({ categoryName }),
+      body: JSON.stringify({ categoryName, categoryDiscountPercentage: discount }),
     },
     PRODUCT_API_BASE,
   )

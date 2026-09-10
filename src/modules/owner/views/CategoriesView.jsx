@@ -50,6 +50,41 @@ function resolveCategoryIcon(category) {
   return null
 }
 
+function formatCategoryDiscountLabel(value) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return '0'
+  if (Number.isInteger(parsed)) return String(parsed)
+  return parsed.toFixed(2).replace(/\.?0+$/, '')
+}
+
+function CategoryDiscountBadge({ percentage }) {
+  const value = Number(percentage)
+  const safeValue = Number.isFinite(value) ? value : 0
+  const active = safeValue > 0
+
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-extrabold tracking-[0.04em]"
+      style={
+        active
+          ? {
+              color: colors.gold,
+              background: 'rgba(255,181,71,0.14)',
+              border: '1px solid rgba(255,181,71,0.38)',
+              boxShadow: '0 0 0 1px rgba(255,181,71,0.08) inset',
+            }
+          : {
+              color: colors.textMuted,
+              background: 'rgba(255,255,255,0.05)',
+              border: `1px solid ${colors.borderSubtle}`,
+            }
+      }
+    >
+      {formatCategoryDiscountLabel(safeValue)}% discount
+    </span>
+  )
+}
+
 function CategoryAvatar({ category }) {
   const Icon = resolveCategoryIcon(category)
   const initials = getCategoryInitials(category.name)
@@ -73,9 +108,26 @@ function CategoryAvatar({ category }) {
   )
 }
 
+function parseCategoryDiscountInput(value) {
+  const trimmed = String(value ?? '').trim()
+  if (!trimmed) return 0
+
+  const parsed = Number(trimmed)
+  if (!Number.isFinite(parsed)) {
+    throw new Error('Category discount percentage must be a valid number')
+  }
+  if (parsed < 0 || parsed > 100) {
+    throw new Error('Category discount percentage must be between 0 and 100')
+  }
+  return parsed
+}
+
 function CategoryFormModal({ category, onClose, onSaved }) {
   const isEdit = Boolean(category)
   const [name, setName] = useState(category?.name ?? '')
+  const [discountPercentage, setDiscountPercentage] = useState(
+    category?.categoryDiscountPercentage != null ? String(category.categoryDiscountPercentage) : '',
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -89,16 +141,30 @@ function CategoryFormModal({ category, onClose, onSaved }) {
       return
     }
 
+    let categoryDiscountPercentage = 0
+    try {
+      categoryDiscountPercentage = parseCategoryDiscountInput(discountPercentage)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid discount percentage')
+      return
+    }
+
     setSaving(true)
     setError('')
 
     try {
       if (isEdit) {
-        const updated = await updateCategory(category.id, { name: trimmed })
+        const updated = await updateCategory(category.id, {
+          name: trimmed,
+          categoryDiscountPercentage,
+        })
         toast.success(`Category "${trimmed}" updated`)
         await onSaved(updated)
       } else {
-        const created = await createCategory({ name: trimmed })
+        const created = await createCategory({
+          name: trimmed,
+          categoryDiscountPercentage,
+        })
         toast.success(`Category "${trimmed}" created`)
         await onSaved(created)
       }
@@ -133,6 +199,25 @@ function CategoryFormModal({ category, onClose, onSaved }) {
           autoFocus
           disabled={saving}
         />
+
+        <div className="mt-4">
+          <ModalFieldLabel>Category discount percentage</ModalFieldLabel>
+          <ModalInput
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            inputMode="decimal"
+            className="[appearance:textfield] [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            value={discountPercentage}
+            onChange={(e) => {
+              setDiscountPercentage(e.target.value)
+              if (error) setError('')
+            }}
+            placeholder="e.g. 12"
+            disabled={saving}
+          />
+        </div>
 
         {error ? <p className="mt-2 text-[12px] font-bold text-red-400">{error}</p> : null}
 
@@ -354,11 +439,14 @@ export default function CategoriesView() {
                   </div>
                 </div>
 
-                <div>
-                  <div className="text-[14.5px] font-extrabold text-white">
+                <div className="min-w-0">
+                  <div className="text-[14.5px] font-extrabold text-white truncate">
                     {category.categoryName ?? category.name}
                   </div>
-                  <div className="text-[11.5px] mt-0.5" style={{ color: colors.textSecondary }}>
+                  <div className="mt-2">
+                    <CategoryDiscountBadge percentage={category.categoryDiscountPercentage} />
+                  </div>
+                  <div className="text-[11.5px] mt-2" style={{ color: colors.textSecondary }}>
                     {category.productCount ?? category.count ?? 0} products
                   </div>
                 </div>
