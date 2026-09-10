@@ -328,9 +328,10 @@ export default function InventoryView() {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2.5 min-w-0 w-full">
-        <div
-          className="relative flex-1 min-w-0 basis-0 flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 overflow-hidden"
+      <div className="flex flex-wrap items-end gap-3 min-w-0 w-full">
+        <div className="flex-1 min-w-0 basis-0">
+          <div
+            className="relative flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 overflow-hidden"
           style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)' }}
         >
           <Search size={14} style={{ color: '#68d9b4', flexShrink: 0 }} />
@@ -355,6 +356,7 @@ export default function InventoryView() {
           >
             <X size={14} strokeWidth={2.2} />
           </button>
+          </div>
         </div>
 
         <FilterSelect
@@ -371,20 +373,27 @@ export default function InventoryView() {
           minWidth={150}
         />
 
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={exporting}
-          className="inline-flex items-center gap-2 ml-auto px-4 py-2.5 rounded-[11px] text-[12.5px] font-extrabold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            color: colors.accentText,
-            background: colors.primaryBtn,
-            boxShadow: '0 8px 22px rgba(64,222,170,0.28)',
-          }}
-        >
-          {exporting ? <Spinner /> : <Download size={14} />}
-          Export
-        </button>
+        <div className="ml-auto flex-shrink-0 flex flex-wrap items-end gap-3">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] text-[12.5px] font-extrabold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              color: colors.accentText,
+              background: colors.primaryBtn,
+              boxShadow: '0 8px 22px rgba(64,222,170,0.28)',
+            }}
+          >
+            {exporting ? <Spinner /> : <Download size={14} />}
+            Export
+          </button>
+
+          <div className="text-[13px] font-semibold pb-2.5" style={{ color: colors.textBright }}>
+            Total Products:{' '}
+            <span style={{ color: colors.accent }}>{Number(totalElements).toLocaleString('en-IN')}</span>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -529,7 +538,7 @@ export default function InventoryView() {
           style={{ borderTop: `1px solid ${colors.borderSubtle}` }}
         >
           <div className="text-[12px]" style={{ color: colors.textSecondary }}>
-            Showing {rangeStart} to {rangeEnd} of {totalElements} products
+            Showing {Number(rangeStart).toLocaleString('en-IN')} to {Number(rangeEnd).toLocaleString('en-IN')} of {Number(totalElements).toLocaleString('en-IN')} products
           </div>
 
           <div className="flex items-center gap-1.5">

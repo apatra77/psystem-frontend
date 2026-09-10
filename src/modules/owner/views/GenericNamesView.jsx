@@ -183,11 +183,21 @@ function DeleteGenericNameModal({ item, onClose, onConfirm, deleting }) {
             type="button"
             onClick={onConfirm}
             disabled={deleting}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[11px] text-[12.5px] font-extrabold cursor-pointer disabled:opacity-50"
-            style={{ color: '#fff', background: 'rgba(255,138,128,0.24)', border: '1px solid rgba(255,138,128,0.42)' }}
+            className="text-[12.5px] font-extrabold px-5 py-2 rounded-[10px] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+            style={{
+              color: '#fff',
+              background: '#c0392b',
+              boxShadow: '0 6px 18px rgba(192,57,43,0.35)',
+            }}
           >
-            {deleting ? <Spinner /> : <Trash2 size={14} />}
-            Delete
+            {deleting ? (
+              <>
+                <Spinner />
+                Deleting…
+              </>
+            ) : (
+              'Delete'
+            )}
           </button>
         </div>
       </div>
@@ -280,6 +290,11 @@ export default function GenericNamesView() {
           <Plus size={14} strokeWidth={2.4} />
           Add Generic Name
         </button>
+
+        <div className="ml-auto flex-shrink-0 text-[13px] font-semibold pb-2.5" style={{ color: colors.textBright }}>
+          Total Generic Names:{' '}
+          <span style={{ color: colors.accent }}>{Number(totalElements).toLocaleString('en-IN')}</span>
+        </div>
       </div>
 
       {error && (
@@ -373,7 +388,7 @@ export default function GenericNamesView() {
           style={{ borderTop: `1px solid ${colors.borderSubtle}` }}
         >
           <div className="text-[12px]" style={{ color: colors.textSecondary }}>
-            Showing {rangeStart} to {rangeEnd} of {totalElements} generic names
+            Showing {Number(rangeStart).toLocaleString('en-IN')} to {Number(rangeEnd).toLocaleString('en-IN')} of {Number(totalElements).toLocaleString('en-IN')} generic names
           </div>
 
           <div className="flex items-center gap-1.5">

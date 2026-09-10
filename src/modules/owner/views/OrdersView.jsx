@@ -181,37 +181,7 @@ export default function OrdersView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <FilterSelect
-          label="Status"
-          value={statusFilter}
-          options={STATUS_FILTERS}
-          minWidth={168}
-          onChange={handleStatusFilterChange}
-        />
-
-        <FilterSelect
-          label="Payment"
-          value={paymentFilter}
-          options={PAYMENT_FILTERS}
-          minWidth={140}
-          onChange={(value) => {
-            setPaymentFilter(value)
-            setPage(1)
-          }}
-        />
-
-        <FilterSelect
-          label="Sort by"
-          value={sortBy}
-          options={SORT_OPTIONS}
-          minWidth={200}
-          onChange={(value) => {
-            setSortBy(value)
-            setPage(1)
-          }}
-        />
-
+      <div className="flex flex-wrap items-end gap-3 min-w-0 w-full">
         <div className="flex-1 min-w-0 basis-0">
           <div
             className="relative flex items-center gap-2.5 rounded-[11px] px-3.5 py-2.5 overflow-hidden"
@@ -248,9 +218,39 @@ export default function OrdersView() {
           </div>
         </div>
 
+        <FilterSelect
+          label="Status"
+          value={statusFilter}
+          options={STATUS_FILTERS}
+          minWidth={168}
+          onChange={handleStatusFilterChange}
+        />
+
+        <FilterSelect
+          label="Payment"
+          value={paymentFilter}
+          options={PAYMENT_FILTERS}
+          minWidth={140}
+          onChange={(value) => {
+            setPaymentFilter(value)
+            setPage(1)
+          }}
+        />
+
+        <FilterSelect
+          label="Sort by"
+          value={sortBy}
+          options={SORT_OPTIONS}
+          minWidth={200}
+          onChange={(value) => {
+            setSortBy(value)
+            setPage(1)
+          }}
+        />
+
         <div className="ml-auto flex-shrink-0 text-[13px] font-semibold pb-2.5" style={{ color: colors.textBright }}>
           Total Orders:{' '}
-          <span style={{ color: colors.accent }}>{totalElements}</span>
+          <span style={{ color: colors.accent }}>{Number(totalElements).toLocaleString('en-IN')}</span>
         </div>
       </div>
 
@@ -359,7 +359,7 @@ export default function OrdersView() {
             style={{ borderTop: `1px solid ${colors.borderSubtle}` }}
           >
             <div className="text-[12px]" style={{ color: colors.textSecondary }}>
-              Showing {rangeStart} to {rangeEnd} of {totalElements} orders
+              Showing {Number(rangeStart).toLocaleString('en-IN')} to {Number(rangeEnd).toLocaleString('en-IN')} of {Number(totalElements).toLocaleString('en-IN')} orders
             </div>
 
             <div className="flex items-center gap-1.5">
