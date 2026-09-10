@@ -1,4 +1,4 @@
-import { ChevronLeft, LayoutGrid, Package, Users, ClipboardList, BarChart3, Archive, Stethoscope } from 'lucide-react'
+import { ChevronLeft, LayoutGrid, Link2, Package, Users, ClipboardList, BarChart3, Archive, Stethoscope } from 'lucide-react'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
 import { useOwnerPage } from '../routes'
 import { colors } from '@/theme/colors'
@@ -16,6 +16,7 @@ const NAV = [
     items: [
       { id: 'products', label: 'Products', icon: Package },
       { id: 'categories', label: 'Categories', icon: LayoutGrid },
+      { id: 'generic-names', label: 'Generic Names', icon: Link2 },
       { id: 'inventory', label: 'Inventory', icon: Archive, badgeKey: 'lowStockCount', badgeStyle: 'gold' },
     ],
   },

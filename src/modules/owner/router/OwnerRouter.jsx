@@ -6,6 +6,7 @@ import OwnerPortalPage from '../pages/OwnerPortalPage'
 import DashboardView from '../views/DashboardView'
 import OrdersView from '../views/OrdersView'
 import CategoriesView from '../views/CategoriesView'
+import GenericNamesView from '../views/GenericNamesView'
 import ProductsLayout from '../views/products/ProductsLayout'
 import ProductFormModal from '../views/products/ProductFormModal'
 import MyProfileView from '../views/MyProfileView'
@@ -37,6 +38,7 @@ export default function OwnerRouter() {
           <Route path=":id" element={<ProductFormModal />} />
         </Route>
         <Route path="categories" element={<CategoriesView />} />
+        <Route path="generic-names" element={<GenericNamesView />} />
         <Route path="inventory" element={<InventoryView />} />
         <Route path="discounts" element={<DiscountsView />} />
         <Route path="staff" element={<StaffView />} />

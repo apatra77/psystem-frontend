@@ -6,6 +6,7 @@ export const OWNER_PAGES = [
   'logistics',
   'products',
   'categories',
+  'generic-names',
   'inventory',
   'discounts',
   'staff',
