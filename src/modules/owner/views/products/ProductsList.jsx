@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, Upload, X } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import PortalModal from '../../components/PortalModal'
 import BulkUploadModal from './BulkUploadModal'
@@ -26,10 +26,12 @@ function ProductThumb() {
   )
 }
 
-function Th({ children }) {
+function Th({ children, align = 'left' }) {
   return (
     <th
-      className="text-left text-[10.5px] font-extrabold tracking-[0.1em] uppercase px-4 py-3.5"
+      className={`${
+        align === 'center' ? 'text-center' : 'text-left'
+      } text-[10.5px] font-extrabold tracking-[0.1em] uppercase px-4 py-3.5`}
       style={{ color: colors.textDim, borderBottom: `1px solid ${colors.borderSubtle}` }}
     >
       {children}
@@ -133,9 +135,9 @@ export default function ProductsList() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2.5 min-w-0 w-full">
         <div
-          className="flex-1 min-w-0 flex items-center gap-2.5 rounded-xl px-3.5 py-2.5"
+          className="relative flex-1 min-w-0 basis-0 flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 overflow-hidden"
           style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)' }}
         >
           <Search size={14} style={{ color: '#68d9b4', flexShrink: 0 }} />
@@ -144,8 +146,22 @@ export default function ProductsList() {
             placeholder="Search products or SKU…"
             value={search}
             onChange={handleSearchChange}
-            className="flex-1 min-w-0 bg-transparent border-none outline-none text-white text-[12.5px] font-[inherit]"
+            className="flex-1 min-w-0 w-0 bg-transparent border-none outline-none text-white text-[12.5px] font-[inherit] pr-8"
           />
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            disabled={!search}
+            tabIndex={search ? 0 : -1}
+            className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-opacity ${
+              search ? 'opacity-100 cursor-pointer hover:bg-white/10' : 'opacity-0 pointer-events-none'
+            }`}
+            style={{ color: colors.textSecondary }}
+            aria-label="Clear search"
+            aria-hidden={!search}
+          >
+            <X size={14} strokeWidth={2.2} />
+          </button>
         </div>
 
         <ModalSelect
@@ -257,15 +273,14 @@ export default function ProductsList() {
               <Th>Category</Th>
               <Th>Price</Th>
               <Th>Stock</Th>
-              <Th>Rx</Th>
               <Th>Status</Th>
-              <th className="px-4 py-3.5" style={{ borderBottom: `1px solid ${colors.borderSubtle}` }} />
+              <Th align="center">Action</Th>
             </tr>
           </thead>
           <tbody>
             {products.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-14 text-center text-[13px]" style={{ color: colors.textDim }}>
+                <td colSpan={6} className="px-4 py-14 text-center text-[13px]" style={{ color: colors.textDim }}>
                   No products found.
                 </td>
               </tr>
@@ -318,20 +333,6 @@ export default function ProductsList() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
-                    {p.rx && (
-                      <span
-                        className="text-[9.5px] font-extrabold px-[7px] py-0.5 rounded-md"
-                        style={{
-                          color: colors.purpleLight,
-                          background: 'rgba(178,135,255,0.15)',
-                          border: '1px solid rgba(178,135,255,0.32)',
-                        }}
-                      >
-                        RX
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5">
                     <button
                       type="button"
                       onClick={() =>
@@ -351,7 +352,7 @@ export default function ProductsList() {
                     </button>
                   </td>
                   <td className="px-4 py-2.5">
-                    <div className="flex gap-1.5 justify-end">
+                    <div className="flex items-center justify-center gap-1">
                       <button
                         type="button"
                         onClick={() => navigate(`/owner/products/${p.id}`)}

@@ -6,6 +6,7 @@ import {
   Plus,
   Search,
   Trash2,
+  X,
 } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
 import PortalModal, { ModalFieldLabel, ModalInput } from '../components/PortalModal'
@@ -235,10 +236,10 @@ export default function GenericNamesView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-2.5">
-        <div className="flex-1 min-w-[240px]">
+      <div className="flex flex-wrap items-end gap-2.5 min-w-0 w-full">
+        <div className="flex-1 min-w-0 basis-0">
           <div
-            className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5"
+            className="relative flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 overflow-hidden"
             style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)' }}
           >
             <Search size={14} style={{ color: '#68d9b4', flexShrink: 0 }} />
@@ -247,8 +248,22 @@ export default function GenericNamesView() {
               placeholder="Search generic name, composition…"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="flex-1 bg-transparent border-none outline-none text-white text-[12.5px] font-[inherit] placeholder:text-[#6b9a88]"
+              className="flex-1 min-w-0 w-0 bg-transparent border-none outline-none text-white text-[12.5px] font-[inherit] placeholder:text-[#6b9a88] pr-8"
             />
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              disabled={!search}
+              tabIndex={search ? 0 : -1}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-opacity ${
+                search ? 'opacity-100 cursor-pointer hover:bg-white/10' : 'opacity-0 pointer-events-none'
+              }`}
+              style={{ color: colors.textSecondary }}
+              aria-label="Clear search"
+              aria-hidden={!search}
+            >
+              <X size={14} strokeWidth={2.2} />
+            </button>
           </div>
         </div>
 
