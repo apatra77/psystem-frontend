@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   fetchDoctorAvailableSlots,
   fetchDoctorById,
@@ -19,6 +19,23 @@ function useDebouncedValue(value, delay = 350) {
   return debounced
 }
 
+async function loadPopularSlots(doctors) {
+  if (!doctors.length) return {}
+
+  const slotEntries = await Promise.all(
+    doctors.map(async (doctor) => {
+      try {
+        const slots = await fetchDoctorAvailableSlots(doctor.id, 'today')
+        return [doctor.id, slots.filter((slot) => slot.available).slice(0, 4)]
+      } catch {
+        return [doctor.id, []]
+      }
+    }),
+  )
+
+  return Object.fromEntries(slotEntries)
+}
+
 export function useDoctorConsultation(city = DEFAULT_CONSULTATION_CITY) {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [specialtyId, setSpecialtyId] = useState(null)
@@ -34,84 +51,93 @@ export function useDoctorConsultation(city = DEFAULT_CONSULTATION_CITY) {
   const [loadingSearch, setLoadingSearch] = useState(false)
   const [error, setError] = useState('')
 
+  const browseRequestId = useRef(0)
+  const searchRequestId = useRef(0)
+
   const debouncedSearch = useDebouncedValue(searchKeyword.trim())
   const isFiltering = Boolean(debouncedSearch || specialtyId)
 
-  const loadTopDoctors = useCallback(async () => {
-    setLoadingTop(true)
-    try {
-      const doctors = await fetchTopDoctorsNearYou({ city, limit: topLimit })
-      setTopDoctors(doctors)
+  useEffect(() => {
+    const requestId = ++browseRequestId.current
+    let cancelled = false
+
+    ;(async () => {
+      setLoadingTop(true)
+      setLoadingPopular(true)
       setError('')
-    } catch (err) {
-      setTopDoctors([])
-      setError(err?.message ?? 'Could not load doctors nearby')
-    } finally {
-      setLoadingTop(false)
+
+      try {
+        const [top, popular] = await Promise.all([
+          fetchTopDoctorsNearYou({ city, limit: topLimit }),
+          fetchPopularDoctors({ city, limit: popularLimit }),
+        ])
+
+        if (cancelled || requestId !== browseRequestId.current) return
+
+        setTopDoctors(top)
+        setPopularDoctors(popular)
+
+        const slots = await loadPopularSlots(popular)
+        if (cancelled || requestId !== browseRequestId.current) return
+
+        setPopularSlots(slots)
+      } catch (err) {
+        if (cancelled || requestId !== browseRequestId.current) return
+        setTopDoctors([])
+        setPopularDoctors([])
+        setPopularSlots({})
+        setError(err?.message ?? 'Could not load doctors')
+      } finally {
+        if (!cancelled && requestId === browseRequestId.current) {
+          setLoadingTop(false)
+          setLoadingPopular(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
     }
-  }, [city, topLimit])
+  }, [city, topLimit, popularLimit])
 
-  const loadPopularDoctors = useCallback(async () => {
-    setLoadingPopular(true)
-    try {
-      const doctors = await fetchPopularDoctors({ city, limit: popularLimit })
-      setPopularDoctors(doctors)
-
-      const slotEntries = await Promise.all(
-        doctors.map(async (doctor) => {
-          try {
-            const slots = await fetchDoctorAvailableSlots(doctor.id, 'today')
-            return [doctor.id, slots.filter((slot) => slot.available).slice(0, 4)]
-          } catch {
-            return [doctor.id, []]
-          }
-        }),
-      )
-      setPopularSlots(Object.fromEntries(slotEntries))
-      setError('')
-    } catch (err) {
-      setPopularDoctors([])
-      setPopularSlots({})
-      setError(err?.message ?? 'Could not load popular doctors')
-    } finally {
-      setLoadingPopular(false)
-    }
-  }, [city, popularLimit])
-
-  const loadSearchResults = useCallback(async () => {
+  useEffect(() => {
     if (!debouncedSearch && !specialtyId) {
       setSearchResults([])
-      return
+      setLoadingSearch(false)
+      return undefined
     }
 
-    setLoadingSearch(true)
-    try {
-      const doctors = await fetchDoctors({
-        searchKeyword: debouncedSearch || undefined,
-        specialtyId: specialtyId || undefined,
-        city,
-      })
-      setSearchResults(doctors)
+    const requestId = ++searchRequestId.current
+    let cancelled = false
+
+    ;(async () => {
+      setLoadingSearch(true)
       setError('')
-    } catch (err) {
-      setSearchResults([])
-      setError(err?.message ?? 'Search failed')
-    } finally {
-      setLoadingSearch(false)
+
+      try {
+        const doctors = await fetchDoctors({
+          searchKeyword: debouncedSearch || undefined,
+          specialtyId: specialtyId || undefined,
+          city,
+        })
+
+        if (cancelled || requestId !== searchRequestId.current) return
+        setSearchResults(doctors)
+      } catch (err) {
+        if (cancelled || requestId !== searchRequestId.current) return
+        setSearchResults([])
+        setError(err?.message ?? 'Search failed')
+      } finally {
+        if (!cancelled && requestId === searchRequestId.current) {
+          setLoadingSearch(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
     }
   }, [city, debouncedSearch, specialtyId])
-
-  useEffect(() => {
-    loadTopDoctors()
-  }, [loadTopDoctors])
-
-  useEffect(() => {
-    loadPopularDoctors()
-  }, [loadPopularDoctors])
-
-  useEffect(() => {
-    loadSearchResults()
-  }, [loadSearchResults])
 
   const showAllTopDoctors = useCallback(() => setTopLimit(50), [])
   const showAllPopularDoctors = useCallback(() => setPopularLimit(50), [])
@@ -149,7 +175,5 @@ export function useDoctorConsultation(city = DEFAULT_CONSULTATION_CITY) {
     popularLimit,
     fetchProfile,
     fetchSlots,
-    reloadTop: loadTopDoctors,
-    reloadPopular: loadPopularDoctors,
   }
 }

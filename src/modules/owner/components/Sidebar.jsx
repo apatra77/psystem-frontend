@@ -30,7 +30,7 @@ const NAV = [
   {
     section: 'OTHERS',
     items: [
-      { id: 'general-setting', label: 'General Setting', icon: Settings },
+      { id: 'general-setting', label: 'Account Settings', icon: Settings },
       { id: 'callback-requests', label: 'Callback Requests', icon: PhoneCall },
     ],
   },

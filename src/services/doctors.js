@@ -2,6 +2,9 @@ import { authFetch, DOCTOR_API_BASE } from './api'
 
 const BASE = '/api/v1/public/doctors'
 
+/** Collapse duplicate in-flight GETs (e.g. React Strict Mode double-mount). */
+const inFlightGets = new Map()
+
 function pick(obj, ...keys) {
   for (const key of keys) {
     const value = obj?.[key]
@@ -63,7 +66,15 @@ function buildQuery(params = {}) {
 }
 
 async function doctorGet(path) {
-  return authFetch(path, {}, DOCTOR_API_BASE)
+  const existing = inFlightGets.get(path)
+  if (existing) return existing
+
+  const request = authFetch(path, {}, DOCTOR_API_BASE).finally(() => {
+    inFlightGets.delete(path)
+  })
+
+  inFlightGets.set(path, request)
+  return request
 }
 
 export async function fetchDoctors({ searchKeyword, specialtyId, city, page, size } = {}) {

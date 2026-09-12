@@ -8,21 +8,19 @@ import { colors } from '@/theme/colors'
 
 function parseValue(value, type, label) {
   const trimmed = String(value ?? '').trim()
+  if (!trimmed) {
+    if (type === 'phone') throw new Error(`${label} is required`)
+    return 0
+  }
 
   if (type === 'phone') {
-    const digits = trimmed.replace(/\D/g, '').slice(-10)
-    if (!/^[6-9]\d{9}$/.test(digits)) {
-      throw new Error(`${label} must be a valid 10-digit mobile number`)
+    const digits = trimmed.replace(/\D/g, '')
+    if (digits.length < 10 || digits.length > 15) {
+      throw new Error(`${label} must be a valid mobile number`)
     }
     return digits
   }
 
-  if (type === 'text') {
-    if (!trimmed) throw new Error(`${label} is required`)
-    return trimmed
-  }
-
-  if (!trimmed) return 0
   const num = Number(trimmed)
   if (!Number.isFinite(num) || num < 0) {
     throw new Error(`${label} must be a valid non-negative number`)
@@ -34,7 +32,7 @@ function parseValue(value, type, label) {
 }
 
 function formatDisplayValue(row, value) {
-  if (row.type === 'phone' || row.type === 'text') return String(value ?? '')
+  if (row.type === 'phone') return String(value ?? '').replace(/\D/g, '') || '—'
   if (row.type === 'quantity') return String(value ?? 0)
   return `₹${Number(value ?? 0).toLocaleString('en-IN')}`
 }
@@ -220,7 +218,7 @@ export default function GeneralSettingsModal() {
             <Settings size={18} strokeWidth={1.8} style={{ color: colors.accent }} />
           </div>
           <div className="min-w-0">
-            <h2 className="text-[16px] font-extrabold text-white">General Setting</h2>
+            <h2 className="text-[16px] font-extrabold text-white">Account Settings</h2>
             <p className="text-[12px] mt-1 leading-relaxed" style={{ color: colors.textSecondary }}>
               View and update store configuration values.
             </p>
@@ -365,16 +363,10 @@ export default function GeneralSettingsModal() {
                     <td className="px-4 py-3.5">
                       {isEditing ? (
                         <ModalInput
-                          type={isTextLikeSettingType(row.type) ? 'tel' : 'number'}
-                          min={isTextLikeSettingType(row.type) ? undefined : '0'}
-                          step={isTextLikeSettingType(row.type) ? undefined : '1'}
-                          inputMode={
-                            row.type === 'phone'
-                              ? 'numeric'
-                              : row.type === 'quantity'
-                                ? 'numeric'
-                                : 'decimal'
-                          }
+                          type={row.type === 'phone' ? 'tel' : 'number'}
+                          min={row.type === 'phone' ? undefined : '0'}
+                          step={row.type === 'phone' ? undefined : '1'}
+                          inputMode={row.type === 'phone' ? 'tel' : row.type === 'quantity' ? 'numeric' : 'decimal'}
                           value={draftValue}
                           onChange={(e) => {
                             setDraftValue(

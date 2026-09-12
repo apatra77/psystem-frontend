@@ -15,11 +15,13 @@ import GeneralSettingView from '../views/GeneralSettingView'
 import CallbackRequestsView from '../views/CallbackRequestsView'
 import {
   DiscountsView,
-  DoctorManagementView,
   LogisticsView,
   StaffView,
   StoreView,
 } from '../views/PortalViews'
+import DoctorsLayout from '../views/doctors/DoctorsLayout'
+import DoctorFormModal from '../views/doctors/DoctorFormModal'
+import DoctorProfileModal from '../views/doctors/DoctorProfileModal'
 
 /** Owner portal routes mounted under `/owner/*`. */
 export default function OwnerRouter() {
@@ -44,7 +46,11 @@ export default function OwnerRouter() {
         <Route path="inventory" element={<InventoryView />} />
         <Route path="discounts" element={<DiscountsView />} />
         <Route path="staff" element={<StaffView />} />
-        <Route path="doctors" element={<DoctorManagementView />} />
+        <Route path="doctors" element={<DoctorsLayout />}>
+          <Route path="add" element={<DoctorFormModal />} />
+          <Route path=":id/edit" element={<DoctorFormModal />} />
+          <Route path=":id" element={<DoctorProfileModal />} />
+        </Route>
         <Route path="store" element={<StoreView />} />
         <Route path="general-setting" element={<GeneralSettingView />} />
         <Route path="callback-requests" element={<CallbackRequestsView />} />

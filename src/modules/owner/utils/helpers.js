@@ -381,10 +381,13 @@ export const PAGE_META = {
   discounts: { title: 'Discounts & Promotions', subtitle: 'Offers, codes and Circle perks' },
   logistics: { title: 'Logistics', subtitle: 'Riders, couriers and live deliveries' },
   staff: { title: 'Staff & Roles', subtitleKey: 'staffOutlet' },
-  doctors: { title: 'Doctor Management', subtitle: 'Manage consulting doctors and availability' },
+  doctors: {
+    title: 'Doctor Management',
+    subtitle: 'Manage doctors, specialties, availability and consultation schedules.',
+  },
   store: { title: 'Store Profile', subtitle: 'Hours, location and delivery radius' },
   'general-setting': {
-    title: 'General Setting',
+    title: 'Account Settings',
     subtitle: 'View and update store configuration values.',
   },
   'callback-requests': {

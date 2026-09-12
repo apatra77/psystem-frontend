@@ -13,13 +13,21 @@ export function inferGeneralSettingType(code, description = '') {
   return 'amount'
 }
 
-function parseSettingValue(item, type) {
-  const raw = String(item?.value ?? '').trim()
-  if (type === 'phone' || type === 'text') return raw
+function isPhoneSetting(code, description = '') {
+  const key = `${code} ${description}`.toUpperCase()
+  return key.includes('MOBILE') || key.includes('PHONE')
+}
 
+function parseSettingValue(item, type) {
+  const raw = item?.value
+  if (type === 'phone') {
+    return String(raw ?? '').replace(/\D/g, '')
+  }
   const num = Number(raw)
   return Number.isFinite(num) ? num : 0
 }
+
+let inFlightRequest = null
 
 /** Build modal rows purely from GET /api/admin/general-master-setting. */
 export function parseGeneralMasterSettingsResponse(payload) {
@@ -29,20 +37,34 @@ export function parseGeneralMasterSettingsResponse(payload) {
       ? payload
       : []
 
-  const rows = list
-    .map((item) => {
-      const code = String(item?.code ?? '').trim()
-      if (!code) return null
+  const byCode = new Map(
+    list.map((item) => [String(item?.code ?? '').trim(), item]),
+  )
 
-      const label = String(item?.description ?? '').trim() || code
-      const type = inferGeneralSettingType(code, label)
+  const knownCodes = new Set(GENERAL_SETTING_ROW_ORDER.map(({ code }) => code))
 
-      return {
-        code,
-        label,
-        value: parseSettingValue(item, type),
-        type,
-      }
+  const rows = GENERAL_SETTING_ROW_ORDER.map(({ code, type: defaultType }) => {
+    const item = byCode.get(code)
+    const description = item?.description?.trim() || FALLBACK_LABELS[code] || code
+    const type = isPhoneSetting(code, description) ? 'phone' : defaultType
+    return {
+      code,
+      label: description,
+      value: parseSettingValue(item, type),
+      type,
+    }
+  })
+
+  list.forEach((item) => {
+    const code = String(item?.code ?? '').trim()
+    if (!code || knownCodes.has(code)) return
+    const description = item?.description?.trim() || code
+    const type = isPhoneSetting(code, description) ? 'phone' : 'amount'
+    rows.push({
+      code,
+      label: description,
+      value: parseSettingValue(item, type),
+      type,
     })
     .filter(Boolean)
 
