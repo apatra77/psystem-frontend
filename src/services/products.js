@@ -570,6 +570,52 @@ export async function fetchProductsByCategory(categoryId, categories = [], { for
   return request
 }
 
+/** Parse paginated GET /api/products/search response for the customer shop. */
+export function parseCustomerProductsSearchPage(payload, categories = []) {
+  const data = payload?.data ?? payload
+  const content = extractApiList(payload, ['products'])
+
+  return {
+    products: content.map((item) => mapProductToCustomerCatalog(item, categories)),
+    totalElements: Number(data?.totalElements ?? data?.total ?? content.length) || 0,
+    totalPages: Math.max(1, Number(data?.totalPages) || 1),
+    page: Number(data?.number ?? data?.page ?? 0) || 0,
+    size: Number(data?.size ?? content.length) || 0,
+  }
+}
+
+const inFlightProductsSearchRequests = new Map()
+
+export async function fetchProductsSearchPage(
+  query,
+  categories = [],
+  { page = 0, size = OWNER_PRODUCTS_PAGE_SIZE, force = false } = {},
+) {
+  const trimmed = String(query ?? '').trim()
+  if (!trimmed) {
+    return { products: [], totalElements: 0, totalPages: 1, page: 0, size: 0 }
+  }
+
+  const params = new URLSearchParams()
+  params.set('query', trimmed)
+  params.set('page', String(page))
+  params.set('size', String(size))
+  const path = `/api/products/search?${params.toString()}`
+
+  if (!force && inFlightProductsSearchRequests.has(path)) {
+    return inFlightProductsSearchRequests.get(path)
+  }
+
+  const request = authFetch(path, {}, PRODUCT_API_BASE)
+    .then((payload) => parseCustomerProductsSearchPage(payload, categories))
+    .finally(() => {
+      inFlightProductsSearchRequests.delete(path)
+    })
+
+  inFlightProductsSearchRequests.set(path, request)
+  return request
+}
+
 export async function fetchProductsSearch(query, categories = []) {
   const trimmed = query.trim()
   if (!trimmed) return []

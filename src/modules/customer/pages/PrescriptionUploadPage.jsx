@@ -15,7 +15,7 @@ export default function PrescriptionUploadPage() {
   const onSubmit = (values) => {
     const record = addPrescription({ fileName: values.file?.name ?? 'prescription', note: values.note })
     setPrescription(record.id)
-    navigate(PATHS.customer.prescriptions)
+    navigate(PATHS.customer.cart)
   }
 
   return (

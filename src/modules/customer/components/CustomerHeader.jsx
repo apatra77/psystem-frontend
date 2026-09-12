@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Bell, FileUp, Search, ShoppingCart } from 'lucide-react'
+import { Link, NavLink } from 'react-router-dom'
+import { Bell, FileUp, ShoppingCart } from 'lucide-react'
+import ProductSearchAutocomplete from '@/modules/customer/components/ProductSearchAutocomplete'
 import Logo from '@/shared/ui/Logo'
 import Button from '@/shared/ui/Button'
 import CustomerProfileMenu from '@/modules/customer/components/CustomerProfileMenu'
 import { PATHS } from '@/app/router/paths'
 import { useAuthStore } from '@/app/store/authStore'
 import { useCartStore } from '@/app/store/cartStore'
-import { useCatalogStore } from '@/app/store/catalogStore'
 import { useOrderStore } from '@/app/store/orderStore'
 import { colors } from '@/app/themes/colors'
 
@@ -22,34 +22,23 @@ const NAV = [
 ]
 
 export default function CustomerHeader() {
-  const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const token = useAuthStore((s) => s.token)
   const cartCount = useCartStore((s) => s.items.length)
-  const setFilter = useCatalogStore((s) => s.setFilter)
   const unread = useOrderStore((s) => s.unreadCount())
-
-  const submitSearch = (e) => {
-    e.preventDefault()
-    setFilter({ query })
-    navigate(PATHS.customer.search)
-  }
 
   return (
     <header className="sticky top-0 z-40" style={{ background: colors.headerBg, backdropFilter: 'blur(14px)', borderBottom: `1px solid ${colors.borderSubtle}` }}>
       <div className="max-w-[1180px] mx-auto px-5 h-[68px] flex items-center gap-5">
         <Link to={PATHS.customer.home}><Logo /></Link>
 
-        <form onSubmit={submitSearch} className="flex-1 max-w-[420px] relative hidden md:block">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: colors.textDim }} />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search medicines, devices, lab tests…"
-            className="w-full rounded-[12px] pl-10 pr-3 py-2.5 text-[13px] outline-none"
-            style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}
-          />
-        </form>
+        <ProductSearchAutocomplete
+          value={query}
+          onChange={setQuery}
+          placeholder="Search medicines, devices, lab tests…"
+          className="hidden md:block max-w-[420px]"
+          compact
+        />
 
         <nav className="hidden lg:flex items-center gap-1 ml-auto">
           {NAV.map((item) => (

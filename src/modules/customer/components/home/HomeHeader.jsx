@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { ChevronDown, MapPin, Menu, RotateCcw, Search, ShoppingCart, X, Zap } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChevronDown, MapPin, Menu, RotateCcw, ShoppingCart, X, Zap } from 'lucide-react'
+import ProductSearchAutocomplete from '@/modules/customer/components/ProductSearchAutocomplete'
 import Logo from '@/shared/ui/Logo'
 import CustomerProfileMenu from '@/modules/customer/components/CustomerProfileMenu'
 import { PATHS, buildPath } from '@/app/router/paths'
 import { useCartStore } from '@/app/store/cartStore'
-import { useCatalogStore } from '@/app/store/catalogStore'
 import { useOrderStore } from '@/app/store/orderStore'
 import { fetchUserProfile } from '@/services/user'
 import { HOME_NAV } from '@/shared/mocks/customerHome'
@@ -29,13 +29,11 @@ function getAddressLines(address) {
  * a disclosure panel so the row never wraps on a phone.
  */
 export default function HomeHeader() {
-  const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [addressMenuOpen, setAddressMenuOpen] = useState(false)
 
   const cartCount = useCartStore((s) => s.items.length)
-  const setFilter = useCatalogStore((s) => s.setFilter)
   const addresses = useOrderStore((s) => s.addresses)
   const addressesLoadedFromApi = useOrderStore((s) => s.addressesLoadedFromApi)
   const selectedAddressId = useOrderStore((s) => s.selectedAddressId)
@@ -70,13 +68,6 @@ export default function HomeHeader() {
   }, [addressesLoadedFromApi, setAddressesFromApi])
 
   const activePincode = selectedAddress?.pincode || '—'
-
-  const submitSearch = (e) => {
-    e.preventDefault()
-    setFilter({ query })
-    setMenuOpen(false)
-    navigate(PATHS.customer.search)
-  }
 
   const categoryPath = (slug) => buildPath(PATHS.customer.category, { slug })
 
@@ -189,26 +180,12 @@ export default function HomeHeader() {
             )}
           </div>
 
-          <form onSubmit={submitSearch} className="hidden flex-1 items-center gap-3 rounded-[14px] py-1.5 pl-5 pr-1.5 md:flex"
-            style={{ background: 'rgba(255,255,255,.07)', border: `1px solid ${colors.borderStrong}` }}
-          >
-            <Search size={15} style={{ color: colors.accentSoft }} aria-hidden="true" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-[13px] outline-none"
-              style={{ color: colors.textBright }}
-              placeholder="Search medicines, salt composition, lab tests…"
-              aria-label="Search products"
-            />
-            <button
-              type="submit"
-              className="rounded-[10px] px-5 py-2.5 text-[13px] font-extrabold"
-              style={{ background: colors.primaryBtn, color: colors.accentText }}
-            >
-              Search
-            </button>
-          </form>
+          <ProductSearchAutocomplete
+            value={query}
+            onChange={setQuery}
+            onSubmitSearch={() => setMenuOpen(false)}
+            className="hidden md:block"
+          />
 
           <nav className="ml-auto flex items-center gap-3 sm:gap-4" aria-label="Account">
             <IconAction to={PATHS.customer.orders} label="Orders" title="Returns & Orders">
@@ -238,30 +215,14 @@ export default function HomeHeader() {
           </nav>
         </div>
 
-        {/* Phone search sits on its own row rather than squeezing the icon cluster. */}
-        <form onSubmit={submitSearch} className="flex items-center gap-2 pb-3 md:hidden">
-          <div
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-[12px] px-3 py-2.5"
-            style={{ background: 'rgba(255,255,255,.07)', border: `1px solid ${colors.borderStrong}` }}
-          >
-            <Search size={15} style={{ color: colors.accentSoft }} aria-hidden="true" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-[13px] outline-none"
-              style={{ color: colors.textBright }}
-              placeholder="Search medicines, lab tests…"
-              aria-label="Search products"
-            />
-          </div>
-          <button
-            type="submit"
-            className="rounded-[10px] px-4 py-2.5 text-[13px] font-extrabold"
-            style={{ background: colors.primaryBtn, color: colors.accentText }}
-          >
-            Go
-          </button>
-        </form>
+        <ProductSearchAutocomplete
+          value={query}
+          onChange={setQuery}
+          onSubmitSearch={() => setMenuOpen(false)}
+          placeholder="Search medicines, lab tests…"
+          className="pb-3 md:hidden"
+          compact
+        />
       </div>
 
       <div className={`${SECTION_MAX} ${SECTION_X} hidden lg:block`} style={{ borderTop: '1px solid rgba(255,255,255,.05)' }}>
@@ -288,18 +249,6 @@ export default function HomeHeader() {
             <Zap size={13} className="bolt-pulse" aria-hidden="true" />
             Offer Zone
           </Link>
-          <span
-            className="nav-shimmer cursor-pointer px-4 py-2.5"
-            style={{
-              background: 'linear-gradient(90deg,#d4bcff 0%,#d4bcff 40%,#ffffff 50%,#d4bcff 60%,#d4bcff 100%)',
-              backgroundSize: '200% auto',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent',
-            }}
-          >
-            Circle Membership
-          </span>
         </nav>
       </div>
 

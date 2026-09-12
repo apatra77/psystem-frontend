@@ -23,11 +23,8 @@ const OrderDetailPage = lazy(() => import('@/modules/customer/pages/OrderDetailP
 const OrderTrackingPage = lazy(() => import('@/modules/customer/pages/OrderTrackingPage'))
 const ProfilePage = lazy(() => import('@/modules/customer/pages/ProfilePage'))
 const AddressesPage = lazy(() => import('@/modules/customer/pages/AddressesPage'))
-const PaymentMethodsPage = lazy(() => import('@/modules/customer/pages/PaymentMethodsPage'))
 const PrescriptionUploadPage = lazy(() => import('@/modules/customer/pages/PrescriptionUploadPage'))
-const PrescriptionsPage = lazy(() => import('@/modules/customer/pages/PrescriptionsPage'))
 const CustomOrderPage = lazy(() => import('@/modules/customer/pages/CustomOrderPage'))
-const WishlistPage = lazy(() => import('@/modules/customer/pages/WishlistPage'))
 const NotificationsPage = lazy(() => import('@/modules/customer/pages/NotificationsPage'))
 const SupportPage = lazy(() => import('@/modules/customer/pages/SupportPage'))
 const ChatPage = lazy(() => import('@/modules/customer/pages/ChatPage'))
@@ -66,9 +63,6 @@ export default function CustomerRouter() {
                 <Route path="account/orders/:id" element={suspend(<OrderDetailPage />, 'orderDetail')} />
                 <Route path="account/profile" element={suspend(<ProfilePage />, 'profile')} />
                 <Route path="account/addresses" element={suspend(<AddressesPage />, 'addresses')} />
-                <Route path="account/payment-methods" element={suspend(<PaymentMethodsPage />, 'paymentMethods')} />
-                <Route path="account/prescriptions" element={suspend(<PrescriptionsPage />, 'prescriptions')} />
-                <Route path="account/wishlist" element={suspend(<WishlistPage />, 'wishlist')} />
                 <Route path="account/notifications" element={suspend(<NotificationsPage />, 'notifications')} />
               </Route>
             </Route>

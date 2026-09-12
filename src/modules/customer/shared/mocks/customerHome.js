@@ -16,10 +16,7 @@ export const HOME_NAV = [
   { label: 'Medicines', slug: 'medicines' },
   { label: 'Lab Tests', slug: 'lab-tests' },
   { label: 'Doctor Consult', slug: 'consult' },
-  { label: 'Wellness', slug: 'wellness' },
   { label: 'Devices', slug: 'devices' },
-  { label: 'Ayurveda', slug: 'ayurveda' },
-  { label: 'Baby & Mom', slug: 'baby' },
 ]
 
 export const HERO = {
@@ -203,7 +200,6 @@ export const FOOTER_COLUMNS = [
     links: [
       { label: 'Custom order', to: 'customOrder' },
       { label: 'Order tracking', to: 'orders' },
-      { label: 'Wishlist', to: 'wishlist' },
       { label: 'Notifications', to: 'notifications' },
     ],
   },

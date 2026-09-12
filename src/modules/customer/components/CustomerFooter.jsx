@@ -14,7 +14,6 @@ const COLUMNS = [
   { title: 'Account', links: [
     { label: 'My orders', to: PATHS.customer.orders },
     { label: 'Addresses', to: PATHS.customer.addresses },
-    { label: 'Payment methods', to: PATHS.customer.paymentMethods },
   ] },
   { title: 'Help', links: [
     { label: 'Support centre', to: PATHS.customer.support },
