@@ -124,8 +124,8 @@ export default function RevenueTrendChart({
 
       <div className={`flex gap-3 transition-opacity duration-200 ${periodLoading ? 'opacity-60 pointer-events-none' : ''}`}>
         <div className="flex flex-col justify-between h-[200px] py-1 flex-shrink-0">
-          {yAxisTicks.map((tick) => (
-            <span key={tick.label} className="text-[9.5px] font-semibold tabular-nums" style={{ color: '#5f7d73' }}>
+          {yAxisTicks.map((tick, index) => (
+            <span key={`y-axis-${index}-${tick.pct}`} className="text-[9.5px] font-semibold tabular-nums" style={{ color: '#5f7d73' }}>
               {tick.label}
             </span>
           ))}
@@ -143,9 +143,9 @@ export default function RevenueTrendChart({
               preserveAspectRatio="none"
               className="w-full h-full block overflow-visible"
             >
-              {yAxisTicks.slice(1, -1).map((tick) => (
+              {yAxisTicks.slice(1, -1).map((tick, index) => (
                 <line
-                  key={tick.label}
+                  key={`grid-${index}-${tick.pct}`}
                   x1="0"
                   x2={chart.chartW}
                   y1={14 + tick.pct * 160}

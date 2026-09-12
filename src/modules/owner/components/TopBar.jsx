@@ -94,6 +94,11 @@ export default function TopBar() {
     navigate('/owner/profile')
   }
 
+  const openAccountSettings = () => {
+    setProfileMenuOpen(false)
+    goToPage('general-setting')
+  }
+
   return (
     <>
       <header
@@ -355,7 +360,7 @@ export default function TopBar() {
               </button>
               <button
                 type="button"
-                onClick={() => setProfileMenuOpen(false)}
+                onClick={openAccountSettings}
                 className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[12.5px] font-bold rounded-[9px] cursor-pointer hover:bg-white/6 text-left"
                 style={{ color: colors.textHighlight }}
               >

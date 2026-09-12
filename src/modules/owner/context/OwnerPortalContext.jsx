@@ -78,7 +78,6 @@ export function OwnerPortalProvider({ children }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const ownerPage = pathToPage(pathname)
-  const generalSettingsOpen = ownerPage === 'general-setting'
   const [activeOutlet, setActiveOutlet] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [outletMenuOpen, setOutletMenuOpen] = useState(false)
@@ -220,13 +219,6 @@ export function OwnerPortalProvider({ children }) {
     }
     setGeneralSettingsError(null)
   }, [ownerPage, loadGeneralSettings])
-
-  const closeGeneralSettings = useCallback(() => {
-    if (ownerPage === 'general-setting') {
-      navigate('/owner')
-    }
-    setGeneralSettingsError(null)
-  }, [navigate, ownerPage])
 
   const saveGeneralSetting = useCallback(async (code, value) => {
     await patchGeneralMasterSetting(code, value)
@@ -489,8 +481,6 @@ export function OwnerPortalProvider({ children }) {
       authUser,
       updateAuthUser,
       skipProfileSetup,
-      generalSettingsOpen,
-      closeGeneralSettings,
       generalSettings,
       generalSettingRows,
       generalSettingsLoading,
@@ -546,8 +536,6 @@ export function OwnerPortalProvider({ children }) {
     updateAuthUser,
     skipProfileSetup,
     ownerPage,
-    generalSettingsOpen,
-    closeGeneralSettings,
     generalSettings,
     generalSettingRows,
     generalSettingsLoading,

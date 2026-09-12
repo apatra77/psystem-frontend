@@ -1,6 +1,5 @@
 import { OwnerPortalProvider, useOwnerPortal } from '../context/OwnerPortalContext'
 import OwnerLayout from '../components/OwnerLayout'
-import GeneralSettingsModal from '../components/GeneralSettingsModal'
 import ProfileSetupModal from '@/components/modals/ProfileSetupModal'
 import { needsProfileSetup } from '@/services/auth'
 
@@ -11,7 +10,6 @@ function OwnerPortalGate() {
   return (
     <>
       <OwnerLayout />
-      <GeneralSettingsModal />
       {showProfileSetup && (
         <ProfileSetupModal
           initialEmail={authUser?.email ?? ''}

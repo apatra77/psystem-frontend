@@ -1,5 +1,23 @@
 import { authFetch } from './api'
 
+/**
+ * Stable backend codes (GeneralMasterService). Used only to define UI row order.
+ * Values and labels come from GET /api/admin/general-master-setting on popup open.
+ */
+export const GENERAL_SETTING_ROW_ORDER = [
+  { code: 'MIN_ORDER_DELIVERY_CHARGES', type: 'amount' },
+  { code: 'DELIVERY_CHARGES', type: 'amount' },
+  { code: 'PACKING_CHARGES', type: 'amount' },
+  { code: 'LOW_STOCK_QUANTITY', type: 'quantity' },
+]
+
+const FALLBACK_LABELS = {
+  MIN_ORDER_DELIVERY_CHARGES: 'Minimum order for Delivery Charges',
+  DELIVERY_CHARGES: 'Delivery charges',
+  PACKING_CHARGES: 'Packing charges',
+  LOW_STOCK_QUANTITY: 'Define low stock quantity',
+}
+
 let inFlightRequest = null
 
 /** Infer display/edit type from DB code + description (no fixed code list). */
@@ -26,8 +44,6 @@ function parseSettingValue(item, type) {
   const num = Number(raw)
   return Number.isFinite(num) ? num : 0
 }
-
-let inFlightRequest = null
 
 /** Build modal rows purely from GET /api/admin/general-master-setting. */
 export function parseGeneralMasterSettingsResponse(payload) {
@@ -66,7 +82,7 @@ export function parseGeneralMasterSettingsResponse(payload) {
       value: parseSettingValue(item, type),
       type,
     })
-    .filter(Boolean)
+  })
 
   const settingsByCode = Object.fromEntries(rows.map((row) => [row.code, row.value]))
 
