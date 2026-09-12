@@ -3,10 +3,25 @@ import { Check, Pencil, Plus, Settings, X } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput } from './PortalModal'
 import Spinner from '@/components/ui/Spinner'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
+import { inferGeneralSettingType } from '@/services/generalSettings'
 import { colors } from '@/theme/colors'
 
 function parseValue(value, type, label) {
   const trimmed = String(value ?? '').trim()
+
+  if (type === 'phone') {
+    const digits = trimmed.replace(/\D/g, '').slice(-10)
+    if (!/^[6-9]\d{9}$/.test(digits)) {
+      throw new Error(`${label} must be a valid 10-digit mobile number`)
+    }
+    return digits
+  }
+
+  if (type === 'text') {
+    if (!trimmed) throw new Error(`${label} is required`)
+    return trimmed
+  }
+
   if (!trimmed) return 0
   const num = Number(trimmed)
   if (!Number.isFinite(num) || num < 0) {
@@ -19,8 +34,13 @@ function parseValue(value, type, label) {
 }
 
 function formatDisplayValue(row, value) {
+  if (row.type === 'phone' || row.type === 'text') return String(value ?? '')
   if (row.type === 'quantity') return String(value ?? 0)
   return `₹${Number(value ?? 0).toLocaleString('en-IN')}`
+}
+
+function isTextLikeSettingType(type) {
+  return type === 'phone' || type === 'text'
 }
 
 function Th({ children, className = '' }) {
@@ -171,9 +191,11 @@ export default function GeneralSettingsModal() {
     }
 
     try {
+      const type = inferGeneralSettingType(code, description)
+      const parsed = parseValue(value, type, description)
       setSaving(true)
       setError('')
-      await createGeneralSetting({ code, description, value })
+      await createGeneralSetting({ code, description, value: parsed })
       cancelAdd()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create setting')
@@ -294,15 +316,27 @@ export default function GeneralSettingsModal() {
                   <td className="px-4 py-3.5 align-top">
                     <ModalFieldLabel>Value</ModalFieldLabel>
                     <ModalInput
-                      type="number"
-                      min="0"
-                      step="1"
+                      type={inferGeneralSettingType(newCode, newDescription) === 'phone' ? 'tel' : 'number'}
+                      min={inferGeneralSettingType(newCode, newDescription) === 'phone' ? undefined : '0'}
+                      step={inferGeneralSettingType(newCode, newDescription) === 'phone' ? undefined : '1'}
+                      inputMode={
+                        inferGeneralSettingType(newCode, newDescription) === 'phone' ? 'numeric' : 'decimal'
+                      }
                       value={newValue}
                       onChange={(e) => {
-                        setNewValue(e.target.value)
+                        const nextType = inferGeneralSettingType(newCode, newDescription)
+                        setNewValue(
+                          nextType === 'phone'
+                            ? e.target.value.replace(/\D/g, '').slice(0, 10)
+                            : e.target.value,
+                        )
                         if (error) setError('')
                       }}
-                      placeholder="e.g. 40"
+                      placeholder={
+                        inferGeneralSettingType(newCode, newDescription) === 'phone'
+                          ? '10-digit mobile number'
+                          : 'e.g. 40'
+                      }
                       disabled={saving}
                       className="py-2"
                     />
@@ -331,13 +365,23 @@ export default function GeneralSettingsModal() {
                     <td className="px-4 py-3.5">
                       {isEditing ? (
                         <ModalInput
-                          type="number"
-                          min="0"
-                          step="1"
-                          inputMode={row.type === 'quantity' ? 'numeric' : 'decimal'}
+                          type={isTextLikeSettingType(row.type) ? 'tel' : 'number'}
+                          min={isTextLikeSettingType(row.type) ? undefined : '0'}
+                          step={isTextLikeSettingType(row.type) ? undefined : '1'}
+                          inputMode={
+                            row.type === 'phone'
+                              ? 'numeric'
+                              : row.type === 'quantity'
+                                ? 'numeric'
+                                : 'decimal'
+                          }
                           value={draftValue}
                           onChange={(e) => {
-                            setDraftValue(e.target.value)
+                            setDraftValue(
+                              row.type === 'phone'
+                                ? e.target.value.replace(/\D/g, '').slice(0, 10)
+                                : e.target.value,
+                            )
                             if (error) setError('')
                           }}
                           disabled={saving}
