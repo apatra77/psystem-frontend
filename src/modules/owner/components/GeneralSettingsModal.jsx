@@ -3,6 +3,7 @@ import { Check, Pencil, Plus, Settings, X } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput } from './PortalModal'
 import Spinner from '@/components/ui/Spinner'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
+import { inferGeneralSettingType } from '@/services/generalSettings'
 import { colors } from '@/theme/colors'
 
 function parseValue(value, type, label) {
@@ -34,6 +35,10 @@ function formatDisplayValue(row, value) {
   if (row.type === 'phone') return String(value ?? '').replace(/\D/g, '') || '—'
   if (row.type === 'quantity') return String(value ?? 0)
   return `₹${Number(value ?? 0).toLocaleString('en-IN')}`
+}
+
+function isTextLikeSettingType(type) {
+  return type === 'phone' || type === 'text'
 }
 
 function Th({ children, className = '' }) {
@@ -184,9 +189,11 @@ export default function GeneralSettingsModal() {
     }
 
     try {
+      const type = inferGeneralSettingType(code, description)
+      const parsed = parseValue(value, type, description)
       setSaving(true)
       setError('')
-      await createGeneralSetting({ code, description, value })
+      await createGeneralSetting({ code, description, value: parsed })
       cancelAdd()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create setting')
@@ -307,15 +314,27 @@ export default function GeneralSettingsModal() {
                   <td className="px-4 py-3.5 align-top">
                     <ModalFieldLabel>Value</ModalFieldLabel>
                     <ModalInput
-                      type="number"
-                      min="0"
-                      step="1"
+                      type={inferGeneralSettingType(newCode, newDescription) === 'phone' ? 'tel' : 'number'}
+                      min={inferGeneralSettingType(newCode, newDescription) === 'phone' ? undefined : '0'}
+                      step={inferGeneralSettingType(newCode, newDescription) === 'phone' ? undefined : '1'}
+                      inputMode={
+                        inferGeneralSettingType(newCode, newDescription) === 'phone' ? 'numeric' : 'decimal'
+                      }
                       value={newValue}
                       onChange={(e) => {
-                        setNewValue(e.target.value)
+                        const nextType = inferGeneralSettingType(newCode, newDescription)
+                        setNewValue(
+                          nextType === 'phone'
+                            ? e.target.value.replace(/\D/g, '').slice(0, 10)
+                            : e.target.value,
+                        )
                         if (error) setError('')
                       }}
-                      placeholder="e.g. 40"
+                      placeholder={
+                        inferGeneralSettingType(newCode, newDescription) === 'phone'
+                          ? '10-digit mobile number'
+                          : 'e.g. 40'
+                      }
                       disabled={saving}
                       className="py-2"
                     />
@@ -350,7 +369,11 @@ export default function GeneralSettingsModal() {
                           inputMode={row.type === 'phone' ? 'tel' : row.type === 'quantity' ? 'numeric' : 'decimal'}
                           value={draftValue}
                           onChange={(e) => {
-                            setDraftValue(e.target.value)
+                            setDraftValue(
+                              row.type === 'phone'
+                                ? e.target.value.replace(/\D/g, '').slice(0, 10)
+                                : e.target.value,
+                            )
                             if (error) setError('')
                           }}
                           disabled={saving}

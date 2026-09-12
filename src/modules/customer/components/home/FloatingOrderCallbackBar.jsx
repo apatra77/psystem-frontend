@@ -2,15 +2,20 @@ import { useEffect, useState } from 'react'
 import { Phone, X } from 'lucide-react'
 import CallbackRequestModal from '@/modules/customer/components/CallbackRequestModal'
 import { useAuthStore } from '@/app/store/authStore'
+import {
+  contactPhoneTelHref,
+  fetchStoreContactPhone,
+  formatContactPhoneDisplay,
+} from '@/services/generalSettings'
+import { colors } from '@/app/themes/colors'
 
 const DISMISS_KEY = 'mediq-order-callback-bar-dismissed'
-const SUPPORT_PHONE = '1800-212-2323'
-const SUPPORT_TEL = '18002122323'
 
 export default function FloatingOrderCallbackBar() {
   const authUser = useAuthStore((s) => s.user)
   const [visible, setVisible] = useState(false)
   const [phone, setPhone] = useState('')
+  const [supportPhone, setSupportPhone] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [phoneError, setPhoneError] = useState('')
 
@@ -23,6 +28,23 @@ export default function FloatingOrderCallbackBar() {
       setPhone(authUser.mobile.trim())
     }
   }, [authUser?.mobile])
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const value = await fetchStoreContactPhone()
+        if (!cancelled) setSupportPhone(value)
+      } catch {
+        if (!cancelled) setSupportPhone('')
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const dismiss = () => {
     sessionStorage.setItem(DISMISS_KEY, '1')
@@ -41,34 +63,63 @@ export default function FloatingOrderCallbackBar() {
 
   if (!visible) return null
 
+  const supportPhoneDisplay = formatContactPhoneDisplay(supportPhone)
+  const supportPhoneTel = contactPhoneTelHref(supportPhone)
+
   return (
     <>
       <div
-        className="fixed inset-x-0 bottom-0 z-[70] border-t border-[#e8e8e8] bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.12)]"
+        className="fixed inset-x-0 bottom-0 z-[70]"
+        style={{
+          background: colors.headerBg,
+          backdropFilter: 'blur(18px)',
+          WebkitBackdropFilter: 'blur(18px)',
+          borderTop: `1px solid ${colors.borderSubtle}`,
+          boxShadow: '0 -8px 32px rgba(0,0,0,0.45)',
+        }}
         role="region"
         aria-label="Order medicines callback"
       >
         <div className="relative mx-auto flex max-w-[1280px] flex-wrap items-center gap-3 px-4 py-3 pr-12 sm:gap-4 sm:px-6 sm:pr-6 lg:flex-nowrap lg:py-3.5">
           <div className="hidden min-w-0 flex-1 items-center gap-3 lg:flex">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1a73e8] text-white">
-              <Phone size={18} strokeWidth={2.2} />
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+              style={{ background: 'rgba(64,222,170,0.14)', border: '1px solid rgba(64,222,170,0.35)' }}
+            >
+              <Phone size={18} strokeWidth={2.2} style={{ color: colors.accent }} />
             </span>
-            <p className="m-0 text-[13px] leading-snug text-[#3b3b3b]">
-              Order Medicines… Call us at{' '}
-              <a href={`tel:${SUPPORT_TEL}`} className="font-extrabold text-[#10847e] no-underline hover:underline">
-                {SUPPORT_PHONE}
-              </a>{' '}
+            <p className="m-0 text-[13px] leading-snug" style={{ color: colors.textSecondary }}>
+              Order Medicines…
+              {supportPhoneDisplay ? (
+                <>
+                  {' '}
+                  Call us at{' '}
+                  <a
+                    href={supportPhoneTel}
+                    className="font-extrabold no-underline hover:underline"
+                    style={{ color: colors.accent }}
+                  >
+                    {supportPhoneDisplay}
+                  </a>
+                </>
+              ) : null}{' '}
               or get a free call back
             </p>
           </div>
 
-          <p className="m-0 w-full text-[12px] font-semibold leading-snug text-[#3b3b3b] lg:hidden">
+          <p className="m-0 w-full text-[12px] font-semibold leading-snug lg:hidden" style={{ color: colors.textMuted }}>
             Order medicines — get a free call back
           </p>
 
           <div className="flex w-full min-w-0 flex-1 items-center gap-2 sm:w-auto lg:flex-none lg:min-w-[280px]">
-            <div className="flex min-w-0 flex-1 items-center overflow-hidden rounded-[8px] border border-[#d8d8d8] bg-white">
-              <span className="flex shrink-0 items-center gap-1.5 border-r border-[#e5e5e5] px-2.5 py-2.5 text-[13px] font-bold text-[#333] sm:px-3">
+            <div
+              className="flex min-w-0 flex-1 items-center overflow-hidden rounded-[10px]"
+              style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${colors.border}` }}
+            >
+              <span
+                className="flex shrink-0 items-center gap-1.5 border-r px-2.5 py-2.5 text-[13px] font-bold sm:px-3"
+                style={{ borderColor: colors.borderSubtle, color: colors.textHighlight }}
+              >
                 <span aria-hidden="true">🇮🇳</span>
                 +91
               </span>
@@ -81,7 +132,8 @@ export default function FloatingOrderCallbackBar() {
                   setPhoneError('')
                 }}
                 placeholder="Enter Phone Number"
-                className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2.5 text-[13px] font-medium text-[#222] outline-none placeholder:text-[#999]"
+                className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2.5 text-[13px] font-semibold outline-none"
+                style={{ color: colors.textBright }}
                 maxLength={10}
               />
             </div>
@@ -89,8 +141,12 @@ export default function FloatingOrderCallbackBar() {
             <button
               type="button"
               onClick={openCallback}
-              className="inline-flex shrink-0 items-center gap-2 rounded-[8px] px-3 py-2.5 text-[11.5px] font-extrabold text-white cursor-pointer sm:px-4 sm:text-[12.5px]"
-              style={{ background: '#ff6f61', boxShadow: '0 4px 14px rgba(255,111,97,0.35)' }}
+              className="inline-flex shrink-0 items-center gap-2 rounded-[10px] px-3 py-2.5 text-[11.5px] font-extrabold cursor-pointer sm:px-4 sm:text-[12.5px]"
+              style={{
+                background: colors.primaryBtn,
+                color: colors.accentText,
+                boxShadow: '0 6px 18px rgba(64,222,170,0.35)',
+              }}
             >
               <Phone size={15} strokeWidth={2.2} className="hidden sm:block" />
               <span className="whitespace-nowrap">Get a Call to Order Medicines</span>
@@ -100,7 +156,8 @@ export default function FloatingOrderCallbackBar() {
           <button
             type="button"
             onClick={dismiss}
-            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-[#666] cursor-pointer hover:bg-[#f3f3f3] sm:static sm:shrink-0"
+            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full cursor-pointer sm:static sm:shrink-0"
+            style={{ color: colors.textMuted, background: 'rgba(255,255,255,0.06)' }}
             aria-label="Dismiss callback bar"
           >
             <X size={18} />
@@ -108,7 +165,7 @@ export default function FloatingOrderCallbackBar() {
         </div>
 
         {phoneError && (
-          <p className="mx-auto max-w-[1280px] px-4 pb-2 text-[11px] font-semibold text-red-500 sm:px-6" role="alert">
+          <p className="mx-auto max-w-[1280px] px-4 pb-2 text-[11px] font-semibold text-red-400 sm:px-6" role="alert">
             {phoneError}
           </p>
         )}

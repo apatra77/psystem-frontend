@@ -1,10 +1,10 @@
-import { ArrowRight, Menu, Smartphone, X } from 'lucide-react'
+import { ArrowRight, Menu, Phone, Smartphone, X } from 'lucide-react'
 import { useState } from 'react'
 import Logo from '../ui/Logo'
 import { NAV_LINKS } from '../../data/landingData'
 import { colors } from '../../theme/colors'
 
-export default function Header({ onAuth, onDownload }) {
+export default function Header({ onAuth, onDownload, onCallback }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
@@ -76,6 +76,19 @@ export default function Header({ onAuth, onDownload }) {
             Sign In / Get Started
             <ArrowRight size={14} />
           </button>
+          <button
+            type="button"
+            onClick={onCallback}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all"
+            style={{
+              background: 'rgba(64,222,170,0.08)',
+              border: '1px solid rgba(64,222,170,0.45)',
+              color: colors.textBright,
+            }}
+          >
+            <Phone size={15} strokeWidth={2.2} style={{ color: colors.accent }} aria-hidden="true" />
+            Request Call Back
+          </button>
         </div>
 
         <button
@@ -133,6 +146,22 @@ export default function Header({ onAuth, onDownload }) {
               style={{ background: colors.primaryBtn, color: colors.accentText }}
             >
               Sign In / Get Started
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onCallback?.()
+                setMenuOpen(false)
+              }}
+              className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold"
+              style={{
+                background: 'rgba(64,222,170,0.08)',
+                border: '1px solid rgba(64,222,170,0.45)',
+                color: colors.textBright,
+              }}
+            >
+              <Phone size={15} strokeWidth={2.2} style={{ color: colors.accent }} />
+              Request Call Back
             </button>
           </div>
         </div>

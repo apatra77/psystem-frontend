@@ -172,13 +172,6 @@ export const BEST_SELLERS = [
   { rank: 5, name: 'Metformin 500mg SR', units: 1840, revenueFmt: '₹58,880', pct: 35 },
 ]
 
-export const DEFAULT_GENERAL_SETTINGS = {
-  minOrderForDelivery: 299,
-  deliveryCharges: 40,
-  packingCharges: 20,
-  lowStockQuantity: 20,
-}
-
 export const PEAK_HOURS = [
   { label: '8a', pct: 13 }, { label: '9a', pct: 22 }, { label: '10a', pct: 35 }, { label: '11a', pct: 56 },
   { label: '12p', pct: 68 }, { label: '1p', pct: 61 }, { label: '2p', pct: 48 }, { label: '3p', pct: 42 },

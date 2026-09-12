@@ -1,21 +1,16 @@
 import { authFetch } from './api'
 
-/**
- * Stable backend codes (GeneralMasterService). Used only to define UI row order.
- * Values and labels come from GET /api/admin/general-master-setting on popup open.
- */
-export const GENERAL_SETTING_ROW_ORDER = [
-  { code: 'MIN_ORDER_DELIVERY_CHARGES', type: 'amount' },
-  { code: 'DELIVERY_CHARGES', type: 'amount' },
-  { code: 'PACKING_CHARGES', type: 'amount' },
-  { code: 'LOW_STOCK_QUANTITY', type: 'quantity' },
-]
+let inFlightRequest = null
 
-const FALLBACK_LABELS = {
-  MIN_ORDER_DELIVERY_CHARGES: 'Minimum order for Delivery Charges',
-  DELIVERY_CHARGES: 'Delivery charges',
-  PACKING_CHARGES: 'Packing charges',
-  LOW_STOCK_QUANTITY: 'Define low stock quantity',
+/** Infer display/edit type from DB code + description (no fixed code list). */
+export function inferGeneralSettingType(code, description = '') {
+  const haystack = `${String(code ?? '')} ${String(description ?? '')}`.toUpperCase()
+
+  if (/MOBILE|PHONE|CONTACT|WHATSAPP|TEL/.test(haystack)) return 'phone'
+  if (/EMAIL|MAIL/.test(haystack)) return 'text'
+  if (/QUANTITY|STOCK|QTY|COUNT/.test(haystack)) return 'quantity'
+
+  return 'amount'
 }
 
 function isPhoneSetting(code, description = '') {
@@ -34,7 +29,7 @@ function parseSettingValue(item, type) {
 
 let inFlightRequest = null
 
-/** Build modal rows from GET /api/admin/general-master-setting response. */
+/** Build modal rows purely from GET /api/admin/general-master-setting. */
 export function parseGeneralMasterSettingsResponse(payload) {
   const list = Array.isArray(payload?.data)
     ? payload.data
@@ -71,16 +66,11 @@ export function parseGeneralMasterSettingsResponse(payload) {
       value: parseSettingValue(item, type),
       type,
     })
-  })
+    .filter(Boolean)
 
-  const settings = {
-    minOrderForDelivery: rows.find((r) => r.code === 'MIN_ORDER_DELIVERY_CHARGES')?.value ?? 0,
-    deliveryCharges: rows.find((r) => r.code === 'DELIVERY_CHARGES')?.value ?? 0,
-    packingCharges: rows.find((r) => r.code === 'PACKING_CHARGES')?.value ?? 0,
-    lowStockQuantity: rows.find((r) => r.code === 'LOW_STOCK_QUANTITY')?.value ?? 0,
-  }
+  const settingsByCode = Object.fromEntries(rows.map((row) => [row.code, row.value]))
 
-  return { rows, settings }
+  return { rows, settingsByCode }
 }
 
 /** GET /api/admin/general-master-setting — fetch all general store settings. */
@@ -112,4 +102,54 @@ export async function createGeneralMasterSetting({ code, description, value }) {
       value: String(value).trim(),
     }),
   })
+}
+
+export function getNumericSetting(settingsByCode, code) {
+  const value = settingsByCode?.[code]
+  const num = Number(value)
+  return Number.isFinite(num) ? num : 0
+}
+
+export function formatContactPhoneDisplay(value) {
+  const raw = String(value ?? '').trim()
+  if (!raw) return ''
+
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length === 10) return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`
+  if (digits.length === 11 && digits.startsWith('0')) {
+    const local = digits.slice(1)
+    return `${local.slice(0, 4)}-${local.slice(4, 7)}-${local.slice(7)}`
+  }
+  if (digits.length === 12 && digits.startsWith('91')) {
+    const local = digits.slice(2)
+    return `+91 ${local.slice(0, 5)} ${local.slice(5)}`
+  }
+
+  return raw
+}
+
+export function contactPhoneTelHref(value) {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (!digits) return ''
+  if (digits.length === 10) return `tel:+91${digits}`
+  if (digits.length === 12 && digits.startsWith('91')) return `tel:+${digits}`
+  return `tel:${digits}`
+}
+
+let inFlightStoreContactRequest = null
+
+/** GET /api/public/store-contact — owner mobile for customer call bar (port 8080, no auth). */
+export async function fetchStoreContactPhone({ force = false } = {}) {
+  if (!force && inFlightStoreContactRequest) return inFlightStoreContactRequest
+
+  inFlightStoreContactRequest = authFetch('/api/public/store-contact')
+    .then((payload) => {
+      const data = payload?.data ?? payload ?? {}
+      return String(data.mobileNumber ?? data.value ?? '').trim()
+    })
+    .finally(() => {
+      inFlightStoreContactRequest = null
+    })
+
+  return inFlightStoreContactRequest
 }

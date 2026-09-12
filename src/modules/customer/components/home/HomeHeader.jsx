@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ChevronDown, MapPin, Menu, Phone, RotateCcw, ShoppingCart, X, Zap } from 'lucide-react'
-import CallbackRequestModal from '@/modules/customer/components/CallbackRequestModal'
+import { ChevronDown, MapPin, Menu, RotateCcw, ShoppingCart, X, Zap } from 'lucide-react'
 import ProductSearchAutocomplete from '@/modules/customer/components/ProductSearchAutocomplete'
 import Logo from '@/shared/ui/Logo'
 import CustomerProfileMenu from '@/modules/customer/components/CustomerProfileMenu'
@@ -47,7 +46,6 @@ export default function HomeHeader() {
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [addressMenuOpen, setAddressMenuOpen] = useState(false)
-  const [callbackModalOpen, setCallbackModalOpen] = useState(false)
 
   const cartCount = useCartStore((s) => s.items.length)
   const addresses = useOrderStore((s) => s.addresses)
@@ -215,24 +213,6 @@ export default function HomeHeader() {
             <button
               type="button"
               onClick={() => {
-                setCallbackModalOpen(true)
-                setAddressMenuOpen(false)
-                setMenuOpen(false)
-              }}
-              className="hidden md:inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-bold whitespace-nowrap cursor-pointer"
-              style={{
-                background: 'rgba(64,222,170,0.08)',
-                border: '1px solid rgba(64,222,170,0.45)',
-                color: colors.textBright,
-              }}
-            >
-              <Phone size={14} strokeWidth={2.2} style={{ color: colors.accent }} aria-hidden="true" />
-              Request a Call Back
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
                 setMenuOpen((open) => !open)
                 setAddressMenuOpen(false)
               }}
@@ -396,7 +376,6 @@ export default function HomeHeader() {
       />
     )}
 
-    {callbackModalOpen && <CallbackRequestModal onClose={() => setCallbackModalOpen(false)} />}
     </>
   )
 }

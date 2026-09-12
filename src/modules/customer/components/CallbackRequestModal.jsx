@@ -93,7 +93,7 @@ export default function CallbackRequestModal({
           >
             <CheckCircle2 size={28} style={{ color: colors.accent }} strokeWidth={2} />
           </div>
-          <h2 className="text-[17px] font-extrabold text-white mb-2">Request submitted</h2>
+          <h2 className="text-[17px] font-extrabold text-white mb-2">Thank you</h2>
           <p className="text-[13px] leading-relaxed m-0" style={{ color: colors.textSecondary }}>
             {SUCCESS_MESSAGE}
           </p>

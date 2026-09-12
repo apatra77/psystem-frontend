@@ -8,6 +8,7 @@ import CtaBanner from '../components/landing/CtaBanner'
 import Footer from '../components/landing/Footer'
 import AuthModal from '../components/modals/AuthModal'
 import DownloadModal from '../components/modals/DownloadModal'
+import CallbackRequestModal from '@/modules/customer/components/CallbackRequestModal'
 import { colors } from '../theme/colors'
 
 export default function LandingPage() {
@@ -15,6 +16,7 @@ export default function LandingPage() {
 
   const openAuth = () => setModal('auth')
   const openDownload = () => setModal('download')
+  const openCallback = () => setModal('callback')
 
   return (
     <div
@@ -25,7 +27,7 @@ export default function LandingPage() {
         color: colors.text,
       }}
     >
-      <Header onAuth={openAuth} onDownload={openDownload} />
+      <Header onAuth={openAuth} onDownload={openDownload} onCallback={openCallback} />
       <Hero onAuth={openAuth} onDownload={openDownload} />
       <Stats />
       <Features />
@@ -35,6 +37,7 @@ export default function LandingPage() {
 
       {modal === 'auth' && <AuthModal onClose={() => setModal(null)} />}
       {modal === 'download' && <DownloadModal onClose={() => setModal(null)} />}
+      {modal === 'callback' && <CallbackRequestModal onClose={() => setModal(null)} />}
     </div>
   )
 }

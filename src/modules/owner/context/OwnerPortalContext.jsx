@@ -8,7 +8,6 @@ import {
   INITIAL_STAFF,
   INITIAL_DOCTORS,
   INITIAL_STORE_PROFILES,
-  DEFAULT_GENERAL_SETTINGS,
 } from '../data/initialState'
 import { mapOrder, stockMeta } from '../utils/helpers'
 import { getStoredAuthUser, updateStoredUserProfile, skipProfileSetup as skipStoredProfileSetup } from '@/services/auth'
@@ -24,6 +23,7 @@ import { fetchUserProfile, updateAdminStoreStatus } from '@/services/user'
 import {
   createGeneralMasterSetting,
   fetchGeneralMasterSettings,
+  getNumericSetting,
   parseGeneralMasterSettingsResponse,
   patchGeneralMasterSetting,
 } from '@/services/generalSettings'
@@ -106,7 +106,7 @@ export function OwnerPortalProvider({ children }) {
   const [storeProfiles, setStoreProfiles] = useState(INITIAL_STORE_PROFILES)
   const [storeStatusUpdating, setStoreStatusUpdating] = useState(false)
   const [authUser, setAuthUser] = useState(() => getStoredAuthUser())
-  const [generalSettings, setGeneralSettings] = useState(() => ({ ...DEFAULT_GENERAL_SETTINGS }))
+  const [generalSettings, setGeneralSettings] = useState({})
   const [generalSettingRows, setGeneralSettingRows] = useState([])
   const [generalSettingsLoading, setGeneralSettingsLoading] = useState(false)
   const [generalSettingsError, setGeneralSettingsError] = useState(null)
@@ -203,9 +203,9 @@ export function OwnerPortalProvider({ children }) {
     setGeneralSettingsError(null)
     try {
       const payload = await fetchGeneralMasterSettings({ force })
-      const { rows, settings } = parseGeneralMasterSettingsResponse(payload)
+      const { rows, settingsByCode } = parseGeneralMasterSettingsResponse(payload)
       setGeneralSettingRows(rows)
-      setGeneralSettings((prev) => ({ ...prev, ...settings }))
+      setGeneralSettings(settingsByCode)
     } catch (err) {
       setGeneralSettingsError(err instanceof Error ? err.message : 'Failed to load settings')
     } finally {
@@ -235,14 +235,7 @@ export function OwnerPortalProvider({ children }) {
       prev.map((row) => (row.code === code ? { ...row, value } : row)),
     )
 
-    setGeneralSettings((prev) => {
-      const next = { ...prev }
-      if (code === 'MIN_ORDER_DELIVERY_CHARGES') next.minOrderForDelivery = value
-      if (code === 'DELIVERY_CHARGES') next.deliveryCharges = value
-      if (code === 'PACKING_CHARGES') next.packingCharges = value
-      if (code === 'LOW_STOCK_QUANTITY') next.lowStockQuantity = value
-      return next
-    })
+    setGeneralSettings((prev) => ({ ...prev, [code]: value }))
 
     toast.success('Setting saved')
   }, [])
@@ -422,7 +415,7 @@ export function OwnerPortalProvider({ children }) {
     const incomingFromApi = incomingOrders
       .map(mapOrder)
       .filter((order) => order.status === 'new')
-    const lowStockThreshold = generalSettings.lowStockQuantity ?? DEFAULT_GENERAL_SETTINGS.lowStockQuantity
+    const lowStockThreshold = getNumericSetting(generalSettings, 'LOW_STOCK_QUANTITY')
     const lowStock = products.filter((p) => p.stock <= lowStockThreshold)
 
     const productCategories = categories.length > 0
