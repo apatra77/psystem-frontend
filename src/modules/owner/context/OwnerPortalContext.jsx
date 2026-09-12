@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { pageToPath } from '../routes'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { pageToPath, pathToPage } from '../routes'
 import {
   INITIAL_ORDERS,
   INITIAL_PROMOS,
@@ -8,6 +8,7 @@ import {
   INITIAL_STAFF,
   INITIAL_DOCTORS,
   INITIAL_STORE_PROFILES,
+  DEFAULT_GENERAL_SETTINGS,
 } from '../data/initialState'
 import { mapOrder, stockMeta } from '../utils/helpers'
 import { getStoredAuthUser, updateStoredUserProfile, skipProfileSetup as skipStoredProfileSetup } from '@/services/auth'
@@ -20,6 +21,12 @@ import {
   parseAdminOrdersOverview,
 } from '@/services/orders'
 import { fetchUserProfile, updateAdminStoreStatus } from '@/services/user'
+import {
+  createGeneralMasterSetting,
+  fetchGeneralMasterSettings,
+  parseGeneralMasterSettingsResponse,
+  patchGeneralMasterSetting,
+} from '@/services/generalSettings'
 import { toast } from '@/app/store/uiStore'
 
 const OwnerPortalContext = createContext(null)
@@ -69,6 +76,9 @@ function applyGlobalStoreStatus(profiles, isStoreOpen) {
 
 export function OwnerPortalProvider({ children }) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const ownerPage = pathToPage(pathname)
+  const generalSettingsOpen = ownerPage === 'general-setting'
   const [activeOutlet, setActiveOutlet] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [outletMenuOpen, setOutletMenuOpen] = useState(false)
@@ -96,6 +106,10 @@ export function OwnerPortalProvider({ children }) {
   const [storeProfiles, setStoreProfiles] = useState(INITIAL_STORE_PROFILES)
   const [storeStatusUpdating, setStoreStatusUpdating] = useState(false)
   const [authUser, setAuthUser] = useState(() => getStoredAuthUser())
+  const [generalSettings, setGeneralSettings] = useState(() => ({ ...DEFAULT_GENERAL_SETTINGS }))
+  const [generalSettingRows, setGeneralSettingRows] = useState([])
+  const [generalSettingsLoading, setGeneralSettingsLoading] = useState(false)
+  const [generalSettingsError, setGeneralSettingsError] = useState(null)
 
   const updateAuthUser = useCallback((profile) => {
     const updated = updateStoredUserProfile(profile)
@@ -183,6 +197,61 @@ export function OwnerPortalProvider({ children }) {
     setNotifOpen(false)
     setProfileMenuOpen(false)
   }
+
+  const loadGeneralSettings = useCallback(async ({ force = false } = {}) => {
+    setGeneralSettingsLoading(true)
+    setGeneralSettingsError(null)
+    try {
+      const payload = await fetchGeneralMasterSettings({ force })
+      const { rows, settings } = parseGeneralMasterSettingsResponse(payload)
+      setGeneralSettingRows(rows)
+      setGeneralSettings((prev) => ({ ...prev, ...settings }))
+    } catch (err) {
+      setGeneralSettingsError(err instanceof Error ? err.message : 'Failed to load settings')
+    } finally {
+      setGeneralSettingsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (ownerPage === 'general-setting') {
+      loadGeneralSettings({ force: true })
+      return
+    }
+    setGeneralSettingsError(null)
+  }, [ownerPage, loadGeneralSettings])
+
+  const closeGeneralSettings = useCallback(() => {
+    if (ownerPage === 'general-setting') {
+      navigate('/owner')
+    }
+    setGeneralSettingsError(null)
+  }, [navigate, ownerPage])
+
+  const saveGeneralSetting = useCallback(async (code, value) => {
+    await patchGeneralMasterSetting(code, value)
+
+    setGeneralSettingRows((prev) =>
+      prev.map((row) => (row.code === code ? { ...row, value } : row)),
+    )
+
+    setGeneralSettings((prev) => {
+      const next = { ...prev }
+      if (code === 'MIN_ORDER_DELIVERY_CHARGES') next.minOrderForDelivery = value
+      if (code === 'DELIVERY_CHARGES') next.deliveryCharges = value
+      if (code === 'PACKING_CHARGES') next.packingCharges = value
+      if (code === 'LOW_STOCK_QUANTITY') next.lowStockQuantity = value
+      return next
+    })
+
+    toast.success('Setting saved')
+  }, [])
+
+  const createGeneralSetting = useCallback(async ({ code, description, value }) => {
+    await createGeneralMasterSetting({ code, description, value })
+    await loadGeneralSettings({ force: true })
+    toast.success('Setting created')
+  }, [loadGeneralSettings])
 
   const goToPage = useCallback(
     (next, { search } = {}) => {
@@ -353,7 +422,8 @@ export function OwnerPortalProvider({ children }) {
     const incomingFromApi = incomingOrders
       .map(mapOrder)
       .filter((order) => order.status === 'new')
-    const lowStock = products.filter((p) => p.stock <= 20)
+    const lowStockThreshold = generalSettings.lowStockQuantity ?? DEFAULT_GENERAL_SETTINGS.lowStockQuantity
+    const lowStock = products.filter((p) => p.stock <= lowStockThreshold)
 
     const productCategories = categories.length > 0
       ? categories
@@ -426,6 +496,15 @@ export function OwnerPortalProvider({ children }) {
       authUser,
       updateAuthUser,
       skipProfileSetup,
+      generalSettingsOpen,
+      closeGeneralSettings,
+      generalSettings,
+      generalSettingRows,
+      generalSettingsLoading,
+      generalSettingsError,
+      loadGeneralSettings,
+      saveGeneralSetting,
+      createGeneralSetting,
     }
   }, [
     goToPage,
@@ -473,6 +552,16 @@ export function OwnerPortalProvider({ children }) {
     authUser,
     updateAuthUser,
     skipProfileSetup,
+    ownerPage,
+    generalSettingsOpen,
+    closeGeneralSettings,
+    generalSettings,
+    generalSettingRows,
+    generalSettingsLoading,
+    generalSettingsError,
+    loadGeneralSettings,
+    saveGeneralSetting,
+    createGeneralSetting,
   ])
 
   return <OwnerPortalContext.Provider value={value}>{children}</OwnerPortalContext.Provider>

@@ -1,4 +1,4 @@
-import { ChevronLeft, LayoutGrid, Link2, Package, Users, ClipboardList, BarChart3, Archive, Stethoscope } from 'lucide-react'
+import { ChevronLeft, LayoutGrid, Link2, Package, Users, ClipboardList, BarChart3, Archive, Stethoscope, Settings, PhoneCall } from 'lucide-react'
 import { useOwnerPortal } from '../context/OwnerPortalContext'
 import { useOwnerPage } from '../routes'
 import { colors } from '@/theme/colors'
@@ -25,6 +25,13 @@ const NAV = [
     items: [
       { id: 'staff', label: 'Staff & Roles', icon: Users },
       { id: 'doctors', label: 'Doctor Management', icon: Stethoscope },
+    ],
+  },
+  {
+    section: 'OTHERS',
+    items: [
+      { id: 'general-setting', label: 'General Setting', icon: Settings },
+      { id: 'callback-requests', label: 'Callback Requests', icon: PhoneCall },
     ],
   },
 ]

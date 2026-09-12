@@ -12,6 +12,8 @@ export const OWNER_PAGES = [
   'staff',
   'doctors',
   'store',
+  'general-setting',
+  'callback-requests',
   'profile',
 ]
 
