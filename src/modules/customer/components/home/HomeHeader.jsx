@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { ChevronDown, MapPin, Menu, RotateCcw, ShoppingCart, X, Zap } from 'lucide-react'
 import ProductSearchAutocomplete from '@/modules/customer/components/ProductSearchAutocomplete'
 import Logo from '@/shared/ui/Logo'
@@ -28,7 +28,21 @@ function getAddressLines(address) {
  * category strip). Below `lg` the pincode chip and category strip collapse into
  * a disclosure panel so the row never wraps on a phone.
  */
+function resolveHomeNavPath(item) {
+  if (item.to && PATHS.customer[item.to]) return PATHS.customer[item.to]
+  if (item.slug) return buildPath(PATHS.customer.category, { slug: item.slug })
+  return PATHS.customer.home
+}
+
+function isHomeNavActive(item, pathname) {
+  const target = resolveHomeNavPath(item)
+  if (item.to === 'consultation') return pathname === PATHS.customer.consultation
+  if (item.slug) return pathname.includes(`/category/${item.slug}`)
+  return pathname === target
+}
+
 export default function HomeHeader() {
+  const location = useLocation()
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [addressMenuOpen, setAddressMenuOpen] = useState(false)
@@ -68,8 +82,6 @@ export default function HomeHeader() {
   }, [addressesLoadedFromApi, setAddressesFromApi])
 
   const activePincode = selectedAddress?.pincode || '—'
-
-  const categoryPath = (slug) => buildPath(PATHS.customer.category, { slug })
 
   const toggleAddressMenu = () => {
     setAddressMenuOpen((open) => !open)
@@ -227,20 +239,23 @@ export default function HomeHeader() {
 
       <div className={`${SECTION_MAX} ${SECTION_X} hidden lg:block`} style={{ borderTop: '1px solid rgba(255,255,255,.05)' }}>
         <nav className="flex items-center gap-0.5 text-[13px] font-semibold" aria-label="Categories">
-          {HOME_NAV.map((item, i) => (
-            <Link
-              key={item.slug}
-              to={categoryPath(item.slug)}
-              className="px-4 py-2.5 transition-colors"
-              style={
-                i === 0
-                  ? { color: colors.textBright, borderBottom: `2px solid ${colors.accent}` }
-                  : { color: colors.textMuted }
-              }
-            >
-              {item.label}
-            </Link>
-          ))}
+          {HOME_NAV.map((item) => {
+            const active = isHomeNavActive(item, location.pathname)
+            return (
+              <Link
+                key={item.label}
+                to={resolveHomeNavPath(item)}
+                className="px-4 py-2.5 transition-colors"
+                style={
+                  active
+                    ? { color: colors.textBright, borderBottom: `2px solid ${colors.accent}` }
+                    : { color: colors.textMuted }
+                }
+              >
+                {item.label}
+              </Link>
+            )
+          })}
           <Link
             to={PATHS.customer.search}
             className="ml-auto flex items-center gap-1.5 px-4 py-2.5"
@@ -335,8 +350,8 @@ export default function HomeHeader() {
           <div className="grid grid-cols-2 gap-1.5">
             {HOME_NAV.map((item) => (
               <Link
-                key={item.slug}
-                to={categoryPath(item.slug)}
+                key={item.label}
+                to={resolveHomeNavPath(item)}
                 onClick={() => setMenuOpen(false)}
                 className="rounded-[10px] px-3 py-2.5 text-[13px] font-semibold"
                 style={{ color: colors.textMuted, background: 'rgba(255,255,255,.05)' }}

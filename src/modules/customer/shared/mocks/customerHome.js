@@ -15,7 +15,7 @@ export const TICKER_OFFERS = [
 export const HOME_NAV = [
   { label: 'Medicines', slug: 'medicines' },
   { label: 'Lab Tests', slug: 'lab-tests' },
-  { label: 'Doctor Consult', slug: 'consult' },
+  { label: 'Doctor Consultation', to: 'consultation' },
   { label: 'Devices', slug: 'devices' },
 ]
 
@@ -195,6 +195,7 @@ export const FOOTER_COLUMNS = [
   {
     title: 'SERVICES',
     links: [
+      { label: 'Doctor consultation', to: 'consultation' },
       { label: 'Custom order', to: 'customOrder' },
       { label: 'Order tracking', to: 'orders' },
       { label: 'Notifications', to: 'notifications' },

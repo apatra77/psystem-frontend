@@ -23,6 +23,7 @@ export const ROUTES = {
     product: '/customer/product/:id',
     prescription: '/customer/prescription-upload',
     customOrder: '/customer/custom-order',
+    consultation: '/customer/doctor-consultation',
     cart: '/customer/cart',
     checkout: '/customer/checkout',
     payment: '/customer/payment/:orderId',
