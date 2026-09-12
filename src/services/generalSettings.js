@@ -18,6 +18,20 @@ const FALLBACK_LABELS = {
   LOW_STOCK_QUANTITY: 'Define low stock quantity',
 }
 
+function isPhoneSetting(code, description = '') {
+  const key = `${code} ${description}`.toUpperCase()
+  return key.includes('MOBILE') || key.includes('PHONE')
+}
+
+function parseSettingValue(item, type) {
+  const raw = item?.value
+  if (type === 'phone') {
+    return String(raw ?? '').replace(/\D/g, '')
+  }
+  const num = Number(raw)
+  return Number.isFinite(num) ? num : 0
+}
+
 let inFlightRequest = null
 
 /** Build modal rows from GET /api/admin/general-master-setting response. */
@@ -34,13 +48,14 @@ export function parseGeneralMasterSettingsResponse(payload) {
 
   const knownCodes = new Set(GENERAL_SETTING_ROW_ORDER.map(({ code }) => code))
 
-  const rows = GENERAL_SETTING_ROW_ORDER.map(({ code, type }) => {
+  const rows = GENERAL_SETTING_ROW_ORDER.map(({ code, type: defaultType }) => {
     const item = byCode.get(code)
-    const num = Number(item?.value)
+    const description = item?.description?.trim() || FALLBACK_LABELS[code] || code
+    const type = isPhoneSetting(code, description) ? 'phone' : defaultType
     return {
       code,
-      label: item?.description?.trim() || FALLBACK_LABELS[code] || code,
-      value: Number.isFinite(num) ? num : 0,
+      label: description,
+      value: parseSettingValue(item, type),
       type,
     }
   })
@@ -48,12 +63,13 @@ export function parseGeneralMasterSettingsResponse(payload) {
   list.forEach((item) => {
     const code = String(item?.code ?? '').trim()
     if (!code || knownCodes.has(code)) return
-    const num = Number(item?.value)
+    const description = item?.description?.trim() || code
+    const type = isPhoneSetting(code, description) ? 'phone' : 'amount'
     rows.push({
       code,
-      label: item?.description?.trim() || code,
-      value: Number.isFinite(num) ? num : 0,
-      type: 'amount',
+      label: description,
+      value: parseSettingValue(item, type),
+      type,
     })
   })
 
