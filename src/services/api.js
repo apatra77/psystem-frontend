@@ -5,6 +5,7 @@ export const PRODUCT_API_BASE = 'http://66.116.246.58:8081'
 export const CART_API_BASE = 'http://66.116.246.58:8083'
 export const PAYMENT_API_BASE = 'http://66.116.246.58:8084'
 export const INVENTORY_API_BASE = 'http://66.116.246.58:8085'
+export const DOCTOR_API_BASE = 'http://66.116.246.58:8086'
 const AUTH_TOKEN_KEY = 'authToken'
 
 let handlingUnauthorized = false

@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react'
 import ProductCard from '@/modules/customer/components/ProductCard'
 import SearchInput from '@/shared/ui/SearchInput'
 import Button from '@/shared/ui/Button'
 import EmptyState from '@/shared/ui/EmptyState'
 import PageHeader from '@/shared/ui/PageHeader'
+import DropdownSelect from '@/shared/ui/DropdownSelect'
 import { ShimmerBar, ShimmerCard } from '@/shared/components/shimmer/primitives'
 import { useCatalogStore } from '@/app/store/catalogStore'
 import { useCustomerProductBrowse } from '@/modules/customer/hooks/useCustomerProductBrowse'
 import { useCustomerProductSearch } from '@/modules/customer/hooks/useCustomerProductSearch'
+import { PATHS, buildPath } from '@/app/router/paths'
 import { fetchCategories } from '@/services/products'
 import { BRANDS, SORT_OPTIONS } from '@/shared/mocks/catalog'
 import { colors } from '@/app/themes/colors'
@@ -115,19 +117,29 @@ function ShopPagination({
 
 export default function SearchPage() {
   const { slug } = useParams()
+  const navigate = useNavigate()
   const { state } = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') ?? ''
   const [page, setPage] = useState(1)
   const [refreshKey, setRefreshKey] = useState(0)
   const [keywordDraft, setKeywordDraft] = useState(urlQuery)
+  const resultsTopRef = useRef(null)
+  const scrollAfterPageChangeRef = useRef(false)
 
   const { filters, setFilter, resetFilters, toggleBrand, categories } = useCatalogStore()
   const fromDeals = state?.fromDeals === true
   const isSearchMode = urlQuery.trim().length > 0
+  const activeCategorySlug =
+    slug ?? (filters.category !== 'all' ? filters.category : '')
 
   const searchState = useCustomerProductSearch(urlQuery, { page, enabled: isSearchMode, refreshKey })
-  const browseState = useCustomerProductBrowse({ page, categorySlug: slug ?? '', enabled: !isSearchMode, refreshKey })
+  const browseState = useCustomerProductBrowse({
+    page,
+    categorySlug: activeCategorySlug,
+    enabled: !isSearchMode,
+    refreshKey,
+  })
 
   const apiState = isSearchMode ? searchState : browseState
   const {
@@ -196,9 +208,9 @@ export default function SearchPage() {
     () =>
       applyClientFilters(apiProducts, filters, {
         skipQuery: isSearchMode,
-        skipCategory: Boolean(slug),
+        skipCategory: Boolean(activeCategorySlug),
       }),
-    [apiProducts, filters, isSearchMode, slug],
+    [apiProducts, filters, isSearchMode, activeCategorySlug],
   )
 
   const displayProducts = useMemo(
@@ -213,12 +225,50 @@ export default function SearchPage() {
     setPage(1)
   }
 
+  const scrollToResultsTop = useCallback(() => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    resultsTopRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'start',
+    })
+  }, [])
+
+  const handlePageChange = useCallback((nextPage) => {
+    scrollAfterPageChangeRef.current = true
+    setPage(nextPage)
+  }, [])
+
+  const handleCategoryChange = useCallback(
+    (category) => {
+      setPage(1)
+
+      if (category === 'all') {
+        setFilter({ category: 'all' })
+        if (slug) navigate(PATHS.customer.search)
+        return
+      }
+
+      setFilter({ category })
+
+      if (slug) {
+        navigate(buildPath(PATHS.customer.category, { slug: category }))
+      }
+    },
+    [navigate, setFilter, slug],
+  )
+
+  useEffect(() => {
+    if (!scrollAfterPageChangeRef.current || loading) return
+    scrollAfterPageChangeRef.current = false
+    scrollToResultsTop()
+  }, [page, loading, scrollToResultsTop])
+
   const pageTitle = isSearchMode
     ? `Results for "${urlQuery.trim()}"`
     : fromDeals
       ? 'Deals of the day'
-      : slug
-        ? categories.find((c) => c.slug === slug)?.name ?? 'Browse'
+      : activeCategorySlug
+        ? categories.find((c) => c.slug === activeCategorySlug)?.name ?? 'Browse'
         : 'Shop'
 
   const subtitle = totalElements === 0
@@ -229,20 +279,31 @@ export default function SearchPage() {
       ? `${filteredProducts.length.toLocaleString('en-IN')} product(s) match your filters · ${totalElements.toLocaleString('en-IN')} total`
       : `Showing ${rangeStart.toLocaleString('en-IN')} to ${rangeEnd.toLocaleString('en-IN')} of ${totalElements.toLocaleString('en-IN')} products`
 
+  const paginationProps = {
+    currentPage,
+    totalPages,
+    pageNumbers,
+    rangeStart,
+    rangeEnd,
+    totalElements,
+    loading,
+    onChange: handlePageChange,
+  }
+
   return (
-    <div>
+    <div ref={resultsTopRef} className="scroll-mt-24">
       <PageHeader
         title={pageTitle}
         subtitle={subtitle}
         actions={
-          <select
+          <DropdownSelect
             value={filters.sort}
-            onChange={(e) => setFilter({ sort: e.target.value })}
-            className="rounded-[11px] px-3 py-2 text-[12.5px] outline-none"
-            style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}
-          >
-            {SORT_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-          </select>
+            onChange={(sort) => setFilter({ sort })}
+            options={SORT_OPTIONS}
+            minWidth={190}
+            align="right"
+            ariaLabel="Sort products"
+          />
         }
       />
 
@@ -274,15 +335,16 @@ export default function SearchPage() {
           </FilterBlock>
 
           <FilterBlock title="Category">
-            <select
+            <DropdownSelect
               value={filters.category}
-              onChange={(e) => setFilter({ category: e.target.value })}
-              className="w-full rounded-[11px] px-3 py-2.5 text-[12.5px] outline-none"
-              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}
-            >
-              <option value="all">All categories</option>
-              {categories.map((c) => <option key={c.id} value={c.slug}>{c.name}</option>)}
-            </select>
+              onChange={handleCategoryChange}
+              options={[
+                { id: 'all', label: 'All categories' },
+                ...categories.map((c) => ({ id: c.slug, label: c.name })),
+              ]}
+              fullWidth
+              ariaLabel="Filter by category"
+            />
           </FilterBlock>
 
           <FilterBlock title={`Max price · ₹${filters.maxPrice}`}>
@@ -359,16 +421,7 @@ export default function SearchPage() {
       </div>
 
       {!loading && !apiError && totalElements > 0 && displayProducts.length > 0 && (
-        <ShopPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          pageNumbers={pageNumbers}
-          rangeStart={rangeStart}
-          rangeEnd={rangeEnd}
-          totalElements={totalElements}
-          loading={loading}
-          onChange={setPage}
-        />
+        <ShopPagination {...paginationProps} />
       )}
     </div>
   )

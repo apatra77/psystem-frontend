@@ -29,6 +29,7 @@ const NotificationsPage = lazy(() => import('@/modules/customer/pages/Notificati
 const SupportPage = lazy(() => import('@/modules/customer/pages/SupportPage'))
 const ChatPage = lazy(() => import('@/modules/customer/pages/ChatPage'))
 const ComplaintsPage = lazy(() => import('@/modules/customer/pages/ComplaintsPage'))
+const DoctorConsultationPage = lazy(() => import('@/modules/customer/pages/DoctorConsultationPage'))
 
 /** Customer portal routes mounted under `/customer/*`. */
 export default function CustomerRouter() {
@@ -47,6 +48,7 @@ export default function CustomerRouter() {
             <Route path="cart" element={suspend(<CartPage />, 'cart')} />
             <Route path="prescription-upload" element={suspend(<PrescriptionUploadPage />, 'prescriptionUpload')} />
             <Route path="custom-order" element={suspend(<CustomOrderPage />, 'customOrder')} />
+            <Route path="doctor-consultation" element={suspend(<DoctorConsultationPage />, 'productGrid')} />
             <Route path="support" element={suspend(<SupportPage />, 'support')} />
             <Route path="about" element={suspend(<StaticContentPage slug="about" />, 'static')} />
             <Route path="contact" element={suspend(<ContactPage />, 'contact')} />

@@ -7,9 +7,7 @@ import {
   HomeHeader,
   HomeHero,
   OfferTicker,
-  PrescriptionBand,
   ProductRail,
-  ServiceCards,
 } from '@/modules/customer/components/home'
 import { RAILS } from '@/shared/mocks/customerHome'
 import { colors } from '@/app/themes/colors'
@@ -89,8 +87,6 @@ export default function CustomerLandingPage() {
           <ProductRail key={rail.id} rail={rail} loading={rail.id === 'deals' && dealsLoading} />
         ))}
 
-        <PrescriptionBand />
-        <ServiceCards />
         <AppTrustBand />
       </main>
 
