@@ -1,4 +1,5 @@
 export { default as AppTrustBand } from './AppTrustBand'
+export { default as FloatingOrderCallbackBar } from './FloatingOrderCallbackBar'
 export { default as CategoryAisles } from './CategoryAisles'
 export { default as HomeFooter } from './HomeFooter'
 export { default as HomeHeader } from './HomeHeader'

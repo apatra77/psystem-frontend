@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   AppTrustBand,
   CategoryAisles,
+  FloatingOrderCallbackBar,
   HomeFooter,
   HomeHeader,
   HomeHero,
@@ -76,7 +77,7 @@ export default function CustomerLandingPage() {
   )
 
   return (
-    <div style={{ background: colors.pageBg, color: colors.text, overflowX: 'clip' }}>
+    <div className="pb-[88px] sm:pb-[76px]" style={{ background: colors.pageBg, color: colors.text, overflowX: 'clip' }}>
       <OfferTicker />
       <HomeHeader />
 
@@ -94,6 +95,7 @@ export default function CustomerLandingPage() {
       </main>
 
       <HomeFooter />
+      <FloatingOrderCallbackBar />
     </div>
   )
 }

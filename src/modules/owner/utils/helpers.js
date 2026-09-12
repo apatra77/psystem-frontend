@@ -383,5 +383,13 @@ export const PAGE_META = {
   staff: { title: 'Staff & Roles', subtitleKey: 'staffOutlet' },
   doctors: { title: 'Doctor Management', subtitle: 'Manage consulting doctors and availability' },
   store: { title: 'Store Profile', subtitle: 'Hours, location and delivery radius' },
+  'general-setting': {
+    title: 'General Setting',
+    subtitle: 'View and update store configuration values.',
+  },
+  'callback-requests': {
+    title: 'Callback Requests',
+    subtitle: 'Review customer callback requests and mark them as contacted.',
+  },
   profile: { title: 'My Profile', subtitle: 'Manage your personal information' },
 }

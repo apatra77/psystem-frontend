@@ -11,6 +11,8 @@ import ProductsLayout from '../views/products/ProductsLayout'
 import ProductFormModal from '../views/products/ProductFormModal'
 import MyProfileView from '../views/MyProfileView'
 import InventoryView from '../views/InventoryView'
+import GeneralSettingView from '../views/GeneralSettingView'
+import CallbackRequestsView from '../views/CallbackRequestsView'
 import {
   DiscountsView,
   DoctorManagementView,
@@ -44,6 +46,8 @@ export default function OwnerRouter() {
         <Route path="staff" element={<StaffView />} />
         <Route path="doctors" element={<DoctorManagementView />} />
         <Route path="store" element={<StoreView />} />
+        <Route path="general-setting" element={<GeneralSettingView />} />
+        <Route path="callback-requests" element={<CallbackRequestsView />} />
         <Route path="profile" element={<MyProfileView />} />
         <Route path="*" element={<Navigate to="/owner" replace />} />
       </Route>
