@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { ArrowRight, Upload } from 'lucide-react'
 import { PATHS } from '@/app/router/paths'
 import useParallax from '@/shared/hooks/useParallax'
 import useMediaQuery from '@/shared/hooks/useMediaQuery'
@@ -74,17 +75,17 @@ export default function HomeHero() {
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               to={PATHS.customer.search}
-              className="rounded-[12px] px-7 py-3.5 text-[13px] font-extrabold"
-              style={{ background: colors.primaryBtn, color: colors.accentText, boxShadow: '0 8px 24px rgba(64,222,170,.4)' }}
+              className="inline-flex items-center gap-2 rounded-[12px] bg-[#35D6A3] px-6 py-3 text-[13px] font-extrabold text-[#002D21] shadow-[0_6px_20px_rgba(53,214,163,0.35)] transition hover:brightness-110 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#35D6A3]"
             >
               Order medicines
+              <ArrowRight size={16} strokeWidth={2.5} aria-hidden="true" />
             </Link>
             <Link
               to={PATHS.customer.prescription}
-              className="rounded-[12px] px-7 py-3.5 text-[13px] font-bold"
-              style={{ background: 'rgba(255,255,255,.07)', border: `1px solid ${colors.borderStrong}`, color: colors.textBright }}
+              className="inline-flex items-center gap-2 rounded-[12px] border border-[rgba(130,210,185,0.28)] bg-[rgba(255,255,255,0.05)] px-6 py-3 text-[13px] font-semibold text-white transition hover:bg-[rgba(255,255,255,0.08)] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#35D6A3]"
             >
-              ℞ Upload prescription
+              <Upload size={16} strokeWidth={2.2} aria-hidden="true" />
+              Upload prescription
             </Link>
           </div>
 
