@@ -172,9 +172,6 @@ export const SERVICES = [
 
 export const TRUST_BADGES = [
   { label: 'UPI', strong: false },
-  { label: 'Visa', strong: false },
-  { label: 'Mastercard', strong: false },
-  { label: 'RuPay', strong: false },
   { label: 'COD', strong: false },
   { label: '256-bit SSL', strong: true },
   { label: 'NABL Labs', strong: true },
