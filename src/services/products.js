@@ -378,7 +378,6 @@ export function mapProductToCustomerCatalog(item, categories = []) {
   const packings = Array.isArray(item.packings) ? item.packings : []
   const looseMeta = resolveProductLooseMeta(item)
   const looseSaleAllowed = resolveLooseSaleAllowed(item, item)
-  const idNum = Number(base.id) || 0
   const mrp = base.mrp || base.price
   const price = base.price
   const off = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0
@@ -387,9 +386,6 @@ export function mapProductToCustomerCatalog(item, categories = []) {
     ...base,
     brand: pick(item, 'genericName', 'brand') ?? 'MEDIQ',
     pack: formatPackingLabel(packings[0]),
-    rating: Math.round((4.4 + (idNum % 5) * 0.1) * 10) / 10,
-    reviews: 800 + ((idNum * 137) % 24000),
-    eta: idNum % 4 === 0 ? 'Tomorrow' : '2 hrs',
     desc: pick(item, 'description', 'desc') ?? '',
     off,
     looseQuantity: looseSaleAllowed,
@@ -414,12 +410,6 @@ export function mapProductToRailItem(product) {
     price,
     mrp,
     off,
-    rating: String(typeof product.rating === 'number' ? product.rating.toFixed(1) : product.rating),
-    reviews:
-      typeof product.reviews === 'number'
-        ? product.reviews.toLocaleString('en-IN')
-        : String(product.reviews ?? ''),
-    eta: product.eta ?? '2 hrs',
     chip:
       product.looseQuantity
         ? 'Loose available'
@@ -570,8 +560,8 @@ export async function fetchProductsByCategory(categoryId, categories = [], { for
   return request
 }
 
-/** Parse paginated GET /api/products/search response for the customer shop. */
-export function parseCustomerProductsSearchPage(payload, categories = []) {
+/** Parse paginated product list responses for the customer shop. */
+export function parseCustomerProductsPage(payload, categories = []) {
   const data = payload?.data ?? payload
   const content = extractApiList(payload, ['products'])
 
@@ -584,7 +574,56 @@ export function parseCustomerProductsSearchPage(payload, categories = []) {
   }
 }
 
+/** @deprecated Use parseCustomerProductsPage */
+export function parseCustomerProductsSearchPage(payload, categories = []) {
+  return parseCustomerProductsPage(payload, categories)
+}
+
+const inFlightCustomerProductsPageRequests = new Map()
 const inFlightProductsSearchRequests = new Map()
+
+export async function fetchCustomerProductsPage(
+  categories = [],
+  { page = 0, size = OWNER_PRODUCTS_PAGE_SIZE, force = false } = {},
+) {
+  const query = buildProductsPageQuery({ page, size })
+  const path = `/api/products?${query}`
+
+  if (!force && inFlightCustomerProductsPageRequests.has(path)) {
+    return inFlightCustomerProductsPageRequests.get(path)
+  }
+
+  const request = authFetch(path, {}, PRODUCT_API_BASE)
+    .then((payload) => parseCustomerProductsPage(payload, categories))
+    .finally(() => {
+      inFlightCustomerProductsPageRequests.delete(path)
+    })
+
+  inFlightCustomerProductsPageRequests.set(path, request)
+  return request
+}
+
+export async function fetchCustomerProductsByCategoryPage(
+  categoryId,
+  categories = [],
+  { page = 0, size = OWNER_PRODUCTS_PAGE_SIZE, force = false } = {},
+) {
+  const query = buildProductsPageQuery({ page, size })
+  const path = `/api/products/by-category/${encodeURIComponent(categoryId)}?${query}`
+
+  if (!force && inFlightCustomerProductsPageRequests.has(path)) {
+    return inFlightCustomerProductsPageRequests.get(path)
+  }
+
+  const request = authFetch(path, {}, PRODUCT_API_BASE)
+    .then((payload) => parseCustomerProductsPage(payload, categories))
+    .finally(() => {
+      inFlightCustomerProductsPageRequests.delete(path)
+    })
+
+  inFlightCustomerProductsPageRequests.set(path, request)
+  return request
+}
 
 export async function fetchProductsSearchPage(
   query,
@@ -607,7 +646,7 @@ export async function fetchProductsSearchPage(
   }
 
   const request = authFetch(path, {}, PRODUCT_API_BASE)
-    .then((payload) => parseCustomerProductsSearchPage(payload, categories))
+    .then((payload) => parseCustomerProductsPage(payload, categories))
     .finally(() => {
       inFlightProductsSearchRequests.delete(path)
     })

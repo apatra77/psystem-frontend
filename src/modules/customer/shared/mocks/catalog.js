@@ -26,8 +26,6 @@ export const SORT_OPTIONS = [
   { id: 'relevance', label: 'Relevance' },
   { id: 'price-asc', label: 'Price: low to high' },
   { id: 'price-desc', label: 'Price: high to low' },
-  { id: 'rating', label: 'Top rated' },
-  { id: 'eta', label: 'Fastest delivery' },
 ]
 
 export const BRANDS = [...new Set(PRODUCTS.map((p) => p.brand))].sort()

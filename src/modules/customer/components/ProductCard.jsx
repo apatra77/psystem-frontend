@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Heart, Star } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import Badge from '@/shared/ui/Badge'
 import CartAddControl from '@/modules/customer/components/CartAddControl'
 import { PATHS, buildPath } from '@/app/router/paths'
@@ -35,19 +35,6 @@ export default function ProductCard({ product }) {
         <h3 className="text-[14px] font-extrabold leading-snug" style={{ color: colors.textBright }}>{product.name}</h3>
         <p className="text-[12px] mt-1" style={{ color: colors.textDim }}>{product.brand} · {product.pack}</p>
       </Link>
-
-      <div className="flex items-center gap-1.5 mt-2 text-[12px]" style={{ color: colors.textMuted }}>
-        <Star size={12} fill={colors.gold} style={{ color: colors.gold }} />
-        {product.rating}{' '}
-        <span style={{ color: colors.textDim }}>
-          (
-          {typeof product.reviews === 'number'
-            ? product.reviews.toLocaleString('en-IN')
-            : product.reviews}
-          )
-        </span>
-        <span className="ml-auto" style={{ color: colors.accentSoft }}>{product.eta}</span>
-      </div>
 
       <div className="flex items-end justify-between gap-2 mt-4">
         <div>

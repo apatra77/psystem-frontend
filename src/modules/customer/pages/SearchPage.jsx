@@ -8,8 +8,9 @@ import EmptyState from '@/shared/ui/EmptyState'
 import PageHeader from '@/shared/ui/PageHeader'
 import { ShimmerBar, ShimmerCard } from '@/shared/components/shimmer/primitives'
 import { useCatalogStore } from '@/app/store/catalogStore'
+import { useCustomerProductBrowse } from '@/modules/customer/hooks/useCustomerProductBrowse'
 import { useCustomerProductSearch } from '@/modules/customer/hooks/useCustomerProductSearch'
-import { fetchCustomerProducts } from '@/services/products'
+import { fetchCategories } from '@/services/products'
 import { BRANDS, SORT_OPTIONS } from '@/shared/mocks/catalog'
 import { colors } from '@/app/themes/colors'
 
@@ -24,31 +25,27 @@ function FilterBlock({ title, children }) {
 
 function sortProducts(list, sort) {
   const sorted = [...list]
-  const etaMinutes = (eta) => Number(String(eta).match(/\d+/)?.[0] ?? 999)
 
   if (sort === 'price-asc') sorted.sort((a, b) => a.price - b.price)
   if (sort === 'price-desc') sorted.sort((a, b) => b.price - a.price)
-  if (sort === 'rating') sorted.sort((a, b) => b.rating - a.rating)
-  if (sort === 'eta') sorted.sort((a, b) => etaMinutes(a.eta) - etaMinutes(b.eta))
   return sorted
 }
 
-function applyClientFilters(products, filters, { skipQuery = false } = {}) {
+function applyClientFilters(products, filters, { skipQuery = false, skipCategory = false } = {}) {
   const q = skipQuery ? '' : filters.query.trim().toLowerCase()
 
   return products.filter((p) => {
     if (q && !`${p.name} ${p.brand} ${p.desc}`.toLowerCase().includes(q)) return false
-    if (filters.category !== 'all' && p.cat !== filters.category) return false
+    if (!skipCategory && filters.category !== 'all' && p.cat !== filters.category) return false
     if (filters.brands.length && !filters.brands.includes(p.brand)) return false
     if (p.price < filters.minPrice || p.price > filters.maxPrice) return false
-    if (p.rating < filters.minRating) return false
     if (filters.rxOnly && !p.rx) return false
     if (filters.inStockOnly && p.stock <= 0) return false
     return true
   })
 }
 
-function SearchPagination({
+function ShopPagination({
   currentPage,
   totalPages,
   pageNumbers,
@@ -122,38 +119,40 @@ export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') ?? ''
   const [page, setPage] = useState(1)
+  const [refreshKey, setRefreshKey] = useState(0)
   const [keywordDraft, setKeywordDraft] = useState(urlQuery)
 
-  const { filters, setFilter, resetFilters, toggleBrand, categories, loading: browseLoading } = useCatalogStore()
-  const browseResults = useCatalogStore((s) => s.results())
+  const { filters, setFilter, resetFilters, toggleBrand, categories } = useCatalogStore()
   const fromDeals = state?.fromDeals === true
+  const isSearchMode = urlQuery.trim().length > 0
 
+  const searchState = useCustomerProductSearch(urlQuery, { page, enabled: isSearchMode, refreshKey })
+  const browseState = useCustomerProductBrowse({ page, categorySlug: slug ?? '', enabled: !isSearchMode, refreshKey })
+
+  const apiState = isSearchMode ? searchState : browseState
   const {
-    products: searchProducts,
+    products: apiProducts,
     totalElements,
     totalPages,
     currentPage,
     rangeStart,
     rangeEnd,
     pageNumbers,
-    loading: searchLoading,
-    error: searchError,
-    isSearchMode,
-  } = useCustomerProductSearch(urlQuery, { page })
+    loading,
+    error: apiError,
+  } = apiState
 
   useEffect(() => {
     let cancelled = false
 
     ;(async () => {
-      useCatalogStore.getState().setLoading(true)
       try {
-        const items = await fetchCustomerProducts()
-        if (cancelled) return
-        useCatalogStore.getState().setProductsFromApi(items)
+        const payload = await fetchCategories()
+        if (!cancelled && payload.length > 0) {
+          useCatalogStore.getState().setCategoriesFromApi(payload)
+        }
       } catch {
-        /* Keep existing catalog on failure. */
-      } finally {
-        if (!cancelled) useCatalogStore.getState().setLoading(false)
+        /* Keep existing categories on failure. */
       }
     })()
 
@@ -167,6 +166,10 @@ export default function SearchPage() {
     setFilter({ query: urlQuery })
     setPage(1)
   }, [urlQuery, setFilter])
+
+  useEffect(() => {
+    setPage(1)
+  }, [slug])
 
   useEffect(() => {
     if (slug) {
@@ -189,18 +192,19 @@ export default function SearchPage() {
     setPage(1)
   }
 
-  const filteredSearchProducts = useMemo(
-    () => applyClientFilters(searchProducts, filters, { skipQuery: true }),
-    [searchProducts, filters],
+  const filteredProducts = useMemo(
+    () =>
+      applyClientFilters(apiProducts, filters, {
+        skipQuery: isSearchMode,
+        skipCategory: Boolean(slug),
+      }),
+    [apiProducts, filters, isSearchMode, slug],
   )
 
-  const sortedSearchProducts = useMemo(
-    () => sortProducts(filteredSearchProducts, filters.sort),
-    [filteredSearchProducts, filters.sort],
+  const displayProducts = useMemo(
+    () => sortProducts(filteredProducts, filters.sort),
+    [filteredProducts, filters.sort],
   )
-
-  const displayProducts = isSearchMode ? sortedSearchProducts : browseResults
-  const loading = isSearchMode ? searchLoading : browseLoading
 
   const handleReset = () => {
     resetFilters()
@@ -215,15 +219,15 @@ export default function SearchPage() {
       ? 'Deals of the day'
       : slug
         ? categories.find((c) => c.slug === slug)?.name ?? 'Browse'
-        : 'Search'
+        : 'Shop'
 
-  const subtitle = isSearchMode
-    ? totalElements === 0
+  const subtitle = totalElements === 0
+    ? isSearchMode
       ? 'No products matched your search'
-      : filteredSearchProducts.length !== searchProducts.length
-        ? `${filteredSearchProducts.length.toLocaleString('en-IN')} product(s) match your filters · ${totalElements.toLocaleString('en-IN')} total from search`
-        : `Showing ${rangeStart.toLocaleString('en-IN')}–${rangeEnd.toLocaleString('en-IN')} of ${totalElements.toLocaleString('en-IN')} product(s)`
-    : `${browseResults.length.toLocaleString('en-IN')} product(s) available near you`
+      : 'No products available right now'
+    : filteredProducts.length !== apiProducts.length
+      ? `${filteredProducts.length.toLocaleString('en-IN')} product(s) match your filters · ${totalElements.toLocaleString('en-IN')} total`
+      : `Showing ${rangeStart.toLocaleString('en-IN')} to ${rangeEnd.toLocaleString('en-IN')} of ${totalElements.toLocaleString('en-IN')} products`
 
   return (
     <div>
@@ -270,69 +274,55 @@ export default function SearchPage() {
           </FilterBlock>
 
           <FilterBlock title="Category">
-                <select
-                  value={filters.category}
-                  onChange={(e) => setFilter({ category: e.target.value })}
-                  className="w-full rounded-[11px] px-3 py-2.5 text-[12.5px] outline-none"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}
-                >
-                  <option value="all">All categories</option>
-                  {categories.map((c) => <option key={c.id} value={c.slug}>{c.name}</option>)}
-                </select>
-              </FilterBlock>
+            <select
+              value={filters.category}
+              onChange={(e) => setFilter({ category: e.target.value })}
+              className="w-full rounded-[11px] px-3 py-2.5 text-[12.5px] outline-none"
+              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.borderSubtle}`, color: colors.textBright }}
+            >
+              <option value="all">All categories</option>
+              {categories.map((c) => <option key={c.id} value={c.slug}>{c.name}</option>)}
+            </select>
+          </FilterBlock>
 
-              <FilterBlock title={`Max price · ₹${filters.maxPrice}`}>
-                <input
-                  type="range" min={50} max={5000} step={50} value={filters.maxPrice}
-                  onChange={(e) => setFilter({ maxPrice: Number(e.target.value) })}
-                  className="w-full accent-[#40deaa]"
-                />
-              </FilterBlock>
-
-              <FilterBlock title="Minimum rating">
-                <div className="flex gap-1.5">
-                  {[0, 4, 4.5].map((r) => (
-                    <button
-                      key={r} type="button" onClick={() => setFilter({ minRating: r })}
-                      className="text-[12px] font-bold px-2.5 py-1.5 rounded-[9px]"
-                      style={{
-                        background: filters.minRating === r ? 'rgba(64,222,170,.14)' : 'rgba(255,255,255,0.04)',
-                        color: filters.minRating === r ? colors.accent : colors.textMuted,
-                        border: `1px solid ${filters.minRating === r ? 'rgba(64,222,170,.34)' : colors.borderSubtle}`,
-                      }}
-                    >
-                      {r === 0 ? 'Any' : `${r}+`}
-                    </button>
-                  ))}
-                </div>
-              </FilterBlock>
+          <FilterBlock title={`Max price · ₹${filters.maxPrice}`}>
+            <input
+              type="range" min={50} max={5000} step={50} value={filters.maxPrice}
+              onChange={(e) => setFilter({ maxPrice: Number(e.target.value) })}
+              className="w-full accent-[#40deaa]"
+            />
+          </FilterBlock>
 
               <FilterBlock title="Brand">
-                <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
-                  {BRANDS.map((b) => (
-                    <label key={b} className="flex items-center gap-2 text-[12.5px] cursor-pointer" style={{ color: colors.textMuted }}>
-                      <input type="checkbox" className="accent-[#40deaa]" checked={filters.brands.includes(b)} onChange={() => toggleBrand(b)} />
-                      {b}
-                    </label>
-                  ))}
-                </div>
-              </FilterBlock>
+            <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+              {BRANDS.map((b) => (
+                <label key={b} className="flex items-center gap-2 text-[12.5px] cursor-pointer" style={{ color: colors.textMuted }}>
+                  <input type="checkbox" className="accent-[#40deaa]" checked={filters.brands.includes(b)} onChange={() => toggleBrand(b)} />
+                  {b}
+                </label>
+              ))}
+            </div>
+          </FilterBlock>
 
-              <FilterBlock title="Availability">
-                <label className="flex items-center gap-2 text-[12.5px] cursor-pointer mb-1.5" style={{ color: colors.textMuted }}>
-                  <input type="checkbox" className="accent-[#40deaa]" checked={filters.inStockOnly} onChange={(e) => setFilter({ inStockOnly: e.target.checked })} />
-                  In stock only
-                </label>
-                <label className="flex items-center gap-2 text-[12.5px] cursor-pointer" style={{ color: colors.textMuted }}>
-                  <input type="checkbox" className="accent-[#40deaa]" checked={filters.rxOnly} onChange={(e) => setFilter({ rxOnly: e.target.checked })} />
-                  Prescription items only
-                </label>
-              </FilterBlock>
+          <FilterBlock title="Availability">
+            <label className="flex items-center gap-2 text-[12.5px] cursor-pointer mb-1.5" style={{ color: colors.textMuted }}>
+              <input type="checkbox" className="accent-[#40deaa]" checked={filters.inStockOnly} onChange={(e) => setFilter({ inStockOnly: e.target.checked })} />
+              In stock only
+            </label>
+            <label className="flex items-center gap-2 text-[12.5px] cursor-pointer" style={{ color: colors.textMuted }}>
+              <input type="checkbox" className="accent-[#40deaa]" checked={filters.rxOnly} onChange={(e) => setFilter({ rxOnly: e.target.checked })} />
+              Prescription items only
+            </label>
+          </FilterBlock>
         </aside>
 
         <section>
-          {searchError ? (
-            <EmptyState title="Search failed" description={searchError} action={<Button onClick={() => applyKeywordSearch()}>Try again</Button>} />
+          {apiError ? (
+            <EmptyState
+              title={isSearchMode ? 'Search failed' : 'Could not load products'}
+              description={apiError}
+              action={<Button onClick={() => setRefreshKey((key) => key + 1)}>Try again</Button>}
+            />
           ) : loading ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }, (_, i) => (
@@ -368,15 +358,15 @@ export default function SearchPage() {
         </section>
       </div>
 
-      {isSearchMode && !searchLoading && !searchError && totalElements > 0 && displayProducts.length > 0 && (
-        <SearchPagination
+      {!loading && !apiError && totalElements > 0 && displayProducts.length > 0 && (
+        <ShopPagination
           currentPage={currentPage}
           totalPages={totalPages}
           pageNumbers={pageNumbers}
           rangeStart={rangeStart}
           rangeEnd={rangeEnd}
           totalElements={totalElements}
-          loading={searchLoading}
+          loading={loading}
           onChange={setPage}
         />
       )}

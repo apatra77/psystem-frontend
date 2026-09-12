@@ -2,22 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { useCatalogStore } from '@/app/store/catalogStore'
 import {
   fetchCategories,
-  fetchProductsSearchPage,
+  fetchCustomerProductsByCategoryPage,
+  fetchCustomerProductsPage,
   OWNER_PRODUCTS_PAGE_SIZE,
 } from '@/services/products'
 
-export function useCustomerProductSearch(searchQuery, { page = 1, pageSize = OWNER_PRODUCTS_PAGE_SIZE, enabled = true, refreshKey = 0 } = {}) {
+export function useCustomerProductBrowse({ page = 1, categorySlug = '', enabled = true, refreshKey = 0 } = {}) {
   const [products, setProducts] = useState([])
   const [totalElements, setTotalElements] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const trimmed = searchQuery.trim()
-  const isSearchMode = trimmed.length > 0
-
   useEffect(() => {
-    if (!enabled || !isSearchMode) {
+    if (!enabled) {
       setProducts([])
       setTotalElements(0)
       setTotalPages(1)
@@ -42,10 +40,19 @@ export function useCustomerProductSearch(searchQuery, { page = 1, pageSize = OWN
           }
         }
 
-        const result = await fetchProductsSearchPage(trimmed, categories, {
-          page: Math.max(0, page - 1),
-          size: pageSize,
-        })
+        const category = categorySlug
+          ? categories.find((item) => item.slug === categorySlug)
+          : null
+
+        const result = category?.id
+          ? await fetchCustomerProductsByCategoryPage(category.id, categories, {
+              page: Math.max(0, page - 1),
+              size: OWNER_PRODUCTS_PAGE_SIZE,
+            })
+          : await fetchCustomerProductsPage(categories, {
+              page: Math.max(0, page - 1),
+              size: OWNER_PRODUCTS_PAGE_SIZE,
+            })
 
         if (cancelled) return
 
@@ -58,7 +65,7 @@ export function useCustomerProductSearch(searchQuery, { page = 1, pageSize = OWN
         setProducts([])
         setTotalElements(0)
         setTotalPages(1)
-        setError(err instanceof Error ? err.message : 'Failed to search products')
+        setError(err instanceof Error ? err.message : 'Failed to load products')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -67,11 +74,11 @@ export function useCustomerProductSearch(searchQuery, { page = 1, pageSize = OWN
     return () => {
       cancelled = true
     }
-  }, [trimmed, page, pageSize, isSearchMode, enabled, refreshKey])
+  }, [page, categorySlug, enabled, refreshKey])
 
   const currentPage = Math.min(page, totalPages)
-  const rangeStart = totalElements === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const rangeEnd = Math.min(currentPage * pageSize, totalElements)
+  const rangeStart = totalElements === 0 ? 0 : (currentPage - 1) * OWNER_PRODUCTS_PAGE_SIZE + 1
+  const rangeEnd = Math.min(currentPage * OWNER_PRODUCTS_PAGE_SIZE, totalElements)
 
   const pageNumbers = useMemo(() => {
     if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -90,8 +97,7 @@ export function useCustomerProductSearch(searchQuery, { page = 1, pageSize = OWN
     pageNumbers,
     loading,
     error,
-    isSearchMode,
   }
 }
 
-export default useCustomerProductSearch
+export default useCustomerProductBrowse

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Minus, Plus, ShieldCheck, Star, Truck } from 'lucide-react'
+import { Minus, Plus, ShieldCheck } from 'lucide-react'
 import Badge from '@/shared/ui/Badge'
 import Button from '@/shared/ui/Button'
 import EmptyState from '@/shared/ui/EmptyState'
@@ -49,11 +49,6 @@ export default function ProductDetailPage() {
           <h1 className="text-[26px] font-extrabold leading-tight" style={{ color: colors.textBright }}>{product.name}</h1>
           <p className="text-[13px] mt-1.5" style={{ color: colors.textMuted }}>{product.brand} · {product.pack}</p>
 
-          <div className="flex items-center gap-1.5 mt-3 text-[13px]" style={{ color: colors.textMuted }}>
-            <Star size={13} fill={colors.gold} style={{ color: colors.gold }} />
-            <strong style={{ color: colors.textBright }}>{product.rating}</strong> ({product.reviews} reviews)
-          </div>
-
           <div className="flex items-end gap-3 mt-5">
             <span className="text-[30px] font-extrabold" style={{ color: colors.textBright }}>{fmtINR(product.price)}</span>
             {off > 0 && <span className="text-[15px] line-through mb-1" style={{ color: colors.textDim }}>{fmtINR(product.mrp)}</span>}
@@ -83,13 +78,8 @@ export default function ProductDetailPage() {
             <Button as={Link} to={PATHS.customer.cart} size="lg" variant="secondary">Go to cart</Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mt-7">
-            <div className="flex items-center gap-2.5 text-[12.5px]" style={{ color: colors.textMuted }}>
-              <Truck size={16} style={{ color: colors.accent }} /> Delivery in {product.eta}
-            </div>
-            <div className="flex items-center gap-2.5 text-[12.5px]" style={{ color: colors.textMuted }}>
-              <ShieldCheck size={16} style={{ color: colors.accent }} /> 100% genuine, licensed store
-            </div>
+          <div className="mt-7 flex items-center gap-2.5 text-[12.5px]" style={{ color: colors.textMuted }}>
+            <ShieldCheck size={16} style={{ color: colors.accent }} /> 100% genuine, licensed store
           </div>
         </div>
       </div>

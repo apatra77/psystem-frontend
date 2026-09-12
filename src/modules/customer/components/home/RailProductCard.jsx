@@ -1,6 +1,5 @@
 import { memo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Star } from 'lucide-react'
 import { PATHS } from '@/app/router/paths'
 import { useCatalogStore } from '@/app/store/catalogStore'
 import { fmtINR } from '@/app/utils/format'
@@ -47,13 +46,6 @@ function RailProductCard({ product, accent = colors.accent }) {
           </span>
         )}
       </div>
-
-      <p className="flex items-center gap-1.5 text-[11px] font-bold">
-        <Star size={11} fill={colors.gold} style={{ color: colors.gold }} aria-hidden="true" />
-        <span style={{ color: colors.gold }}>{product.rating}</span>
-        <span style={{ color: colors.textDim }}>({product.reviews})</span>
-        <span className="ml-auto" style={{ color: colors.accentSoft }}>{product.eta}</span>
-      </p>
 
       <div>
         <h3
