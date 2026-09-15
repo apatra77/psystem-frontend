@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
 import { useUiStore } from '@/app/store/uiStore'
 import { colors } from '@/app/themes/colors'
@@ -12,8 +13,13 @@ export default function Toaster() {
   const toasts = useUiStore((s) => s.toasts)
   const dismiss = useUiStore((s) => s.dismissToast)
 
-  return (
-    <div className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2 w-[330px] max-w-[calc(100vw-40px)]">
+  if (!toasts.length) return null
+
+  return createPortal(
+    <div
+      className="fixed bottom-5 right-5 z-[10050] flex flex-col gap-2 w-[330px] max-w-[calc(100vw-40px)] pointer-events-none"
+      aria-live="polite"
+    >
       {toasts.map(({ id, message, tone }) => {
         const meta = TONE[tone] ?? TONE.info
         const Icon = meta.icon
@@ -21,7 +27,7 @@ export default function Toaster() {
           <div
             key={id}
             role="status"
-            className="flex items-start gap-3 px-4 py-3 rounded-[13px] text-[13px] font-semibold"
+            className="flex items-start gap-3 px-4 py-3 rounded-[13px] text-[13px] font-semibold pointer-events-auto"
             style={{ background: '#0b1d17', border: `1px solid ${meta.border}`, color: colors.text, boxShadow: '0 14px 40px rgba(0,0,0,0.45)' }}
           >
             <Icon size={16} style={{ color: meta.color, flexShrink: 0, marginTop: 1 }} />
@@ -32,6 +38,7 @@ export default function Toaster() {
           </div>
         )
       })}
-    </div>
+    </div>,
+    document.body,
   )
 }
