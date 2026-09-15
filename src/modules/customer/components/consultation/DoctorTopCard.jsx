@@ -1,6 +1,6 @@
 import { Star } from 'lucide-react'
 import { fmtINR } from '@/app/utils/format'
-import { isDoctorAvailableToday } from '@/services/doctors'
+import { getDoctorBookButtonLabel, isDoctorBookable } from '@/services/doctors'
 import { colors } from '@/app/themes/colors'
 
 function DoctorAvatar({ doctor }) {
@@ -50,7 +50,7 @@ function availabilityBadge(availability, availableToday) {
 }
 
 export default function DoctorTopCard({ doctor, onConsult }) {
-  const canConsult = isDoctorAvailableToday(doctor)
+  const canConsult = isDoctorBookable(doctor)
   const badge = availabilityBadge(doctor.availability, doctor.availableToday)
   const reviewsLabel =
     doctor.reviewCount >= 1000
@@ -109,7 +109,7 @@ export default function DoctorTopCard({ doctor, onConsult }) {
                 }
           }
         >
-          Consult Now
+          {getDoctorBookButtonLabel(doctor)}
         </button>
       </div>
     </article>

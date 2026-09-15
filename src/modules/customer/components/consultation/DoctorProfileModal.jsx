@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Mail, MapPin, Phone, Star, X } from 'lucide-react'
 import PortalModal from '@/shared/ui/PortalModal'
 import { fmtINR } from '@/app/utils/format'
-import { isDoctorAvailableToday } from '@/services/doctors'
+import { isDoctorBookable } from '@/services/doctors'
 import { colors } from '@/app/themes/colors'
 
 function doctorInitials(name = '') {
@@ -366,11 +366,11 @@ export default function DoctorProfileModal({ doctorId, fetchProfile, onClose, on
           </button>
           <button
             type="button"
-            disabled={!isDoctorAvailableToday(doctor)}
+            disabled={!isDoctorBookable(doctor)}
             onClick={() => onBook?.(doctor)}
             className="cursor-pointer rounded-[10px] px-5 py-2 text-[12.5px] font-extrabold disabled:cursor-not-allowed disabled:opacity-45"
             style={
-              isDoctorAvailableToday(doctor)
+              isDoctorBookable(doctor)
                 ? {
                     color: colors.accentText,
                     background: colors.primaryBtn,

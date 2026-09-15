@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput } from '@/shared/ui/PortalModal'
 import { useAuthStore } from '@/app/store/authStore'
 import { fmtINR } from '@/app/utils/format'
+import { getDoctorConsultationDateParam } from '@/services/doctors'
 import { fetchUserProfile } from '@/services/user'
 import { colors } from '@/app/themes/colors'
 
@@ -18,6 +19,8 @@ function resolveMobileFromSources(profile, authUser) {
 
 export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConfirm }) {
   const authUser = useAuthStore((s) => s.user)
+  const consultationDateParam = doctor ? getDoctorConsultationDateParam(doctor) : 'today'
+  const slotDayLabel = consultationDateParam === 'tomorrow' ? 'Tomorrow' : 'Today'
 
   const [slots, setSlots] = useState([])
   const [consultationDate, setConsultationDate] = useState('')
@@ -62,7 +65,7 @@ export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConf
       setLoading(true)
       setError('')
       try {
-        const result = await fetchSlots(doctor.id, 'today')
+        const result = await fetchSlots(doctor.id, consultationDateParam)
         const nextSlots = Array.isArray(result) ? result : (result?.slots ?? [])
         const nextDate = Array.isArray(result) ? '' : (result?.consultationDate ?? '')
 
@@ -86,7 +89,7 @@ export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConf
     return () => {
       cancelled = true
     }
-  }, [doctor?.id, fetchSlots])
+  }, [doctor?.id, fetchSlots, consultationDateParam])
 
   if (!doctor) return null
 
@@ -123,7 +126,7 @@ export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConf
         </div>
 
         <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: colors.textDim }}>
-          Available slots · Today
+          Available slots · {slotDayLabel}
         </p>
 
         {loading ? (
@@ -142,7 +145,7 @@ export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConf
           </p>
         ) : slots.length === 0 ? (
           <p className="mt-3 text-[13px]" style={{ color: colors.textMuted }}>
-            No slots available today. Please try another doctor.
+            No slots available {slotDayLabel.toLowerCase()}. Please try another doctor.
           </p>
         ) : (
           <div className="mt-3 flex flex-wrap gap-2">

@@ -1,5 +1,9 @@
 import { Star } from 'lucide-react'
-import { isDoctorAvailableToday } from '@/services/doctors'
+import {
+  getDoctorBookButtonLabel,
+  isDoctorAvailableTomorrow,
+  isDoctorBookable,
+} from '@/services/doctors'
 import { colors } from '@/app/themes/colors'
 
 function DoctorAvatar({ doctor, size = 56 }) {
@@ -39,7 +43,8 @@ function DoctorAvatar({ doctor, size = 56 }) {
 }
 
 export default function PopularDoctorCard({ doctor, slots = [], onConsult, onViewProfile }) {
-  const canConsult = isDoctorAvailableToday(doctor)
+  const canConsult = isDoctorBookable(doctor)
+  const slotHeading = isDoctorAvailableTomorrow(doctor) ? 'Available Tomorrow' : 'Available Today'
   const visibleSlots = canConsult ? slots : []
 
   return (
@@ -76,7 +81,7 @@ export default function PopularDoctorCard({ doctor, slots = [], onConsult, onVie
 
         <div className="lg:w-[280px]">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: colors.textDim }}>
-            Available Today
+            {slotHeading}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {visibleSlots.length > 0 ? (
@@ -129,7 +134,7 @@ export default function PopularDoctorCard({ doctor, slots = [], onConsult, onVie
                   }
             }
           >
-            Consult Now
+            {getDoctorBookButtonLabel(doctor)}
           </button>
         </div>
       </div>

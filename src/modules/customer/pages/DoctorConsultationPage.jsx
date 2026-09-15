@@ -10,7 +10,7 @@ import { useAuthStore } from '@/app/store/authStore'
 import { useOrderStore } from '@/app/store/orderStore'
 import { toast } from '@/app/store/uiStore'
 import { bookAppointment, buildAppointmentPayload } from '@/services/appointments'
-import { isDoctorAvailableToday } from '@/services/doctors'
+import { isDoctorBookable } from '@/services/doctors'
 import {
   CONSULTATION_MORE_SPECIALTIES,
   CONSULTATION_SPECIALTIES,
@@ -92,7 +92,7 @@ export default function DoctorConsultationPage() {
   const [booking, setBooking] = useState(false)
 
   const openBooking = (doctor) => {
-    if (!isDoctorAvailableToday(doctor)) return
+    if (!isDoctorBookable(doctor)) return
     setBookingDoctor(doctor)
   }
   const openProfile = (doctor) => setProfileDoctorId(doctor.id)

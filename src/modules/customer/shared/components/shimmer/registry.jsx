@@ -34,6 +34,7 @@ export const SHIMMERS = {
   cart: <CartShimmer />,
   checkout: <CheckoutShimmer />,
   orders: <OrdersShimmer />,
+  appointments: <OrdersShimmer rows={3} />,
   orderDetail: <OrderDetailShimmer />,
   orderSuccess: <OrderDetailShimmer />,
   profile: <ProfileShimmer />,

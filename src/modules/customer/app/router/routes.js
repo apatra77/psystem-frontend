@@ -33,6 +33,7 @@ export const ROUTES = {
     orders: '/customer/account/orders',
     orderDetail: '/customer/account/orders/:id',
     orderTracking: '/customer/account/orders/:id/track',
+    appointments: '/customer/account/appointments',
     profile: '/customer/account/profile',
     changePassword: '/customer/account/change-password',
     addresses: '/customer/account/addresses',

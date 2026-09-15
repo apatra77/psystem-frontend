@@ -22,6 +22,7 @@ const OrdersPage = lazy(() => import('@/modules/customer/pages/OrdersPage'))
 const OrderDetailPage = lazy(() => import('@/modules/customer/pages/OrderDetailPage'))
 const OrderTrackingPage = lazy(() => import('@/modules/customer/pages/OrderTrackingPage'))
 const ProfilePage = lazy(() => import('@/modules/customer/pages/ProfilePage'))
+const AppointmentsPage = lazy(() => import('@/modules/customer/pages/AppointmentsPage'))
 const AddressesPage = lazy(() => import('@/modules/customer/pages/AddressesPage'))
 const PrescriptionUploadPage = lazy(() => import('@/modules/customer/pages/PrescriptionUploadPage'))
 const CustomOrderPage = lazy(() => import('@/modules/customer/pages/CustomOrderPage'))
@@ -63,6 +64,7 @@ export default function CustomerRouter() {
               <Route element={<AccountLayout />}>
                 <Route path="account/orders" element={suspend(<OrdersPage />, 'orders')} />
                 <Route path="account/orders/:id" element={suspend(<OrderDetailPage />, 'orderDetail')} />
+                <Route path="account/appointments" element={suspend(<AppointmentsPage />, 'appointments')} />
                 <Route path="account/profile" element={suspend(<ProfilePage />, 'profile')} />
                 <Route path="account/addresses" element={suspend(<AddressesPage />, 'addresses')} />
                 <Route path="account/notifications" element={suspend(<NotificationsPage />, 'notifications')} />

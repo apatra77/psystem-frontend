@@ -181,6 +181,48 @@ export function isDoctorAvailableToday(doctor = {}) {
   return false
 }
 
+export function isDoctorAvailableTomorrow(doctor = {}) {
+  const status = String(doctor.availabilityStatus ?? '').toUpperCase()
+  if (status === 'AVAILABLE_TOMORROW') return true
+
+  const label = String(doctor.availabilityLabel ?? doctor.availability ?? '').toLowerCase()
+  return /available tomorrow/.test(label)
+}
+
+/** Consult is allowed for today and tomorrow; only blocked when doctor is not available. */
+export function isDoctorBookable(doctor = {}) {
+  const status = String(doctor.availabilityStatus ?? '').toUpperCase()
+  if (status === 'NOT_AVAILABLE' || status === 'ON_LEAVE' || status === 'INACTIVE') return false
+  if (
+    status === 'AVAILABLE_NOW' ||
+    status === 'AVAILABLE_TODAY' ||
+    status === 'AVAILABLE_TOMORROW'
+  ) {
+    return true
+  }
+
+  const label = String(doctor.availabilityLabel ?? doctor.availability ?? '').toLowerCase()
+  if (/not available|on leave|unavailable/.test(label)) return false
+  if (/available now|available today|available tomorrow/.test(label)) return true
+
+  return isDoctorAvailableToday(doctor) || isDoctorAvailableTomorrow(doctor)
+}
+
+export function getDoctorConsultationDateParam(doctor = {}) {
+  if (isDoctorAvailableTomorrow(doctor) && !isDoctorAvailableToday(doctor)) {
+    return 'tomorrow'
+  }
+  return 'today'
+}
+
+export function getDoctorBookButtonLabel(doctor = {}) {
+  if (!isDoctorBookable(doctor)) return 'Not Available'
+  if (isDoctorAvailableTomorrow(doctor) && !isDoctorAvailableToday(doctor)) {
+    return 'Book for Tomorrow'
+  }
+  return 'Book Appointment'
+}
+
 function deriveAvailableToday(item, availabilityStatus, availabilityLabel) {
   return isDoctorAvailableToday({
     availabilityStatus,

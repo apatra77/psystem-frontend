@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { Bell, MapPin, Package, User } from 'lucide-react'
+import { Bell, CalendarClock, MapPin, Package, User } from 'lucide-react'
 import { PATHS } from '@/app/router/paths'
 import { colors } from '@/app/themes/colors'
 
 const LINKS = [
   { to: PATHS.customer.orders, label: 'My orders', icon: Package, matchChildren: true },
+  { to: PATHS.customer.appointments, label: 'My Appointments', icon: CalendarClock },
   { to: PATHS.customer.profile, label: 'Profile', icon: User },
   { to: PATHS.customer.addresses, label: 'Addresses', icon: MapPin },
   { to: PATHS.customer.notifications, label: 'Notifications', icon: Bell },
