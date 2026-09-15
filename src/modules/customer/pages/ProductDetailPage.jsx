@@ -1,13 +1,11 @@
-import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Minus, Plus, ShieldCheck } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 import Badge from '@/shared/ui/Badge'
 import Button from '@/shared/ui/Button'
 import EmptyState from '@/shared/ui/EmptyState'
 import ProductCard from '@/modules/customer/components/ProductCard'
 import CartAddControl from '@/modules/customer/components/CartAddControl'
 import { useCatalogStore } from '@/app/store/catalogStore'
-import { useCartStore } from '@/app/store/cartStore'
 import { PATHS } from '@/app/router/paths'
 import { fmtINR } from '@/app/utils/format'
 import { msg } from '@/shared/messages/messages'
@@ -16,10 +14,8 @@ import { colors } from '@/app/themes/colors'
 
 export default function ProductDetailPage() {
   const { id } = useParams()
-  const [qty, setQty] = useState(1)
   const product = useCatalogStore((s) => s.getProduct(id))
   const products = useCatalogStore((s) => s.products)
-  const addItem = useCartStore((s) => s.addItem)
 
   if (!product) return <EmptyState title="Product not found" action={<Button as={Link} to={PATHS.customer.search}>Back to shop</Button>} />
 
@@ -63,18 +59,7 @@ export default function ProductDetailPage() {
           )}
 
           <div className="flex flex-wrap items-center gap-3 mt-6">
-            {allowsLoose ? (
-              <CartAddControl product={product} size="lg" showPrice={false} />
-            ) : (
-              <>
-                <div className="flex items-center rounded-[12px]" style={{ border: `1px solid ${colors.border}` }}>
-                  <button type="button" className="px-3 py-2.5" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease"><Minus size={14} /></button>
-                  <span className="px-4 text-[14px] font-extrabold" style={{ color: colors.textBright }}>{qty}</span>
-                  <button type="button" className="px-3 py-2.5" onClick={() => setQty((q) => q + 1)} aria-label="Increase"><Plus size={14} /></button>
-                </div>
-                <Button size="lg" disabled={product.stock <= 0} onClick={() => addItem(product, qty)}>Add to cart</Button>
-              </>
-            )}
+            <CartAddControl product={product} size="lg" showPrice={false} />
             <Button as={Link} to={PATHS.customer.cart} size="lg" variant="secondary">Go to cart</Button>
           </div>
 
