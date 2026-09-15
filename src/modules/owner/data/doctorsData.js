@@ -1,7 +1,7 @@
 export const DOCTOR_STORES = [
-  { id: 'indiranagar', label: 'Indiranagar Store' },
-  { id: 'koramangala', label: 'Koramangala Store' },
-  { id: 'hsr', label: 'HSR Layout Store' },
+  { id: 1, label: 'Indiranagar Store' },
+  { id: 2, label: 'Koramangala Store' },
+  { id: 3, label: 'HSR Layout Store' },
 ]
 
 export const DOCTOR_SPECIALTIES = [
@@ -57,7 +57,7 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'General Physician',
     specialtyId: 1,
     store: 'Indiranagar Store',
-    storeId: 'indiranagar',
+    storeId: '1',
     experienceYears: 12,
     schedule: {
       monday: { enabled: true, slots: [{ start: '09:00 AM', end: '01:00 PM' }, { start: '02:00 PM', end: '05:00 PM' }] },
@@ -77,7 +77,7 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'Dentist',
     specialtyId: 6,
     store: 'Indiranagar Store',
-    storeId: 'indiranagar',
+    storeId: '1',
     experienceYears: 9,
     schedule: {
       monday: { enabled: true, slots: [{ start: '10:00 AM', end: '02:00 PM' }] },
@@ -97,7 +97,7 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'Gynecologist',
     specialtyId: 3,
     store: 'Koramangala Store',
-    storeId: 'koramangala',
+    storeId: '2',
     experienceYears: 11,
   }),
   doctor('dr4', {
@@ -108,7 +108,7 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'Pediatrician',
     specialtyId: 4,
     store: 'Indiranagar Store',
-    storeId: 'indiranagar',
+    storeId: '1',
     status: 'on_leave',
   }),
   doctor('dr5', {
@@ -119,7 +119,7 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'Dermatologist',
     specialtyId: 2,
     store: 'HSR Layout Store',
-    storeId: 'hsr',
+    storeId: '3',
   }),
   doctor('dr6', {
     name: 'Dr. Arjun Desai',
@@ -129,7 +129,7 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'Cardiologist',
     specialtyId: 5,
     store: 'Koramangala Store',
-    storeId: 'koramangala',
+    storeId: '2',
   }),
   doctor('dr7', {
     name: 'Dr. Meera Iyer',
@@ -139,7 +139,7 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'General Physician',
     specialtyId: 1,
     store: 'HSR Layout Store',
-    storeId: 'hsr',
+    storeId: '3',
     status: 'inactive',
   }),
   doctor('dr8', {
@@ -150,7 +150,7 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'General Physician',
     specialtyId: 1,
     store: 'Indiranagar Store',
-    storeId: 'indiranagar',
+    storeId: '1',
   }),
   doctor('dr9', {
     name: 'Dr. Kavya Nair',
@@ -160,7 +160,7 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'Dermatologist',
     specialtyId: 2,
     store: 'Koramangala Store',
-    storeId: 'koramangala',
+    storeId: '2',
   }),
   doctor('dr10', {
     name: 'Dr. Rohit Menon',
@@ -170,7 +170,7 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'Dentist',
     specialtyId: 6,
     store: 'HSR Layout Store',
-    storeId: 'hsr',
+    storeId: '3',
   }),
   doctor('dr11', {
     name: 'Dr. Lakshmi Reddy',
@@ -180,7 +180,7 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'Gynecologist',
     specialtyId: 3,
     store: 'Indiranagar Store',
-    storeId: 'indiranagar',
+    storeId: '1',
   }),
   doctor('dr12', {
     name: 'Dr. Karan Malhotra',
@@ -190,6 +190,6 @@ export const INITIAL_ADMIN_DOCTORS = [
     specialty: 'Cardiologist',
     specialtyId: 5,
     store: 'Koramangala Store',
-    storeId: 'koramangala',
+    storeId: '2',
   }),
 ]

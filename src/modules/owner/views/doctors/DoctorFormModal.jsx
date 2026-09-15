@@ -1,35 +1,40 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { CalendarDays, Camera, Minus, Plus, X } from 'lucide-react'
+import { Camera, Minus, Plus, X } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput, ModalSelect, ToggleSwitch } from '../../components/PortalModal'
 import Spinner from '@/components/ui/Spinner'
 import { DOCTOR_STORES, WEEK_DAYS, createDefaultSchedule } from '../../data/doctorsData'
-import {
-  cloneSchedule,
-  CONSULTATION_TYPE_OPTIONS,
-  TIME_SLOT_OPTIONS,
-} from './doctorUtils'
+import { cloneSchedule, TIME_SLOT_OPTIONS } from './doctorUtils'
 import {
   createAdminDoctor,
   fetchAdminDoctorById,
   fetchAdminSpecialties,
   setAdminDoctorStatus,
   updateAdminDoctor,
-  uploadAdminDoctorProfileImage,
 } from '@/services/adminDoctors'
 import { toast } from '@/app/store/uiStore'
 import { colors } from '@/theme/colors'
 
+const EMPTY_QUALIFICATION = {
+  qualificationName: '',
+  institutionName: '',
+  yearCompleted: '',
+}
+
 const EMPTY_DRAFT = {
-  name: '',
+  doctorCode: '',
+  firstName: '',
+  lastName: '',
   email: '',
   mobile: '',
-  qualifications: '',
+  profileSummary: '',
   specialtyId: '',
-  storeId: '',
-  experienceYears: '',
-  consultationType: 'both',
+  storeLocationId: '',
+  yearsOfExperience: '',
+  consultationFee: '',
+  doctorStatus: 'active',
   imageUrl: '',
+  qualifications: [{ ...EMPTY_QUALIFICATION }],
   schedule: createDefaultSchedule(),
 }
 
@@ -49,48 +54,172 @@ function FieldError({ message }) {
 
 function validateDraft(draft) {
   const errors = {}
-  if (!draft.name.trim()) errors.name = 'Full name is required'
+  if (!draft.doctorCode.trim()) errors.doctorCode = 'Doctor code is required'
+  if (!draft.firstName.trim()) errors.firstName = 'First name is required'
+  if (!draft.lastName.trim()) errors.lastName = 'Last name is required'
   if (!draft.email.trim()) errors.email = 'Email is required'
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) errors.email = 'Enter a valid email'
   if (!draft.mobile.trim()) errors.mobile = 'Mobile number is required'
   else if (!/^\d{10}$/.test(draft.mobile.replace(/\D/g, ''))) errors.mobile = 'Enter a valid 10-digit mobile number'
-  if (!draft.qualifications.trim()) errors.qualifications = 'Qualifications are required'
   if (!draft.specialtyId) errors.specialtyId = 'Select a specialty'
-  if (!draft.storeId) errors.storeId = 'Select a store'
+  if (!draft.storeLocationId) errors.storeLocationId = 'Select a store location'
+
+  const hasQualification = draft.qualifications.some((row) => row.qualificationName.trim())
+  if (!hasQualification) errors.qualifications = 'Add at least one qualification'
+
+  if (draft.consultationFee === '' || draft.consultationFee == null) {
+    errors.consultationFee = 'Consultation fee is required'
+  } else {
+    const fee = Number(draft.consultationFee)
+    if (!Number.isFinite(fee) || fee < 0) errors.consultationFee = 'Enter a valid non-negative fee'
+  }
+
   return errors
 }
 
 function mapDoctorToDraft(doctor) {
+  const qualificationRows =
+    doctor.qualificationRows?.length > 0
+      ? doctor.qualificationRows.map(({ qualificationName, institutionName, yearCompleted }) => ({
+          qualificationName: qualificationName ?? '',
+          institutionName: institutionName ?? '',
+          yearCompleted: yearCompleted ?? '',
+        }))
+      : doctor.qualifications
+        ? [{ qualificationName: String(doctor.qualifications), institutionName: '', yearCompleted: '' }]
+        : [{ ...EMPTY_QUALIFICATION }]
+
+  const nameParts = String(doctor.name ?? '').replace(/^Dr\.?\s*/i, '').trim().split(/\s+/).filter(Boolean)
+
   return {
-    name: doctor.name ?? '',
+    doctorCode: doctor.doctorCode ?? '',
+    firstName: doctor.firstName || nameParts[0] || '',
+    lastName: doctor.lastName || nameParts.slice(1).join(' ') || '',
     email: doctor.email ?? '',
     mobile: doctor.mobile ?? '',
-    qualifications: doctor.qualifications ?? '',
+    profileSummary: doctor.profileSummary ?? '',
     specialtyId: String(doctor.specialtyId ?? ''),
-    storeId: doctor.storeId ?? '',
-    experienceYears: doctor.experienceYears != null ? String(doctor.experienceYears) : '',
-    consultationType: doctor.consultationType ?? 'both',
+    storeLocationId: String(doctor.storeLocationId ?? doctor.storeId ?? ''),
+    yearsOfExperience: doctor.experienceYears != null ? String(doctor.experienceYears) : '',
+    consultationFee: doctor.consultationFee != null ? String(doctor.consultationFee) : '',
+    doctorStatus: doctor.status ?? 'active',
     imageUrl: doctor.imageUrl ?? '',
+    qualifications: qualificationRows,
     schedule: cloneSchedule(doctor.schedule ?? createDefaultSchedule()),
   }
 }
 
-function buildPayload(draft, specialties) {
-  const specialty = specialties.find((s) => String(s.id) === String(draft.specialtyId))
-  const store = DOCTOR_STORES.find((s) => s.id === draft.storeId)
+function buildPayload(draft) {
   return {
-    name: draft.name.trim(),
+    doctorCode: draft.doctorCode.trim(),
+    firstName: draft.firstName.trim(),
+    lastName: draft.lastName.trim(),
     email: draft.email.trim(),
-    mobile: draft.mobile.replace(/\D/g, ''),
-    qualifications: draft.qualifications.trim(),
+    phoneNumber: draft.mobile.replace(/\D/g, ''),
+    profileSummary: draft.profileSummary.trim(),
     specialtyId: Number(draft.specialtyId),
-    specialty: specialty?.label ?? '',
-    storeId: draft.storeId,
-    store: store?.label ?? '',
-    experienceYears: draft.experienceYears === '' ? null : Number(draft.experienceYears),
-    consultationType: draft.consultationType,
+    storeLocationId: Number(draft.storeLocationId),
+    yearsOfExperience: draft.yearsOfExperience === '' ? null : Number(draft.yearsOfExperience),
+    consultationFee: Number(draft.consultationFee),
+    doctorStatus: draft.doctorStatus,
+    qualifications: draft.qualifications
+      .filter((row) => row.qualificationName.trim())
+      .map((row, index) => ({
+        qualificationName: row.qualificationName.trim(),
+        institutionName: row.institutionName.trim(),
+        yearCompleted: row.yearCompleted === '' ? undefined : Number(row.yearCompleted),
+        displayOrder: index + 1,
+      })),
     schedule: cloneSchedule(draft.schedule),
   }
+}
+
+function QualificationsEditor({ rows, onChange, disabled, error }) {
+  const updateRow = (index, field, value) => {
+    onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row)))
+  }
+
+  const addRow = () => {
+    onChange([...rows, { ...EMPTY_QUALIFICATION }])
+  }
+
+  const removeRow = (index) => {
+    if (rows.length <= 1) return
+    onChange(rows.filter((_, rowIndex) => rowIndex !== index))
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.map((row, index) => (
+        <div
+          key={`qualification-${index}`}
+          className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_120px_auto] gap-2.5 items-end p-3 rounded-[12px]"
+          style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${colors.borderSubtle}` }}
+        >
+          <div>
+            <ModalFieldLabel>Qualification</ModalFieldLabel>
+            <ModalInput
+              value={row.qualificationName}
+              onChange={(e) => updateRow(index, 'qualificationName', e.target.value)}
+              placeholder="e.g. MBBS"
+              disabled={disabled}
+              className="py-2"
+            />
+          </div>
+          <div>
+            <ModalFieldLabel>Institution</ModalFieldLabel>
+            <ModalInput
+              value={row.institutionName}
+              onChange={(e) => updateRow(index, 'institutionName', e.target.value)}
+              placeholder="e.g. AIIMS Delhi"
+              disabled={disabled}
+              className="py-2"
+            />
+          </div>
+          <div>
+            <ModalFieldLabel>Year</ModalFieldLabel>
+            <ModalInput
+              type="number"
+              min="1950"
+              max="2100"
+              value={row.yearCompleted}
+              onChange={(e) => updateRow(index, 'yearCompleted', e.target.value)}
+              placeholder="2012"
+              disabled={disabled}
+              className="py-2"
+            />
+          </div>
+          <div className="flex items-center gap-1.5 pb-0.5">
+            {index === rows.length - 1 ? (
+              <button
+                type="button"
+                onClick={addRow}
+                disabled={disabled}
+                className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer disabled:opacity-40"
+                style={{ border: `1px solid ${colors.borderSubtle}` }}
+                aria-label="Add qualification"
+              >
+                <Plus size={14} style={{ color: colors.accent }} />
+              </button>
+            ) : null}
+            {rows.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => removeRow(index)}
+                disabled={disabled}
+                className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer disabled:opacity-40"
+                style={{ border: `1px solid ${colors.borderSubtle}` }}
+                aria-label="Remove qualification"
+              >
+                <Minus size={14} style={{ color: colors.textDim }} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ))}
+      {error ? <FieldError message={error} /> : null}
+    </div>
+  )
 }
 
 function ScheduleEditor({ schedule, onChange }) {
@@ -282,14 +411,12 @@ export default function DoctorFormModal() {
     setSaving(true)
     setSaveError('')
     try {
-      const payload = buildPayload(draft, specialties)
+      const payload = buildPayload({ ...draft, doctorStatus: isEdit ? doctorStatus : 'active' })
       if (isEdit) {
-        await updateAdminDoctor(routeId, payload)
-        if (photoFile) await uploadAdminDoctorProfileImage(routeId, photoFile)
+        await updateAdminDoctor(routeId, payload, photoFile)
         toast.success('Doctor updated successfully')
       } else {
-        const created = await createAdminDoctor(payload)
-        if (photoFile && created?.id) await uploadAdminDoctorProfileImage(created.id, photoFile)
+        await createAdminDoctor(payload, photoFile)
         toast.success('Doctor added successfully')
       }
       close()
@@ -317,7 +444,7 @@ export default function DoctorFormModal() {
   }
 
   const specialtyOptions = specialties.map((s) => ({ value: String(s.id), label: s.label }))
-  const storeOptions = DOCTOR_STORES.map((s) => ({ value: s.id, label: s.label }))
+  const storeOptions = DOCTOR_STORES.map((s) => ({ value: String(s.id), label: s.label }))
 
   return (
     <PortalModal onClose={close} width={760} maxHeight="92vh">
@@ -367,10 +494,26 @@ export default function DoctorFormModal() {
                 </label>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <RequiredLabel>Full Name</RequiredLabel>
-                  <ModalInput value={draft.name} onChange={(e) => setField('name', e.target.value)} placeholder="Enter doctor name" />
-                  <FieldError message={fieldErrors.name} />
+                <div>
+                  <RequiredLabel>Doctor Code</RequiredLabel>
+                  <ModalInput
+                    value={draft.doctorCode}
+                    onChange={(e) => setField('doctorCode', e.target.value.toUpperCase())}
+                    placeholder="e.g. DOC-008"
+                    disabled={isEdit}
+                    className="uppercase"
+                  />
+                  <FieldError message={fieldErrors.doctorCode} />
+                </div>
+                <div>
+                  <RequiredLabel>First Name</RequiredLabel>
+                  <ModalInput value={draft.firstName} onChange={(e) => setField('firstName', e.target.value)} placeholder="Enter first name" />
+                  <FieldError message={fieldErrors.firstName} />
+                </div>
+                <div>
+                  <RequiredLabel>Last Name</RequiredLabel>
+                  <ModalInput value={draft.lastName} onChange={(e) => setField('lastName', e.target.value)} placeholder="Enter last name" />
+                  <FieldError message={fieldErrors.lastName} />
                 </div>
                 <div>
                   <RequiredLabel>Email</RequiredLabel>
@@ -379,13 +522,17 @@ export default function DoctorFormModal() {
                 </div>
                 <div>
                   <RequiredLabel>Mobile Number</RequiredLabel>
-                  <ModalInput type="tel" value={draft.mobile} onChange={(e) => setField('mobile', e.target.value)} placeholder="Enter mobile number" />
+                  <ModalInput
+                    type="tel"
+                    value={draft.mobile}
+                    onChange={(e) => setField('mobile', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="10-digit mobile number"
+                  />
                   <FieldError message={fieldErrors.mobile} />
                 </div>
                 <div>
-                  <RequiredLabel>Qualifications</RequiredLabel>
-                  <ModalInput value={draft.qualifications} onChange={(e) => setField('qualifications', e.target.value)} placeholder="MBBS, MD, etc." />
-                  <FieldError message={fieldErrors.qualifications} />
+                  <ModalFieldLabel>Years of Experience</ModalFieldLabel>
+                  <ModalInput type="number" min="0" value={draft.yearsOfExperience} onChange={(e) => setField('yearsOfExperience', e.target.value)} placeholder="Enter years" />
                 </div>
                 <div>
                   <RequiredLabel>Specialty</RequiredLabel>
@@ -393,46 +540,69 @@ export default function DoctorFormModal() {
                   <FieldError message={fieldErrors.specialtyId} />
                 </div>
                 <div>
-                  <RequiredLabel>Store</RequiredLabel>
-                  <ModalSelect value={draft.storeId} onChange={(e) => setField('storeId', e.target.value)} options={storeOptions} placeholder="Select store" />
-                  <FieldError message={fieldErrors.storeId} />
+                  <RequiredLabel>Store Location</RequiredLabel>
+                  <ModalSelect value={draft.storeLocationId} onChange={(e) => setField('storeLocationId', e.target.value)} options={storeOptions} placeholder="Select store location" />
+                  <FieldError message={fieldErrors.storeLocationId} />
                 </div>
-                <div>
-                  <ModalFieldLabel>Experience</ModalFieldLabel>
-                  <ModalInput type="number" min="0" value={draft.experienceYears} onChange={(e) => setField('experienceYears', e.target.value)} placeholder="Enter years" />
-                </div>
-                <div>
-                  <ModalFieldLabel>Consultation Type</ModalFieldLabel>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {CONSULTATION_TYPE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setField('consultationType', opt.id)}
-                        className="px-3 py-1.5 rounded-[9px] text-[11.5px] font-bold cursor-pointer"
-                        style={
-                          draft.consultationType === opt.id
-                            ? { background: colors.primaryBtn, color: colors.accentText }
-                            : { color: colors.textMuted, border: `1px solid ${colors.borderSubtle}`, background: 'rgba(255,255,255,0.04)' }
-                        }
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="sm:col-span-2">
+                  <ModalFieldLabel>Profile Summary</ModalFieldLabel>
+                  <textarea
+                    value={draft.profileSummary}
+                    onChange={(e) => setField('profileSummary', e.target.value)}
+                    placeholder="Brief profile summary"
+                    rows={3}
+                    className="w-full rounded-[11px] px-3 py-2.5 text-[12.5px] font-semibold text-white outline-none resize-none"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.border}` }}
+                  />
                 </div>
               </div>
             </div>
           </section>
 
           <section>
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <h3 className="text-[13px] font-extrabold text-white">Consultation Schedule</h3>
-              <button type="button" className="inline-flex items-center gap-1.5 text-[11px] font-bold cursor-pointer" style={{ color: colors.accent }}>
-                <CalendarDays size={14} />
-                View Calendar
-              </button>
+            <h3 className="text-[13px] font-extrabold text-white mb-3">Qualifications</h3>
+            <QualificationsEditor
+              rows={draft.qualifications}
+              onChange={(qualifications) => setField('qualifications', qualifications)}
+              disabled={saving}
+              error={fieldErrors.qualifications}
+            />
+          </section>
+
+          <section>
+            <h3 className="text-[13px] font-extrabold text-white mb-3">Consultation Fee</h3>
+            <div
+              className="rounded-[14px] p-4 max-w-[320px]"
+              style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${colors.borderSubtle}` }}
+            >
+              <RequiredLabel>Fee per consultation</RequiredLabel>
+              <div className="relative mt-1">
+                <span
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-extrabold pointer-events-none"
+                  style={{ color: colors.accent }}
+                >
+                  ₹
+                </span>
+                <ModalInput
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputMode="decimal"
+                  value={draft.consultationFee}
+                  onChange={(e) => setField('consultationFee', e.target.value)}
+                  placeholder="e.g. 500"
+                  className="pl-8 py-2"
+                />
+              </div>
+              <p className="text-[11px] mt-2 leading-relaxed" style={{ color: colors.textDim }}>
+                Amount charged for each doctor consultation booking.
+              </p>
+              <FieldError message={fieldErrors.consultationFee} />
             </div>
+          </section>
+
+          <section>
+            <h3 className="text-[13px] font-extrabold text-white mb-3">Weekly Consultation Schedule</h3>
             <ScheduleEditor schedule={draft.schedule} onChange={(schedule) => setField('schedule', schedule)} />
           </section>
 

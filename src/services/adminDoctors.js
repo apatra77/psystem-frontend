@@ -26,6 +26,7 @@ const DAY_API_TO_KEY = Object.fromEntries(
 
 const STATUS_TO_UI = {
   ACTIVE: 'active',
+  AVAILABLE: 'active',
   ON_LEAVE: 'on_leave',
   INACTIVE: 'inactive',
 }
@@ -101,7 +102,46 @@ function formatUiTime(timeStr) {
 function formatApiTime(timeStr) {
   const parts = parseTimeParts(timeStr)
   if (!parts) return String(timeStr ?? '')
-  return `${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`
+  return `${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}:00`
+}
+
+function formatPhoneForApi(value) {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (digits.length === 10) return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`
+  if (digits.length === 12 && digits.startsWith('91')) {
+    const local = digits.slice(2)
+    return `+91 ${local.slice(0, 5)} ${local.slice(5)}`
+  }
+  return String(value ?? '').trim()
+}
+
+function mapQualificationsFromApi(raw) {
+  if (Array.isArray(raw) && raw.length) {
+    return raw.map((item, index) => ({
+      qualificationName: pick(item, 'qualificationName', 'name') ?? '',
+      institutionName: pick(item, 'institutionName', 'institution') ?? '',
+      yearCompleted:
+        pick(item, 'yearCompleted', 'year') != null ? String(pick(item, 'yearCompleted', 'year')) : '',
+      displayOrder: Number(pick(item, 'displayOrder')) || index + 1,
+    }))
+  }
+
+  if (typeof raw === 'string' && raw.trim()) {
+    return raw.split(',').map((part, index) => ({
+      qualificationName: part.trim(),
+      institutionName: '',
+      yearCompleted: '',
+      displayOrder: index + 1,
+    }))
+  }
+
+  return []
+}
+
+function formatQualificationsLabel(raw) {
+  const rows = mapQualificationsFromApi(raw)
+  if (!rows.length) return ''
+  return rows.map((row) => row.qualificationName).filter(Boolean).join(', ')
 }
 
 function resolveDayKey(value) {
@@ -170,35 +210,51 @@ export function mapScheduleFromApi(rawSchedule) {
 export function mapScheduleToApi(schedule) {
   return WEEK_DAYS.map(({ key }) => {
     const day = schedule?.[key] ?? { enabled: false, slots: [] }
+    const isAvailable = Boolean(day.enabled)
     return {
-      day: DAY_KEY_TO_API[key],
       dayOfWeek: DAY_KEY_TO_API[key],
-      enabled: Boolean(day.enabled),
-      available: Boolean(day.enabled),
-      timeSlots: (day.slots ?? []).map((slot) => ({
-        startTime: formatApiTime(slot.start),
-        endTime: formatApiTime(slot.end),
-      })),
+      isAvailable,
+      consultationSlots: isAvailable
+        ? (day.slots ?? []).map((slot, index) => ({
+            startTime: formatApiTime(slot.start),
+            endTime: formatApiTime(slot.end),
+            slotOrder: index + 1,
+          }))
+        : [],
     }
   })
 }
 
 export function mapAdminDoctorFromApi(item = {}) {
   const specialtyId = pick(item, 'specialtyId', 'specializationId')
-  const storeId = pick(item, 'storeId', 'outletId', 'clinicId')
+  const storeLocationId = pick(item, 'storeLocationId', 'storeId', 'outletId', 'clinicId')
   const store = pick(item, 'store', 'storeName', 'outletName', 'clinicName', 'location')
+  const firstName = pick(item, 'firstName')
+  const lastName = pick(item, 'lastName')
+  const rawQualifications = pick(item, 'qualifications', 'qualification', 'degree', 'credentials')
+  const qualificationRows = mapQualificationsFromApi(rawQualifications)
 
   return {
     id: String(pick(item, 'id', 'doctorId') ?? ''),
-    name: pick(item, 'name', 'doctorName', 'fullName') ?? '',
+    doctorCode: pick(item, 'doctorCode', 'code') ?? '',
+    firstName: firstName ?? '',
+    lastName: lastName ?? '',
+    name:
+      pick(item, 'name', 'doctorName', 'fullName') ??
+      [firstName, lastName].filter(Boolean).join(' ').trim(),
     email: pick(item, 'email', 'emailAddress') ?? '',
-    mobile: pick(item, 'mobile', 'mobileNumber', 'phone', 'phoneNumber') ?? '',
-    qualifications: pick(item, 'qualifications', 'qualification', 'degree', 'credentials') ?? '',
+    mobile: String(pick(item, 'mobile', 'mobileNumber', 'phone', 'phoneNumber') ?? '').replace(/\D/g, ''),
+    phoneNumber: pick(item, 'phoneNumber', 'mobileNumber', 'phone', 'mobile') ?? '',
+    qualifications: formatQualificationsLabel(rawQualifications),
+    qualificationRows,
+    profileSummary: pick(item, 'profileSummary', 'summary', 'bio') ?? '',
     specialty: pick(item, 'specialty', 'specialization', 'specialtyName', 'speciality') ?? '',
     specialtyId: specialtyId != null ? Number(specialtyId) : null,
     store: store ?? '',
-    storeId: storeId != null ? String(storeId) : '',
-    experienceYears: pick(item, 'experienceYears', 'experience', 'yearsOfExperience'),
+    storeLocationId: storeLocationId != null ? Number(storeLocationId) : null,
+    storeId: storeLocationId != null ? String(storeLocationId) : '',
+    experienceYears: pick(item, 'yearsOfExperience', 'experienceYears', 'experience'),
+    consultationFee: pick(item, 'consultationFee', 'consultationFees', 'fee'),
     consultationType: normalizeConsultationType(
       pick(item, 'consultationType', 'consultationMode', 'mode'),
     ),
@@ -210,6 +266,7 @@ export function mapAdminDoctorFromApi(item = {}) {
     schedule: mapScheduleFromApi(
       pick(
         item,
+        'weeklySchedules',
         'schedule',
         'consultationSchedule',
         'weeklySchedule',
@@ -223,22 +280,36 @@ export function mapAdminDoctorFromApi(item = {}) {
 
 function buildDoctorWritePayload(payload = {}) {
   const body = {
-    name: payload.name,
-    email: payload.email,
-    mobile: payload.mobile,
-    mobileNumber: payload.mobile,
-    qualifications: payload.qualifications,
-    specialtyId: payload.specialtyId != null ? Number(payload.specialtyId) : undefined,
-    specialty: payload.specialty,
-    storeId: payload.storeId,
-    store: payload.store,
-    storeName: payload.store,
-    experienceYears:
-      payload.experienceYears == null || payload.experienceYears === ''
+    doctorCode: payload.doctorCode?.trim(),
+    firstName: payload.firstName?.trim(),
+    lastName: payload.lastName?.trim(),
+    email: payload.email?.trim(),
+    phoneNumber: formatPhoneForApi(payload.phoneNumber ?? payload.mobile),
+    yearsOfExperience:
+      payload.yearsOfExperience == null || payload.yearsOfExperience === ''
         ? undefined
-        : Number(payload.experienceYears),
-    consultationType: CONSULTATION_TO_API[payload.consultationType] ?? 'BOTH',
-    consultationSchedule: mapScheduleToApi(payload.schedule),
+        : Number(payload.yearsOfExperience),
+    profileSummary: payload.profileSummary?.trim(),
+    consultationFee:
+      payload.consultationFee == null || payload.consultationFee === ''
+        ? undefined
+        : Number(payload.consultationFee),
+    specialtyId: payload.specialtyId != null ? Number(payload.specialtyId) : undefined,
+    storeLocationId:
+      payload.storeLocationId != null && payload.storeLocationId !== ''
+        ? Number(payload.storeLocationId)
+        : undefined,
+    doctorStatus: STATUS_TO_API[payload.doctorStatus] ?? payload.doctorStatus ?? 'ACTIVE',
+    qualifications: (payload.qualifications ?? []).map((row, index) => ({
+      qualificationName: row.qualificationName?.trim(),
+      institutionName: row.institutionName?.trim(),
+      yearCompleted:
+        row.yearCompleted == null || row.yearCompleted === ''
+          ? undefined
+          : Number(row.yearCompleted),
+      displayOrder: Number(row.displayOrder) || index + 1,
+    })),
+    weeklySchedules: mapScheduleToApi(payload.schedule),
   }
 
   Object.keys(body).forEach((key) => {
@@ -246,6 +317,26 @@ function buildDoctorWritePayload(payload = {}) {
   })
 
   return body
+}
+
+async function submitDoctorWrite(method, path, payload, profileImage) {
+  const formData = new FormData()
+  const body = buildDoctorWritePayload(payload)
+  formData.append('doctor', new Blob([JSON.stringify(body)], { type: 'application/json' }))
+  if (profileImage) formData.append('profileImage', profileImage)
+
+  const res = await fetch(`${DOCTOR_API_BASE}${path}`, {
+    method,
+    headers: authHeaders(),
+    body: formData,
+  })
+
+  const data = await parseJsonResponse(res)
+  if (res.status === 401) notifyUnauthorized()
+  if (!res.ok) throw new Error(getErrorMessage(data, res.status))
+
+  cachedSpecialties = null
+  return data
 }
 
 function unwrapEntity(payload) {
@@ -368,29 +459,18 @@ export async function fetchAdminDoctorById(id) {
   return request
 }
 
-export async function createAdminDoctor(payload) {
-  const response = await authFetch(
-    BASE,
-    {
-      method: 'POST',
-      body: JSON.stringify(buildDoctorWritePayload(payload)),
-    },
-    DOCTOR_API_BASE,
-  )
-  cachedSpecialties = null
+export async function createAdminDoctor(payload, profileImage) {
+  const response = await submitDoctorWrite('POST', BASE, payload, profileImage)
   return mapAdminDoctorFromApi(unwrapEntity(response))
 }
 
-export async function updateAdminDoctor(id, payload) {
-  const response = await authFetch(
+export async function updateAdminDoctor(id, payload, profileImage) {
+  const response = await submitDoctorWrite(
+    'PUT',
     `${BASE}/${encodeURIComponent(id)}`,
-    {
-      method: 'PUT',
-      body: JSON.stringify(buildDoctorWritePayload(payload)),
-    },
-    DOCTOR_API_BASE,
+    payload,
+    profileImage,
   )
-  cachedSpecialties = null
   inFlightDoctorRequests.delete(String(id))
   return mapAdminDoctorFromApi(unwrapEntity(response))
 }

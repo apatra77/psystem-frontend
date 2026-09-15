@@ -17,7 +17,7 @@ import GlassCard from '../../components/GlassCard'
 import { ModalSelect } from '../../components/PortalModal'
 import Spinner from '@/components/ui/Spinner'
 import { useAdminDoctorsQuery } from '../../hooks/useAdminDoctorsQuery'
-import { DOCTOR_SPECIALTIES, DOCTOR_STORES } from '../../data/doctorsData'
+import { DOCTOR_SPECIALTIES } from '../../data/doctorsData'
 import {
   DOCTOR_STATUS_FILTERS,
   DOCTORS_PAGE_SIZE,
@@ -108,8 +108,7 @@ export default function DoctorsList() {
   const prevPathRef = useRef(location.pathname)
   const [search, setSearch] = useState('')
   const [specialtyId, setSpecialtyId] = useState('all')
-  const [status, setStatus] = useState('all')
-  const [storeId, setStoreId] = useState('all')
+  const [status, setStatus] = useState('active')
   const [page, setPage] = useState(0)
   const [specialtiesOpen, setSpecialtiesOpen] = useState(false)
   const {
@@ -124,7 +123,7 @@ export default function DoctorsList() {
     rangeStart,
     rangeEnd,
     pageNumbers,
-  } = useAdminDoctorsQuery({ search, specialtyId, status, storeId, page, pageSize: DOCTORS_PAGE_SIZE })
+  } = useAdminDoctorsQuery({ search, specialtyId, status, page, pageSize: DOCTORS_PAGE_SIZE })
 
   useEffect(() => {
     if (prevPathRef.current !== '/owner/doctors' && location.pathname === '/owner/doctors') {
@@ -144,19 +143,10 @@ export default function DoctorsList() {
     () => DOCTOR_STATUS_FILTERS.map((opt) => ({ value: opt.id, label: opt.label })),
     [],
   )
-  const storeOptions = useMemo(
-    () => [
-      { value: 'all', label: 'All Stores' },
-      ...DOCTOR_STORES.map((s) => ({ value: s.id, label: s.label })),
-    ],
-    [],
-  )
-
   const resetFilters = () => {
     setSearch('')
     setSpecialtyId('all')
-    setStatus('all')
-    setStoreId('all')
+    setStatus('active')
     setPage(0)
   }
 
@@ -266,17 +256,7 @@ export default function DoctorsList() {
               setPage(0)
             }}
             options={statusOptions}
-            placeholder="All Status"
-          />
-          <ModalSelect
-            className="w-[150px] flex-shrink-0"
-            value={storeId}
-            onChange={(e) => {
-              setStoreId(e.target.value)
-              setPage(0)
-            }}
-            options={storeOptions}
-            placeholder="All Stores"
+            placeholder="Available"
           />
           <button
             type="button"

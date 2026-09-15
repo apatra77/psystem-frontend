@@ -3,10 +3,8 @@ import { colors } from '@/theme/colors'
 export const DOCTORS_PAGE_SIZE = 5
 
 export const DOCTOR_STATUS_FILTERS = [
-  { id: 'all', label: 'All Status' },
-  { id: 'active', label: 'Active' },
+  { id: 'active', label: 'Available' },
   { id: 'on_leave', label: 'On Leave' },
-  { id: 'inactive', label: 'Inactive' },
 ]
 
 export function doctorInitials(name = '') {
@@ -67,7 +65,7 @@ export function getDoctorTimingRows(doctor) {
 export function statusMeta(status) {
   switch (status) {
     case 'active':
-      return { label: 'Active', color: colors.accentText, bg: colors.accent, border: 'rgba(64,222,170,0.5)' }
+      return { label: 'Available', color: colors.accentText, bg: colors.accent, border: 'rgba(64,222,170,0.5)' }
     case 'on_leave':
       return { label: 'On Leave', color: '#2a1800', bg: colors.gold, border: 'rgba(255,213,143,0.5)' }
     default:
