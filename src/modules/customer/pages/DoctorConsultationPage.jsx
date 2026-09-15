@@ -1,39 +1,22 @@
 import { useState } from 'react'
-import {
-  Activity,
-  ArrowRight,
-  Baby,
-  ChevronDown,
-  HeartPulse,
-  MapPin,
-  Search,
-  Sparkles,
-  Stethoscope,
-} from 'lucide-react'
+import { ArrowRight, ChevronDown, MapPin, Search } from 'lucide-react'
 import DoctorTopCard from '@/modules/customer/components/consultation/DoctorTopCard'
 import PopularDoctorCard from '@/modules/customer/components/consultation/PopularDoctorCard'
 import ConsultationSidebar from '@/modules/customer/components/consultation/ConsultationSidebar'
 import DoctorBookingModal from '@/modules/customer/components/consultation/DoctorBookingModal'
 import DoctorProfileModal from '@/modules/customer/components/consultation/DoctorProfileModal'
 import { useDoctorConsultation } from '@/modules/customer/hooks/useDoctorConsultation'
+import { useAuthStore } from '@/app/store/authStore'
 import { useOrderStore } from '@/app/store/orderStore'
 import { toast } from '@/app/store/uiStore'
+import { bookAppointment, buildAppointmentPayload } from '@/services/appointments'
+import { isDoctorAvailableToday } from '@/services/doctors'
 import {
   CONSULTATION_MORE_SPECIALTIES,
   CONSULTATION_SPECIALTIES,
-  CONSULTATION_SPECIALTY_AISLES,
   DEFAULT_CONSULTATION_CITY,
 } from '@/shared/mocks/doctorConsultation'
 import { colors } from '@/app/themes/colors'
-
-const SPECIALTY_ICONS = {
-  1: Stethoscope,
-  2: Sparkles,
-  3: HeartPulse,
-  4: Baby,
-  5: Activity,
-  6: Activity,
-}
 
 function SectionHeader({ title, actionLabel, onAction, hideAction = false }) {
   return (
@@ -78,7 +61,6 @@ export default function DoctorConsultationPage() {
     return s.addresses.find((address) => address.isDefault) ?? s.addresses[0] ?? null
   })
 
-  const city = selectedAddress?.city?.trim() || DEFAULT_CONSULTATION_CITY
   const locationLabel = selectedAddress
     ? [selectedAddress.city, selectedAddress.state].filter(Boolean).join(', ')
     : `${DEFAULT_CONSULTATION_CITY}, Odisha`
@@ -100,28 +82,45 @@ export default function DoctorConsultationPage() {
     popularLimit,
     fetchProfile,
     fetchSlots,
-  } = useDoctorConsultation(city)
+  } = useDoctorConsultation()
 
-  const [favorites, setFavorites] = useState(() => new Set())
+  const authUser = useAuthStore((s) => s.user)
+
   const [moreOpen, setMoreOpen] = useState(false)
   const [bookingDoctor, setBookingDoctor] = useState(null)
   const [profileDoctorId, setProfileDoctorId] = useState(null)
+  const [booking, setBooking] = useState(false)
 
-  const toggleFavorite = (doctorId) => {
-    setFavorites((prev) => {
-      const next = new Set(prev)
-      if (next.has(doctorId)) next.delete(doctorId)
-      else next.add(doctorId)
-      return next
-    })
+  const openBooking = (doctor) => {
+    if (!isDoctorAvailableToday(doctor)) return
+    setBookingDoctor(doctor)
   }
-
-  const openBooking = (doctor) => setBookingDoctor(doctor)
   const openProfile = (doctor) => setProfileDoctorId(doctor.id)
 
-  const handleConfirmBooking = ({ doctor, slot }) => {
-    setBookingDoctor(null)
-    toast.success(`Consultation booked with ${doctor.name} at ${slot.time}`)
+  const handleConfirmBooking = async ({ doctor, slot, consultationDate, patientPhone }) => {
+    if (booking) return
+
+    setBooking(true)
+    try {
+      await bookAppointment(
+        buildAppointmentPayload({
+          doctorId: doctor.id,
+          consultationDate,
+          slot,
+          patientName: authUser?.fullName ?? '',
+          patientPhone,
+          patientEmail: authUser?.email ?? '',
+          consultationMode: 'IN_CLINIC',
+          bookingNotes: '',
+        }),
+      )
+      setBookingDoctor(null)
+      toast.success(`Consultation booked with ${doctor.name} at ${slot.time}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not book appointment')
+    } finally {
+      setBooking(false)
+    }
   }
 
   const handleSpecialtySelect = (id) => {
@@ -270,55 +269,12 @@ export default function DoctorConsultationPage() {
             ) : topDoctors.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {topDoctors.map((doctor) => (
-                  <DoctorTopCard
-                    key={doctor.id}
-                    doctor={doctor}
-                    isFavorite={favorites.has(doctor.id)}
-                    onToggleFavorite={toggleFavorite}
-                    onConsult={openBooking}
-                  />
+                  <DoctorTopCard key={doctor.id} doctor={doctor} onConsult={openBooking} />
                 ))}
               </div>
             ) : (
               <EmptyPanel message="No doctors found for this search. Try another specialty or keyword." />
             )}
-          </section>
-
-          <section>
-            <SectionHeader title="Available Specialties" />
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {CONSULTATION_SPECIALTY_AISLES.map((aisle) => {
-                const Icon = SPECIALTY_ICONS[aisle.id] ?? Stethoscope
-                return (
-                  <button
-                    key={aisle.id}
-                    type="button"
-                    onClick={() => handleSpecialtySelect(aisle.id)}
-                    className="flex items-center gap-3 rounded-[14px] px-4 py-3 text-left transition-transform hover:-translate-y-0.5"
-                    style={{ background: colors.cardBg, border: `1px solid ${colors.borderSubtle}` }}
-                  >
-                    <span
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-                      style={{
-                        background: `${aisle.accent}18`,
-                        border: `1px solid ${aisle.accent}33`,
-                        color: aisle.accent,
-                      }}
-                    >
-                      <Icon size={18} />
-                    </span>
-                    <span>
-                      <span className="block text-[13px] font-extrabold" style={{ color: colors.textBright }}>
-                        {aisle.name}
-                      </span>
-                      <span className="mt-0.5 block text-[11px]" style={{ color: colors.textDim }}>
-                        {aisle.count}
-                      </span>
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
           </section>
 
           <section>
@@ -345,15 +301,7 @@ export default function DoctorConsultationPage() {
                     key={doctor.id}
                     doctor={doctor}
                     slots={doctor.slots ?? []}
-                    isFavorite={favorites.has(doctor.id)}
-                    onToggleFavorite={toggleFavorite}
-                    onBook={(doc, slot) => {
-                      if (slot) {
-                        handleConfirmBooking({ doctor: doc, slot })
-                        return
-                      }
-                      openBooking(doc)
-                    }}
+                    onConsult={openBooking}
                     onViewProfile={openProfile}
                   />
                 ))}

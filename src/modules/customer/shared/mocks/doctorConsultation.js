@@ -34,26 +34,6 @@ export const CONSULTATION_MORE_SPECIALTIES = [
 
 
 
-/** Sidebar “Available specialties” cards — counts are illustrative until a list API exists. */
-
-export const CONSULTATION_SPECIALTY_AISLES = [
-
-  { id: 1, name: 'General Physician', count: '120+ doctors', accent: '#40deaa' },
-
-  { id: 2, name: 'Dermatology', count: '85+ doctors', accent: '#ffd58f' },
-
-  { id: 3, name: 'Gynecology', count: '60+ doctors', accent: '#ff8fb8' },
-
-  { id: 4, name: 'Pediatrics', count: '45+ doctors', accent: '#6fc2ff' },
-
-  { id: 5, name: 'Cardiology', count: '35+ doctors', accent: '#b287ff' },
-
-  { id: 6, name: 'Orthopedics', count: '28+ doctors', accent: '#68d9b4' },
-
-]
-
-
-
 export const CONSULTATION_WHY_US = [
 
   { label: 'Verified & experienced doctors', icon: 'user' },

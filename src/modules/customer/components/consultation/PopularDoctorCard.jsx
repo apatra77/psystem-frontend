@@ -1,4 +1,5 @@
-import { Heart, Star } from 'lucide-react'
+import { Star } from 'lucide-react'
+import { isDoctorAvailableToday } from '@/services/doctors'
 import { colors } from '@/app/themes/colors'
 
 function DoctorAvatar({ doctor, size = 56 }) {
@@ -37,14 +38,10 @@ function DoctorAvatar({ doctor, size = 56 }) {
   )
 }
 
-export default function PopularDoctorCard({
-  doctor,
-  slots = [],
-  onBook,
-  onViewProfile,
-  onToggleFavorite,
-  isFavorite = false,
-}) {
+export default function PopularDoctorCard({ doctor, slots = [], onConsult, onViewProfile }) {
+  const canConsult = isDoctorAvailableToday(doctor)
+  const visibleSlots = canConsult ? slots : []
+
   return (
     <article
       className="rounded-[16px] p-4"
@@ -54,27 +51,13 @@ export default function PopularDoctorCard({
         <div className="flex min-w-0 flex-1 items-start gap-3">
           <DoctorAvatar doctor={doctor} />
           <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h3 className="truncate text-[14px] font-extrabold" style={{ color: colors.textBright }}>
-                  {doctor.name}
-                </h3>
-                <p className="mt-0.5 text-[11.5px]" style={{ color: colors.textMuted }}>
-                  {[doctor.specialty, doctor.qualifications].filter(Boolean).join(' · ')}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onToggleFavorite?.(doctor.id)}
-                className="shrink-0 rounded-full p-1.5 hover:bg-white/5"
-                aria-label={isFavorite ? 'Remove from favourites' : 'Save doctor'}
-              >
-                <Heart
-                  size={15}
-                  fill={isFavorite ? colors.accent : 'transparent'}
-                  style={{ color: isFavorite ? colors.accent : colors.textDim }}
-                />
-              </button>
+            <div className="min-w-0">
+              <h3 className="truncate text-[14px] font-extrabold" style={{ color: colors.textBright }}>
+                {doctor.name}
+              </h3>
+              <p className="mt-0.5 text-[11.5px]" style={{ color: colors.textMuted }}>
+                {[doctor.specialty, doctor.qualifications].filter(Boolean).join(' · ')}
+              </p>
             </div>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]" style={{ color: colors.textDim }}>
@@ -96,13 +79,11 @@ export default function PopularDoctorCard({
             Available Today
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {slots.length > 0 ? (
-              slots.map((slot) => (
-                <button
+            {visibleSlots.length > 0 ? (
+              visibleSlots.map((slot) => (
+                <span
                   key={slot.id}
-                  type="button"
-                  onClick={() => onBook?.(doctor, slot)}
-                  className="rounded-[8px] px-2.5 py-1.5 text-[11px] font-bold transition-colors hover:border-[rgba(64,222,170,0.45)]"
+                  className="rounded-[8px] px-2.5 py-1.5 text-[11px] font-bold"
                   style={{
                     color: colors.textHighlight,
                     background: 'rgba(255,255,255,0.04)',
@@ -110,7 +91,7 @@ export default function PopularDoctorCard({
                   }}
                 >
                   {slot.time}
-                </button>
+                </span>
               ))
             ) : (
               <span className="text-[11px]" style={{ color: colors.textDim }}>
@@ -120,18 +101,37 @@ export default function PopularDoctorCard({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onViewProfile?.(doctor)}
-          className="shrink-0 rounded-[10px] px-4 py-2 text-[12px] font-bold lg:self-center"
-          style={{
-            color: colors.textHighlight,
-            background: 'rgba(255,255,255,0.04)',
-            border: `1px solid ${colors.border}`,
-          }}
-        >
-          View Profile
-        </button>
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:self-center">
+          <button
+            type="button"
+            onClick={() => onViewProfile?.(doctor)}
+            className="rounded-[10px] px-4 py-2 text-[12px] font-bold"
+            style={{
+              color: colors.textHighlight,
+              background: 'rgba(255,255,255,0.04)',
+              border: `1px solid ${colors.border}`,
+            }}
+          >
+            View Profile
+          </button>
+          <button
+            type="button"
+            disabled={!canConsult}
+            onClick={() => onConsult?.(doctor)}
+            className="rounded-[10px] px-4 py-2 text-[12px] font-extrabold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+            style={
+              canConsult
+                ? { background: colors.primaryBtn, color: colors.accentText }
+                : {
+                    background: 'rgba(255,255,255,0.06)',
+                    color: colors.textDim,
+                    border: `1px solid ${colors.borderSubtle}`,
+                  }
+            }
+          >
+            Consult Now
+          </button>
+        </div>
       </div>
     </article>
   )

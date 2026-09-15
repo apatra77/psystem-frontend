@@ -1,14 +1,57 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import PortalModal from '@/shared/ui/PortalModal'
+import PortalModal, { ModalFieldLabel, ModalInput } from '@/shared/ui/PortalModal'
+import { useAuthStore } from '@/app/store/authStore'
 import { fmtINR } from '@/app/utils/format'
+import { fetchUserProfile } from '@/services/user'
 import { colors } from '@/app/themes/colors'
 
+function extractMobileDigits(value) {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (!digits) return ''
+  return digits.length >= 10 ? digits.slice(-10) : digits
+}
+
+function resolveMobileFromSources(profile, authUser) {
+  return extractMobileDigits(profile?.mobile ?? authUser?.mobile ?? authUser?.phone ?? '')
+}
+
 export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConfirm }) {
+  const authUser = useAuthStore((s) => s.user)
+
   const [slots, setSlots] = useState([])
+  const [consultationDate, setConsultationDate] = useState('')
   const [selectedSlot, setSelectedSlot] = useState(null)
+  const [patientPhone, setPatientPhone] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [submitError, setSubmitError] = useState('')
+
+  useEffect(() => {
+    if (!doctor?.id) return undefined
+
+    setPatientPhone(resolveMobileFromSources(null, authUser))
+    setSubmitError('')
+
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const profile = await fetchUserProfile()
+        if (!cancelled) {
+          setPatientPhone(resolveMobileFromSources(profile, authUser))
+        }
+      } catch {
+        if (!cancelled) {
+          setPatientPhone(resolveMobileFromSources(null, authUser))
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authUser, doctor?.id])
 
   useEffect(() => {
     if (!doctor?.id) return undefined
@@ -19,14 +62,20 @@ export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConf
       setLoading(true)
       setError('')
       try {
-        const nextSlots = await fetchSlots(doctor.id, 'today')
+        const result = await fetchSlots(doctor.id, 'today')
+        const nextSlots = Array.isArray(result) ? result : (result?.slots ?? [])
+        const nextDate = Array.isArray(result) ? '' : (result?.consultationDate ?? '')
+
         if (!cancelled) {
-          setSlots(nextSlots.filter((slot) => slot.available))
-          setSelectedSlot(nextSlots.find((slot) => slot.available) ?? null)
+          const slotsWithTimes = nextSlots.filter((slot) => slot.time)
+          setConsultationDate(nextDate)
+          setSlots(slotsWithTimes)
+          setSelectedSlot(slotsWithTimes[0] ?? null)
         }
       } catch (err) {
         if (!cancelled) {
           setSlots([])
+          setConsultationDate('')
           setError(err?.message ?? 'Could not load available slots')
         }
       } finally {
@@ -40,6 +89,16 @@ export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConf
   }, [doctor?.id, fetchSlots])
 
   if (!doctor) return null
+
+  const handleConfirm = () => {
+    const phone = patientPhone.replace(/\D/g, '')
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      setSubmitError('Please enter a valid 10-digit mobile number.')
+      return
+    }
+    setSubmitError('')
+    onConfirm?.({ doctor, slot: selectedSlot, consultationDate, patientPhone: phone })
+  }
 
   return (
     <PortalModal onClose={onClose} width={480} accentBorder>
@@ -116,6 +175,19 @@ export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConf
           </div>
         )}
 
+        <div className="mt-5">
+          <ModalFieldLabel>Mobile number</ModalFieldLabel>
+          <ModalInput
+            value={patientPhone}
+            onChange={(event) => {
+              setPatientPhone(event.target.value.replace(/\D/g, '').slice(0, 10))
+              setSubmitError('')
+            }}
+            placeholder="Enter 10-digit mobile number"
+            inputMode="numeric"
+          />
+        </div>
+
         <div
           className="mt-5 flex items-center justify-between gap-3 rounded-[12px] px-4 py-3"
           style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.borderSubtle}` }}
@@ -128,10 +200,16 @@ export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConf
           </span>
         </div>
 
+        {submitError ? (
+          <p className="mt-3 text-[12px]" style={{ color: '#ff9f9f' }}>
+            {submitError}
+          </p>
+        ) : null}
+
         <button
           type="button"
           disabled={!selectedSlot || loading}
-          onClick={() => onConfirm?.({ doctor, slot: selectedSlot })}
+          onClick={handleConfirm}
           className="mt-4 w-full rounded-[12px] py-3 text-[13px] font-extrabold disabled:cursor-not-allowed disabled:opacity-45"
           style={{ background: colors.primaryBtn, color: colors.accentText }}
         >

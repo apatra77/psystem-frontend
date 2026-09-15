@@ -1,5 +1,6 @@
-import { Heart, Star } from 'lucide-react'
+import { Star } from 'lucide-react'
 import { fmtINR } from '@/app/utils/format'
+import { isDoctorAvailableToday } from '@/services/doctors'
 import { colors } from '@/app/themes/colors'
 
 function DoctorAvatar({ doctor }) {
@@ -38,7 +39,7 @@ function DoctorAvatar({ doctor }) {
 
 function availabilityBadge(availability, availableToday) {
   const label = availability || (availableToday ? 'Available Now' : 'Available Tomorrow')
-  const isNow = /now|today|available/i.test(label) && !/tomorrow|next/i.test(label)
+  const isNow = /now|today|available/i.test(label) && !/tomorrow|next|not available|unavailable/i.test(label)
 
   return {
     label,
@@ -48,7 +49,8 @@ function availabilityBadge(availability, availableToday) {
   }
 }
 
-export default function DoctorTopCard({ doctor, onConsult, onToggleFavorite, isFavorite = false }) {
+export default function DoctorTopCard({ doctor, onConsult }) {
+  const canConsult = isDoctorAvailableToday(doctor)
   const badge = availabilityBadge(doctor.availability, doctor.availableToday)
   const reviewsLabel =
     doctor.reviewCount >= 1000
@@ -60,21 +62,7 @@ export default function DoctorTopCard({ doctor, onConsult, onToggleFavorite, isF
       className="flex h-full flex-col rounded-[16px] p-4"
       style={{ background: colors.cardBg, border: `1px solid ${colors.borderSubtle}` }}
     >
-      <div className="flex items-start justify-between gap-2">
-        <DoctorAvatar doctor={doctor} />
-        <button
-          type="button"
-          onClick={() => onToggleFavorite?.(doctor.id)}
-          className="rounded-full p-1.5 transition-colors hover:bg-white/5"
-          aria-label={isFavorite ? 'Remove from favourites' : 'Save doctor'}
-        >
-          <Heart
-            size={16}
-            fill={isFavorite ? colors.accent : 'transparent'}
-            style={{ color: isFavorite ? colors.accent : colors.textDim }}
-          />
-        </button>
-      </div>
+      <DoctorAvatar doctor={doctor} />
 
       <div className="mt-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -108,11 +96,20 @@ export default function DoctorTopCard({ doctor, onConsult, onToggleFavorite, isF
         </p>
         <button
           type="button"
+          disabled={!canConsult}
           onClick={() => onConsult?.(doctor)}
-          className="rounded-[10px] px-3.5 py-2 text-[12px] font-extrabold transition-opacity hover:opacity-90"
-          style={{ background: colors.primaryBtn, color: colors.accentText }}
+          className="rounded-[10px] px-3.5 py-2 text-[12px] font-extrabold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+          style={
+            canConsult
+              ? { background: colors.primaryBtn, color: colors.accentText }
+              : {
+                  background: 'rgba(255,255,255,0.06)',
+                  color: colors.textDim,
+                  border: `1px solid ${colors.borderSubtle}`,
+                }
+          }
         >
-          {doctor.availableToday === false ? 'Book Slot' : 'Consult Now'}
+          Consult Now
         </button>
       </div>
     </article>

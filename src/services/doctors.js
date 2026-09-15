@@ -159,11 +159,47 @@ export function mapDoctorSlotsFromApi(item = {}) {
   )
 }
 
+export function isDoctorAvailableToday(doctor = {}) {
+  const status = String(doctor.availabilityStatus ?? '').toUpperCase()
+  if (status === 'AVAILABLE_NOW' || status === 'AVAILABLE_TODAY') return true
+  if (
+    status === 'NOT_AVAILABLE' ||
+    status === 'AVAILABLE_TOMORROW' ||
+    status === 'ON_LEAVE' ||
+    status === 'INACTIVE'
+  ) {
+    return false
+  }
+
+  const label = String(doctor.availabilityLabel ?? doctor.availability ?? '').toLowerCase()
+  if (/not available|on leave|tomorrow|unavailable/.test(label)) return false
+  if (/available now|available today/.test(label)) return true
+
+  if (doctor.availableToday === true) return true
+  if (doctor.availableToday === false) return false
+
+  return false
+}
+
+function deriveAvailableToday(item, availabilityStatus, availabilityLabel) {
+  return isDoctorAvailableToday({
+    availabilityStatus,
+    availabilityLabel,
+    availability: availabilityLabel,
+    availableToday: item.availableToday ?? item.isAvailableToday,
+  })
+}
+
 export function mapDoctorFromApi(item = {}) {
   const reviewCount = Number(pick(item, 'reviewCount', 'totalReviews', 'reviews', 'ratingCount')) || 0
   const rating = Number(pick(item, 'rating', 'averageRating', 'avgRating')) || 0
   const fee = Number(pick(item, 'consultationFee', 'fee', 'price', 'consultationPrice')) || 0
-  const availabilityLabel = pick(item, 'availabilityLabel', 'availability', 'availabilityStatus', 'status')
+  const availabilityStatus = pick(item, 'availabilityStatus') ?? ''
+  const availabilityLabel =
+    pick(item, 'availabilityLabel', 'availability') ??
+    availabilityStatus ??
+    pick(item, 'status') ??
+    ''
   const specialtyObj = item.medicalSpecialty ?? item.specialty
   const specialtyName =
     typeof specialtyObj === 'object' && specialtyObj != null
@@ -226,9 +262,10 @@ export function mapDoctorFromApi(item = {}) {
     consultationFeeLabel: pick(item, 'consultationFeeLabel') ?? '',
     imageUrl: resolveDoctorImageUrl(rawImage),
     doctorStatus: pick(item, 'doctorStatus', 'status') ?? '',
+    availabilityStatus,
     availability: availabilityLabel ?? '',
     availabilityLabel: availabilityLabel ?? '',
-    availableToday: item.availableToday ?? item.isAvailableToday ?? true,
+    availableToday: deriveAvailableToday(item, availabilityStatus, availabilityLabel),
     bio: pick(item, 'profileSummary', 'bio', 'about', 'description') ?? '',
     languages: Array.isArray(item.languages) ? item.languages : [],
     consultationTimingsSummary:
@@ -240,15 +277,30 @@ export function mapDoctorFromApi(item = {}) {
   }
 }
 
+function normalizeApiTime(time) {
+  if (time == null || time === '') return ''
+  const value = String(time).trim()
+  if (/^\d{2}:\d{2}:\d{2}$/.test(value)) return value
+  if (/^\d{2}:\d{2}$/.test(value)) return `${value}:00`
+  return value
+}
+
 export function mapSlotFromApi(item = {}) {
+  const startTime = normalizeApiTime(pick(item, 'startTime', 'start'))
+  const endTime = normalizeApiTime(pick(item, 'endTime', 'end'))
+  const slotLabel = pick(item, 'slotLabel', 'label')
+
   return {
     id: String(
       pick(item, 'consultationSlotId', 'id', 'slotId') ??
-        pick(item, 'time', 'startTime', 'slotTime') ??
+        (startTime && endTime ? `${startTime}-${endTime}` : pick(item, 'time', 'slotTime')) ??
         '',
     ),
-    time: formatSlotTimeRange(item),
-    available: item.available !== false && item.isAvailable !== false,
+    time: slotLabel || formatSlotTimeRange(item),
+    startTime,
+    endTime,
+    available:
+      item.isBookable !== false && item.available !== false && item.isAvailable !== false,
   }
 }
 
@@ -274,12 +326,11 @@ async function doctorGet(path) {
   return request
 }
 
-export async function fetchDoctors({ searchKeyword, specialtyId, city, page, size } = {}) {
+export async function fetchDoctors({ searchKeyword, specialtyId, page, size } = {}) {
   const payload = await doctorGet(
     `${BASE}${buildQuery({
       searchKeyword,
       specialtyId,
-      city,
       page,
       size,
     })}`,
@@ -310,10 +361,12 @@ export async function fetchDoctorAvailableSlots(id, consultationDate = 'today') 
   const data = payload?.data ?? payload
   const rawSlots = data?.slots ?? payload?.slots
 
-  if (Array.isArray(rawSlots)) {
-    return rawSlots.map(mapSlotFromApi).filter((slot) => slot.time)
-  }
+  const slots = Array.isArray(rawSlots)
+    ? rawSlots.map(mapSlotFromApi).filter((slot) => slot.time)
+    : extractList(payload).map(mapSlotFromApi).filter((slot) => slot.time)
 
-  const list = extractList(payload)
-  return list.map(mapSlotFromApi).filter((slot) => slot.time)
+  return {
+    consultationDate: pick(data, 'consultationDate') ?? consultationDate,
+    slots,
+  }
 }

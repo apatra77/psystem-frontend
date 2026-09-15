@@ -6,8 +6,6 @@ import {
   fetchPopularDoctors,
   fetchTopDoctorsNearYou,
 } from '@/services/doctors'
-import { DEFAULT_CONSULTATION_CITY } from '@/shared/mocks/doctorConsultation'
-
 function useDebouncedValue(value, delay = 350) {
   const [debounced, setDebounced] = useState(value)
 
@@ -19,7 +17,7 @@ function useDebouncedValue(value, delay = 350) {
   return debounced
 }
 
-export function useDoctorConsultation(city = DEFAULT_CONSULTATION_CITY) {
+export function useDoctorConsultation() {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [specialtyId, setSpecialtyId] = useState(null)
   const [topDoctors, setTopDoctors] = useState([])
@@ -94,7 +92,6 @@ export function useDoctorConsultation(city = DEFAULT_CONSULTATION_CITY) {
         const doctors = await fetchDoctors({
           searchKeyword: debouncedSearch || undefined,
           specialtyId: specialtyId || undefined,
-          city,
         })
 
         if (cancelled || requestId !== searchRequestId.current) return
@@ -113,7 +110,7 @@ export function useDoctorConsultation(city = DEFAULT_CONSULTATION_CITY) {
     return () => {
       cancelled = true
     }
-  }, [city, debouncedSearch, specialtyId])
+  }, [debouncedSearch, specialtyId])
 
   const showAllTopDoctors = useCallback(() => setTopLimit(50), [])
   const showAllPopularDoctors = useCallback(() => setPopularLimit(50), [])
@@ -132,7 +129,6 @@ export function useDoctorConsultation(city = DEFAULT_CONSULTATION_CITY) {
   const topSectionLoading = isFiltering ? loadingSearch : loadingTop
 
   return {
-    city,
     searchKeyword,
     setSearchKeyword,
     specialtyId,
