@@ -2,7 +2,13 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { colors } from '@/app/themes/colors'
 
-export default function PortalModal({ onClose, children, width = 520, accentBorder = false }) {
+export default function PortalModal({
+  onClose,
+  children,
+  width = 520,
+  accentBorder = false,
+  scrollable = true,
+}) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose?.()
@@ -26,7 +32,9 @@ export default function PortalModal({ onClose, children, width = 520, accentBord
       role="presentation"
     >
       <div
-        className="w-full max-w-[92vw] max-h-[90vh] overflow-y-auto rounded-[20px]"
+        className={`w-full max-w-[92vw] max-h-[90vh] rounded-[20px] ${
+          scrollable ? 'overflow-y-auto' : 'overflow-hidden flex flex-col'
+        }`}
         style={{
           width,
           background: 'linear-gradient(180deg, #0f221b 0%, #0a1712 100%)',

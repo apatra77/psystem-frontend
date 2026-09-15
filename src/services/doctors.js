@@ -23,6 +23,96 @@ function extractList(payload) {
   return []
 }
 
+const DAY_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+
+function formatDayLabel(day) {
+  const raw = String(day ?? '').trim()
+  if (!raw) return ''
+  const lower = raw.toLowerCase()
+  return lower.charAt(0).toUpperCase() + lower.slice(1)
+}
+
+function resolveDoctorImageUrl(url) {
+  if (!url) return ''
+  const value = String(url).trim()
+  if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://')) {
+    return value
+  }
+  return `${DOCTOR_API_BASE}${value.startsWith('/') ? value : `/${value}`}`
+}
+
+function mapQualificationsList(raw) {
+  if (!Array.isArray(raw)) return []
+
+  return raw
+    .map((item, index) => ({
+      id: String(pick(item, 'qualificationId', 'id') ?? index),
+      name: pick(item, 'qualificationName', 'name') ?? '',
+      institution: pick(item, 'institutionName', 'institution') ?? '',
+      year: pick(item, 'yearCompleted', 'year'),
+      displayOrder: Number(pick(item, 'displayOrder')) || index + 1,
+    }))
+    .filter((item) => item.name)
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+}
+
+function formatSlotTimeRange(slot = {}) {
+  const formatted = pick(slot, 'formattedTimeRange', 'timeRange', 'label')
+  if (formatted) return formatted
+
+  const start = pick(slot, 'startTime', 'start')
+  const end = pick(slot, 'endTime', 'end')
+  if (start && end) return `${start} – ${end}`
+  return pick(slot, 'time', 'slotTime') ?? ''
+}
+
+function mapWeeklySchedulesFromApi(raw) {
+  if (!Array.isArray(raw)) return []
+
+  return raw
+    .map((day) => {
+      const dayOfWeek = pick(day, 'dayOfWeek', 'day') ?? ''
+      const slotsRaw = day.consultationSlots ?? day.slots ?? day.timeSlots ?? []
+
+      return {
+        dayOfWeek,
+        dayLabel: formatDayLabel(dayOfWeek),
+        isAvailable: Boolean(day.isAvailable ?? day.enabled ?? slotsRaw.length),
+        slots: (Array.isArray(slotsRaw) ? slotsRaw : [])
+          .map((slot, index) => ({
+            id: String(pick(slot, 'consultationSlotId', 'slotId', 'id') ?? `${dayOfWeek}-${index}`),
+            time: formatSlotTimeRange(slot),
+          }))
+          .filter((slot) => slot.time),
+      }
+    })
+    .sort((a, b) => DAY_ORDER.indexOf(a.dayOfWeek) - DAY_ORDER.indexOf(b.dayOfWeek))
+}
+
+function mapStoreLocationFromApi(store) {
+  if (!store || typeof store !== 'object') return null
+
+  const addressParts = [
+    pick(store, 'addressLine', 'address'),
+    store.city,
+    store.state,
+    pick(store, 'pinCode', 'pincode', 'zip'),
+  ].filter(Boolean)
+
+  return {
+    id: pick(store, 'storeLocationId', 'id'),
+    name: pick(store, 'storeName', 'name') ?? '',
+    code: pick(store, 'storeCode', 'code') ?? '',
+    addressLine: pick(store, 'addressLine', 'address') ?? '',
+    city: store.city ?? '',
+    state: store.state ?? '',
+    pinCode: pick(store, 'pinCode', 'pincode', 'zip') ?? '',
+    phone: pick(store, 'phoneNumber', 'phone') ?? '',
+    isOpen: store.isStoreOpen ?? store.isOpen,
+    fullAddress: addressParts.join(', '),
+  }
+}
+
 function parseTimingsSummaryToSlots(summary) {
   if (summary == null || summary === '') return []
 
@@ -74,36 +164,90 @@ export function mapDoctorFromApi(item = {}) {
   const rating = Number(pick(item, 'rating', 'averageRating', 'avgRating')) || 0
   const fee = Number(pick(item, 'consultationFee', 'fee', 'price', 'consultationPrice')) || 0
   const availabilityLabel = pick(item, 'availabilityLabel', 'availability', 'availabilityStatus', 'status')
+  const specialtyObj = item.medicalSpecialty ?? item.specialty
+  const specialtyName =
+    typeof specialtyObj === 'object' && specialtyObj != null
+      ? pick(specialtyObj, 'specialtyName', 'name', 'label')
+      : pick(item, 'specialty', 'specialization', 'specialtyName', 'speciality')
+  const specialtyId =
+    typeof specialtyObj === 'object' && specialtyObj != null
+      ? pick(specialtyObj, 'specialtyId', 'id')
+      : pick(item, 'specialtyId', 'specializationId')
+  const storeLocation = mapStoreLocationFromApi(item.storeLocation ?? item.store)
+  const qualificationList = mapQualificationsList(item.qualifications)
+  const qualificationsSummary = pick(
+    item,
+    'qualificationsSummary',
+    'qualification',
+    'degree',
+    'credentials',
+  )
+  const qualificationsText =
+    qualificationList.length > 0
+      ? qualificationList.map((entry) => entry.name).join(', ')
+      : typeof item.qualifications === 'string'
+        ? item.qualifications
+        : (qualificationsSummary ?? '')
+  const weeklySchedules = mapWeeklySchedulesFromApi(
+    item.weeklySchedules ?? item.weeklySchedule ?? item.schedule,
+  )
+  const rawImage =
+    pick(item, 'profileImageUrl', 'imageUrl', 'photoUrl', 'profileImage', 'avatar', 'profilePhoto') ??
+    (item.profileImage && item.profileImageContentType
+      ? `data:${item.profileImageContentType};base64,${item.profileImage}`
+      : '')
 
   return {
     id: String(pick(item, 'id', 'doctorId') ?? ''),
-    name: pick(item, 'name', 'doctorName', 'fullName') ?? 'Doctor',
-    specialty: pick(item, 'specialty', 'specialization', 'specialtyName', 'speciality') ?? '',
-    specialtyId: pick(item, 'specialtyId', 'specializationId'),
-    qualifications:
-      pick(item, 'qualifications', 'qualificationsSummary', 'degree', 'credentials', 'qualification') ?? '',
+    doctorCode: pick(item, 'doctorCode', 'code') ?? '',
+    firstName: pick(item, 'firstName') ?? '',
+    lastName: pick(item, 'lastName') ?? '',
+    name:
+      pick(item, 'name', 'doctorName', 'fullName') ??
+      ([pick(item, 'firstName'), pick(item, 'lastName')].filter(Boolean).join(' ').trim() || 'Doctor'),
+    email: pick(item, 'email', 'emailAddress') ?? '',
+    phoneNumber: pick(item, 'phoneNumber', 'mobileNumber', 'phone', 'mobile') ?? '',
+    specialty: specialtyName ?? '',
+    specialtyId,
+    specialtyDescription:
+      typeof specialtyObj === 'object' && specialtyObj != null ? pick(specialtyObj, 'description') ?? '' : '',
+    qualifications: qualificationsText,
+    qualificationList,
     rating,
     reviewCount,
     experienceYears: pick(item, 'yearsOfExperience', 'experienceYears', 'experience', 'experienceInYears'),
-    location: pick(item, 'location', 'clinicName', 'storeName', 'clinic', 'address', 'city') ?? '',
+    experienceLabel: pick(item, 'experienceLabel') ?? '',
+    location:
+      storeLocation?.name ??
+      pick(item, 'location', 'clinicName', 'storeName', 'clinic', 'address', 'city') ??
+      '',
+    storeLocation,
     fee,
-    imageUrl:
-      pick(item, 'imageUrl', 'photoUrl', 'profileImage', 'profileImageUrl', 'avatar', 'profilePhoto') ?? '',
+    consultationFeeLabel: pick(item, 'consultationFeeLabel') ?? '',
+    imageUrl: resolveDoctorImageUrl(rawImage),
+    doctorStatus: pick(item, 'doctorStatus', 'status') ?? '',
     availability: availabilityLabel ?? '',
     availabilityLabel: availabilityLabel ?? '',
     availableToday: item.availableToday ?? item.isAvailableToday ?? true,
-    bio: pick(item, 'bio', 'about', 'description', 'profileSummary') ?? '',
+    bio: pick(item, 'profileSummary', 'bio', 'about', 'description') ?? '',
     languages: Array.isArray(item.languages) ? item.languages : [],
     consultationTimingsSummary:
       pick(item, 'consultationTimingsSummary', 'consultationTimingSummary', 'timingsSummary') ?? '',
+    weeklySchedules,
     slots: mapDoctorSlotsFromApi(item),
+    createdAt: pick(item, 'createdAt') ?? null,
+    updatedAt: pick(item, 'updatedAt') ?? null,
   }
 }
 
 export function mapSlotFromApi(item = {}) {
   return {
-    id: String(pick(item, 'id', 'slotId') ?? pick(item, 'time', 'startTime', 'slotTime') ?? ''),
-    time: pick(item, 'time', 'startTime', 'slotTime', 'label') ?? '',
+    id: String(
+      pick(item, 'consultationSlotId', 'id', 'slotId') ??
+        pick(item, 'time', 'startTime', 'slotTime') ??
+        '',
+    ),
+    time: formatSlotTimeRange(item),
     available: item.available !== false && item.isAvailable !== false,
   }
 }
