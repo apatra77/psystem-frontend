@@ -23,27 +23,80 @@ function extractList(payload) {
   return []
 }
 
+function parseTimingsSummaryToSlots(summary) {
+  if (summary == null || summary === '') return []
+
+  if (Array.isArray(summary)) {
+    return summary
+      .map((entry, index) => ({
+        id: `summary-${index}`,
+        time: String(entry).trim(),
+        available: true,
+      }))
+      .filter((slot) => slot.time)
+      .slice(0, 4)
+  }
+
+  const text = String(summary).trim()
+  if (!text) return []
+
+  const segments = text.includes('\n')
+    ? text.split('\n')
+    : text.split(/\s*\|\s*|[,;]\s*/)
+
+  const items = segments.map((part) => part.trim()).filter(Boolean)
+  const normalized = items.length ? items : [text]
+
+  return normalized.slice(0, 4).map((time, index) => ({
+    id: `summary-${index}-${time}`,
+    time,
+    available: true,
+  }))
+}
+
+export function mapDoctorSlotsFromApi(item = {}) {
+  const rawSlots = pick(item, 'slots', 'availableSlots', 'consultationSlots', 'todaySlots')
+
+  if (Array.isArray(rawSlots) && rawSlots.length) {
+    return rawSlots
+      .map(mapSlotFromApi)
+      .filter((slot) => slot.time && slot.available !== false)
+      .slice(0, 4)
+  }
+
+  return parseTimingsSummaryToSlots(
+    pick(item, 'consultationTimingsSummary', 'consultationTimingSummary', 'timingsSummary'),
+  )
+}
+
 export function mapDoctorFromApi(item = {}) {
   const reviewCount = Number(pick(item, 'reviewCount', 'totalReviews', 'reviews', 'ratingCount')) || 0
   const rating = Number(pick(item, 'rating', 'averageRating', 'avgRating')) || 0
   const fee = Number(pick(item, 'consultationFee', 'fee', 'price', 'consultationPrice')) || 0
+  const availabilityLabel = pick(item, 'availabilityLabel', 'availability', 'availabilityStatus', 'status')
 
   return {
     id: String(pick(item, 'id', 'doctorId') ?? ''),
     name: pick(item, 'name', 'doctorName', 'fullName') ?? 'Doctor',
     specialty: pick(item, 'specialty', 'specialization', 'specialtyName', 'speciality') ?? '',
     specialtyId: pick(item, 'specialtyId', 'specializationId'),
-    qualifications: pick(item, 'qualifications', 'degree', 'credentials', 'qualification') ?? '',
+    qualifications:
+      pick(item, 'qualifications', 'qualificationsSummary', 'degree', 'credentials', 'qualification') ?? '',
     rating,
     reviewCount,
-    experienceYears: pick(item, 'experienceYears', 'experience', 'yearsOfExperience', 'experienceInYears'),
-    location: pick(item, 'location', 'clinicName', 'storeName', 'clinic', 'address') ?? '',
+    experienceYears: pick(item, 'yearsOfExperience', 'experienceYears', 'experience', 'experienceInYears'),
+    location: pick(item, 'location', 'clinicName', 'storeName', 'clinic', 'address', 'city') ?? '',
     fee,
-    imageUrl: pick(item, 'imageUrl', 'photoUrl', 'profileImage', 'avatar', 'profilePhoto') ?? '',
-    availability: pick(item, 'availability', 'availabilityStatus', 'availabilityLabel', 'status') ?? '',
+    imageUrl:
+      pick(item, 'imageUrl', 'photoUrl', 'profileImage', 'profileImageUrl', 'avatar', 'profilePhoto') ?? '',
+    availability: availabilityLabel ?? '',
+    availabilityLabel: availabilityLabel ?? '',
     availableToday: item.availableToday ?? item.isAvailableToday ?? true,
-    bio: pick(item, 'bio', 'about', 'description') ?? '',
+    bio: pick(item, 'bio', 'about', 'description', 'profileSummary') ?? '',
     languages: Array.isArray(item.languages) ? item.languages : [],
+    consultationTimingsSummary:
+      pick(item, 'consultationTimingsSummary', 'consultationTimingSummary', 'timingsSummary') ?? '',
+    slots: mapDoctorSlotsFromApi(item),
   }
 }
 
@@ -90,13 +143,13 @@ export async function fetchDoctors({ searchKeyword, specialtyId, city, page, siz
   return extractList(payload).map(mapDoctorFromApi).filter((doctor) => doctor.id)
 }
 
-export async function fetchTopDoctorsNearYou({ city, limit = 50 } = {}) {
-  const payload = await doctorGet(`${BASE}/top-near-you${buildQuery({ city, limit })}`)
+export async function fetchTopDoctorsNearYou({ limit = 50 } = {}) {
+  const payload = await doctorGet(`${BASE}/top-near-you${buildQuery({ limit })}`)
   return extractList(payload).map(mapDoctorFromApi).filter((doctor) => doctor.id)
 }
 
-export async function fetchPopularDoctors({ city, limit = 3 } = {}) {
-  const payload = await doctorGet(`${BASE}/popular${buildQuery({ city, limit })}`)
+export async function fetchPopularDoctors({ limit = 50 } = {}) {
+  const payload = await doctorGet(`${BASE}/popular${buildQuery({ limit })}`)
   return extractList(payload).map(mapDoctorFromApi).filter((doctor) => doctor.id)
 }
 
@@ -110,9 +163,13 @@ export async function fetchDoctorAvailableSlots(id, consultationDate = 'today') 
   const payload = await doctorGet(
     `${BASE}/${encodeURIComponent(id)}/available-slots${buildQuery({ consultationDate })}`,
   )
-  const list = extractList(payload)
-  if (list.length === 0 && payload?.slots) {
-    return extractList(payload.slots).map(mapSlotFromApi)
+  const data = payload?.data ?? payload
+  const rawSlots = data?.slots ?? payload?.slots
+
+  if (Array.isArray(rawSlots)) {
+    return rawSlots.map(mapSlotFromApi).filter((slot) => slot.time)
   }
+
+  const list = extractList(payload)
   return list.map(mapSlotFromApi).filter((slot) => slot.time)
 }

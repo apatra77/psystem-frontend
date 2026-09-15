@@ -90,7 +90,6 @@ export default function DoctorConsultationPage() {
     setSpecialtyId,
     topDoctors,
     popularDoctors,
-    popularSlots,
     isFiltering,
     loadingTop,
     loadingPopular,
@@ -345,7 +344,7 @@ export default function DoctorConsultationPage() {
                   <PopularDoctorCard
                     key={doctor.id}
                     doctor={doctor}
-                    slots={popularSlots[doctor.id] ?? []}
+                    slots={doctor.slots ?? []}
                     isFavorite={favorites.has(doctor.id)}
                     onToggleFavorite={toggleFavorite}
                     onBook={(doc, slot) => {

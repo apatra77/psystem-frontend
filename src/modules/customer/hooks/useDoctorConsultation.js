@@ -19,32 +19,14 @@ function useDebouncedValue(value, delay = 350) {
   return debounced
 }
 
-async function loadPopularSlots(doctors) {
-  if (!doctors.length) return {}
-
-  const slotEntries = await Promise.all(
-    doctors.map(async (doctor) => {
-      try {
-        const slots = await fetchDoctorAvailableSlots(doctor.id, 'today')
-        return [doctor.id, slots.filter((slot) => slot.available).slice(0, 4)]
-      } catch {
-        return [doctor.id, []]
-      }
-    }),
-  )
-
-  return Object.fromEntries(slotEntries)
-}
-
 export function useDoctorConsultation(city = DEFAULT_CONSULTATION_CITY) {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [specialtyId, setSpecialtyId] = useState(null)
   const [topDoctors, setTopDoctors] = useState([])
   const [popularDoctors, setPopularDoctors] = useState([])
-  const [popularSlots, setPopularSlots] = useState({})
   const [searchResults, setSearchResults] = useState([])
   const [topLimit, setTopLimit] = useState(50)
-  const [popularLimit, setPopularLimit] = useState(3)
+  const [popularLimit, setPopularLimit] = useState(50)
 
   const [loadingTop, setLoadingTop] = useState(true)
   const [loadingPopular, setLoadingPopular] = useState(true)
@@ -68,24 +50,18 @@ export function useDoctorConsultation(city = DEFAULT_CONSULTATION_CITY) {
 
       try {
         const [top, popular] = await Promise.all([
-          fetchTopDoctorsNearYou({ city, limit: topLimit }),
-          fetchPopularDoctors({ city, limit: popularLimit }),
+          fetchTopDoctorsNearYou({ limit: topLimit }),
+          fetchPopularDoctors({ limit: popularLimit }),
         ])
 
         if (cancelled || requestId !== browseRequestId.current) return
 
         setTopDoctors(top)
         setPopularDoctors(popular)
-
-        const slots = await loadPopularSlots(popular)
-        if (cancelled || requestId !== browseRequestId.current) return
-
-        setPopularSlots(slots)
       } catch (err) {
         if (cancelled || requestId !== browseRequestId.current) return
         setTopDoctors([])
         setPopularDoctors([])
-        setPopularSlots({})
         setError(err?.message ?? 'Could not load doctors')
       } finally {
         if (!cancelled && requestId === browseRequestId.current) {
@@ -98,7 +74,7 @@ export function useDoctorConsultation(city = DEFAULT_CONSULTATION_CITY) {
     return () => {
       cancelled = true
     }
-  }, [city, topLimit, popularLimit])
+  }, [topLimit, popularLimit])
 
   useEffect(() => {
     if (!debouncedSearch && !specialtyId) {
@@ -163,7 +139,6 @@ export function useDoctorConsultation(city = DEFAULT_CONSULTATION_CITY) {
     setSpecialtyId,
     topDoctors: visibleTopDoctors,
     popularDoctors,
-    popularSlots,
     isFiltering,
     loadingTop: topSectionLoading,
     loadingPopular,
