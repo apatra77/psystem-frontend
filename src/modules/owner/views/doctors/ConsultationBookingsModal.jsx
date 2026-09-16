@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CalendarClock, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput } from '../../components/PortalModal'
 import Spinner from '@/components/ui/Spinner'
@@ -69,35 +69,44 @@ export default function ConsultationBookingsModal({ onClose }) {
   const [totalElements, setTotalElements] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(0)
-
-  const loadBookings = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const result = await fetchAdminConsultationBookings({
-        fromDate: appliedFrom || todayApiDate(),
-        toDate: appliedTo || appliedFrom || todayApiDate(),
-        page,
-        size: BOOKINGS_PAGE_SIZE,
-      })
-      setBookings(result.bookings)
-      setTotalElements(result.totalElements)
-      setTotalPages(Math.max(1, result.totalPages))
-      setCurrentPage(result.page)
-    } catch (err) {
-      setBookings([])
-      setTotalElements(0)
-      setTotalPages(1)
-      setCurrentPage(0)
-      setError(err instanceof Error ? err.message : 'Could not load consultation bookings')
-    } finally {
-      setLoading(false)
-    }
-  }, [appliedFrom, appliedTo, page])
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
+
+    const loadBookings = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const result = await fetchAdminConsultationBookings({
+          fromDate: appliedFrom || todayApiDate(),
+          toDate: appliedTo || appliedFrom || todayApiDate(),
+          page,
+          size: BOOKINGS_PAGE_SIZE,
+        })
+        if (cancelled) return
+        setBookings(result.bookings)
+        setTotalElements(result.totalElements)
+        setTotalPages(Math.max(1, result.totalPages))
+        setCurrentPage(result.page)
+      } catch (err) {
+        if (cancelled) return
+        setBookings([])
+        setTotalElements(0)
+        setTotalPages(1)
+        setCurrentPage(0)
+        setError(err instanceof Error ? err.message : 'Could not load consultation bookings')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
     loadBookings()
-  }, [loadBookings])
+
+    return () => {
+      cancelled = true
+    }
+  }, [appliedFrom, appliedTo, page, reloadKey])
 
   const applyFilters = () => {
     const nextFrom = fromDate || todayApiDate()
@@ -129,28 +138,29 @@ export default function ConsultationBookingsModal({ onClose }) {
       : `${formatDisplayDate(appliedFrom)} – ${formatDisplayDate(appliedTo)}`
 
   return (
-    <PortalModal onClose={onClose} width={920} maxHeight="88vh">
-      <div
-        className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b"
-        style={{ borderColor: 'rgba(255,255,255,0.09)' }}
-      >
-        <div>
-          <h2 className="text-[17px] font-extrabold text-white">Consultation Bookings</h2>
-          <p className="text-[12px] mt-1" style={{ color: colors.textDim }}>
-            View and filter consultation bookings by date range.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-white/8 cursor-pointer"
-          aria-label="Close"
+    <PortalModal onClose={onClose} width={920} scrollable={false}>
+      <div className="flex flex-col max-h-[88vh]">
+        <div
+          className="flex-shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b"
+          style={{ borderColor: 'rgba(255,255,255,0.09)' }}
         >
-          <X size={18} style={{ color: colors.textMuted }} />
-        </button>
-      </div>
+          <div>
+            <h2 className="text-[17px] font-extrabold text-white">Consultation Bookings</h2>
+            <p className="text-[12px] mt-1" style={{ color: colors.textDim }}>
+              View and filter consultation bookings by date range.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-white/8 cursor-pointer"
+            aria-label="Close"
+          >
+            <X size={18} style={{ color: colors.textMuted }} />
+          </button>
+        </div>
 
-      <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.09)' }}>
+        <div className="flex-shrink-0 px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.09)' }}>
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end">
           <div>
             <ModalFieldLabel>From date</ModalFieldLabel>
@@ -191,12 +201,12 @@ export default function ConsultationBookingsModal({ onClose }) {
             Today
           </button>
         </div>
-        <p className="text-[11px] font-semibold mt-3" style={{ color: colors.textDim }}>
-          Showing bookings for {dateSummary}
-        </p>
-      </div>
+          <p className="text-[11px] font-semibold mt-3" style={{ color: colors.textDim }}>
+            Showing bookings for {dateSummary}
+          </p>
+        </div>
 
-      <div className="px-5 py-4">
+        <div className="flex-1 overflow-y-auto owner-scroll min-h-0 px-5 py-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center gap-3 py-14">
             <Spinner />
@@ -209,7 +219,7 @@ export default function ConsultationBookingsModal({ onClose }) {
             <p className="text-[13px] font-bold text-red-400">{error}</p>
             <button
               type="button"
-              onClick={loadBookings}
+              onClick={() => setReloadKey((key) => key + 1)}
               className="px-4 py-2.5 rounded-[10px] text-[12.5px] font-extrabold cursor-pointer"
               style={{ background: colors.primaryBtn, color: colors.accentText }}
             >
@@ -270,7 +280,7 @@ export default function ConsultationBookingsModal({ onClose }) {
               })}
             </div>
 
-            <div className="hidden md:block overflow-x-auto rounded-[12px]" style={{ border: `1px solid ${colors.borderSubtle}` }}>
+            <div className="hidden md:block overflow-x-auto owner-scroll rounded-[12px]" style={{ border: `1px solid ${colors.borderSubtle}` }}>
               <table className="w-full min-w-[820px] border-collapse">
                 <thead>
                   <tr>
@@ -409,6 +419,7 @@ export default function ConsultationBookingsModal({ onClose }) {
             )}
           </>
         )}
+        </div>
       </div>
     </PortalModal>
   )

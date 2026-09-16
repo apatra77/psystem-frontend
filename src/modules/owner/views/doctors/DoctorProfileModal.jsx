@@ -54,33 +54,38 @@ export default function DoctorProfileModal() {
   const badge = doctor ? statusMeta(doctor.status) : null
 
   return (
-    <PortalModal onClose={close} width={680} maxHeight="92vh">
-      <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b sticky top-0 z-10" style={{ borderColor: 'rgba(255,255,255,0.09)', background: '#0d211a' }}>
-        <div>
-          <h2 className="text-[17px] font-extrabold text-white">Doctor Profile</h2>
-          <p className="text-[12px] mt-1" style={{ color: colors.textDim }}>
-            View doctor details, contact information and weekly schedule.
-          </p>
-        </div>
-        <button type="button" onClick={close} className="p-1.5 rounded-lg hover:bg-white/8 cursor-pointer" aria-label="Close">
-          <X size={18} style={{ color: colors.textMuted }} />
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-16">
-          <Spinner />
-          <p className="text-[12.5px] font-bold" style={{ color: colors.textSecondary }}>Loading profile…</p>
-        </div>
-      ) : error ? (
-        <div className="px-5 py-10 text-center">
-          <p className="text-[13px] font-bold text-red-400 mb-3">{error}</p>
-          <button type="button" onClick={close} className="px-4 py-2 rounded-[10px] text-[12.5px] font-extrabold cursor-pointer" style={{ background: colors.primaryBtn, color: colors.accentText }}>
-            Back to doctors
+    <PortalModal onClose={close} width={680} scrollable={false}>
+      <div className="flex flex-col max-h-[92vh]">
+        <div
+          className="flex-shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b"
+          style={{ borderColor: 'rgba(255,255,255,0.09)', background: '#0d211a' }}
+        >
+          <div>
+            <h2 className="text-[17px] font-extrabold text-white">Doctor Profile</h2>
+            <p className="text-[12px] mt-1" style={{ color: colors.textDim }}>
+              View doctor details, contact information and weekly schedule.
+            </p>
+          </div>
+          <button type="button" onClick={close} className="p-1.5 rounded-lg hover:bg-white/8 cursor-pointer" aria-label="Close">
+            <X size={18} style={{ color: colors.textMuted }} />
           </button>
         </div>
-      ) : doctor ? (
-        <div className="px-5 py-4 space-y-5">
+
+        <div className="flex-1 overflow-y-auto owner-scroll min-h-0">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <Spinner />
+              <p className="text-[12.5px] font-bold" style={{ color: colors.textSecondary }}>Loading profile…</p>
+            </div>
+          ) : error ? (
+            <div className="px-5 py-10 text-center">
+              <p className="text-[13px] font-bold text-red-400 mb-3">{error}</p>
+              <button type="button" onClick={close} className="px-4 py-2 rounded-[10px] text-[12.5px] font-extrabold cursor-pointer" style={{ background: colors.primaryBtn, color: colors.accentText }}>
+                Back to doctors
+              </button>
+            </div>
+          ) : doctor ? (
+            <div className="px-5 py-4 space-y-5">
           <div className="flex flex-col sm:flex-row gap-4 items-start">
             {doctor.imageUrl ? (
               <img src={doctor.imageUrl} alt="" className="w-[88px] h-[88px] rounded-full object-cover" style={{ border: '2px solid rgba(64,222,170,0.35)' }} />
@@ -168,8 +173,10 @@ export default function DoctorProfileModal() {
               Edit Doctor
             </button>
           </div>
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
     </PortalModal>
   )
 }

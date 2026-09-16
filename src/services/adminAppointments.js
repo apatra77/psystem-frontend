@@ -2,6 +2,7 @@ import { authFetch, DOCTOR_API_BASE } from './api'
 import { mapAppointmentFromApi } from './appointments'
 
 const BASE = '/api/v1/admin/appointments/bookings'
+const inFlightBookingsRequests = new Map()
 
 export function formatApiDateInput(date = new Date()) {
   const year = date.getFullYear()
@@ -56,15 +57,26 @@ export async function fetchAdminConsultationBookings({
   params.set('page', String(page))
   params.set('size', String(size))
 
-  const payload = await authFetch(`${BASE}?${params.toString()}`, {}, DOCTOR_API_BASE)
-  const parsed = extractBookingPage(payload)
+  const path = `${BASE}?${params.toString()}`
+  const existing = inFlightBookingsRequests.get(path)
+  if (existing) return existing
 
-  return {
-    bookings: parsed.content
-      .map(mapAppointmentFromApi)
-      .filter((booking) => booking.id || booking.code),
-    totalElements: parsed.totalElements,
-    totalPages: parsed.totalPages,
-    page: parsed.page,
-  }
+  const request = authFetch(path, {}, DOCTOR_API_BASE)
+    .then((payload) => {
+      const parsed = extractBookingPage(payload)
+      return {
+        bookings: parsed.content
+          .map(mapAppointmentFromApi)
+          .filter((booking) => booking.id || booking.code),
+        totalElements: parsed.totalElements,
+        totalPages: parsed.totalPages,
+        page: parsed.page,
+      }
+    })
+    .finally(() => {
+      inFlightBookingsRequests.delete(path)
+    })
+
+  inFlightBookingsRequests.set(path, request)
+  return request
 }

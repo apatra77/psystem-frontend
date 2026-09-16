@@ -34,7 +34,7 @@ export default function PortalModal({
       role="presentation"
     >
       <div
-        className={`max-w-[92vw] rounded-[22px] shadow-[0_40px_100px_rgba(0,0,0,0.6)] ${scrollable ? 'overflow-y-auto' : 'overflow-hidden'}`}
+        className={`max-w-[92vw] rounded-[22px] shadow-[0_40px_100px_rgba(0,0,0,0.6)] ${scrollable ? 'overflow-auto owner-scroll' : 'overflow-hidden'}`}
         style={{
           width,
           minHeight,

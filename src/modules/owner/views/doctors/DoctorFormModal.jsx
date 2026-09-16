@@ -430,35 +430,40 @@ export default function DoctorFormModal() {
   }
 
   return (
-    <PortalModal onClose={close} width={760} maxHeight="92vh">
-      <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b sticky top-0 z-10" style={{ borderColor: 'rgba(255,255,255,0.09)', background: '#0d211a' }}>
-        <div>
-          <h2 className="text-[17px] font-extrabold text-white">{isEdit ? 'Edit Doctor' : 'Add Doctor'}</h2>
-          <p className="text-[12px] mt-1" style={{ color: colors.textDim }}>
-            {isEdit
-              ? 'Update doctor information, availability and consultation schedule.'
-              : 'Add a doctor and configure their consultation availability.'}
-          </p>
-        </div>
-        <button type="button" onClick={close} className="p-1.5 rounded-lg hover:bg-white/8 cursor-pointer" aria-label="Close">
-          <X size={18} style={{ color: colors.textMuted }} />
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-16">
-          <Spinner />
-          <p className="text-[12.5px] font-bold" style={{ color: colors.textSecondary }}>Loading doctor…</p>
-        </div>
-      ) : loadError ? (
-        <div className="px-5 py-10 text-center">
-          <p className="text-[13px] font-bold text-red-400 mb-3">{loadError}</p>
-          <button type="button" onClick={close} className="px-4 py-2 rounded-[10px] text-[12.5px] font-extrabold cursor-pointer" style={{ background: colors.primaryBtn, color: colors.accentText }}>
-            Back to doctors
+    <PortalModal onClose={close} width={760} scrollable={false}>
+      <div className="flex flex-col max-h-[92vh]">
+        <div
+          className="flex-shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b"
+          style={{ borderColor: 'rgba(255,255,255,0.09)', background: '#0d211a' }}
+        >
+          <div>
+            <h2 className="text-[17px] font-extrabold text-white">{isEdit ? 'Edit Doctor' : 'Add Doctor'}</h2>
+            <p className="text-[12px] mt-1" style={{ color: colors.textDim }}>
+              {isEdit
+                ? 'Update doctor information, availability and consultation schedule.'
+                : 'Add a doctor and configure their consultation availability.'}
+            </p>
+          </div>
+          <button type="button" onClick={close} className="p-1.5 rounded-lg hover:bg-white/8 cursor-pointer" aria-label="Close">
+            <X size={18} style={{ color: colors.textMuted }} />
           </button>
         </div>
-      ) : (
-        <div className="px-5 py-4 space-y-5">
+
+        <div className="flex-1 overflow-y-auto owner-scroll min-h-0">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16">
+              <Spinner />
+              <p className="text-[12.5px] font-bold" style={{ color: colors.textSecondary }}>Loading doctor…</p>
+            </div>
+          ) : loadError ? (
+            <div className="px-5 py-10 text-center">
+              <p className="text-[13px] font-bold text-red-400 mb-3">{loadError}</p>
+              <button type="button" onClick={close} className="px-4 py-2 rounded-[10px] text-[12.5px] font-extrabold cursor-pointer" style={{ background: colors.primaryBtn, color: colors.accentText }}>
+                Back to doctors
+              </button>
+            </div>
+          ) : (
+            <div className="px-5 py-4 space-y-5">
           <section>
             <h3 className="text-[13px] font-extrabold text-white mb-3">Doctor Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-[120px_1fr] gap-4 mb-4">
@@ -615,11 +620,13 @@ export default function DoctorFormModal() {
                 Cancel
               </button>
               <button type="button" onClick={handleSave} disabled={saving} className="text-[12.5px] font-extrabold px-5 py-2 rounded-[10px] cursor-pointer disabled:opacity-60" style={{ color: colors.accentText, background: colors.primaryBtn, boxShadow: '0 6px 18px rgba(64,222,170,0.35)' }}>
-                {isEdit ? 'Save Changes' : 'Save Doctor'}
+                {isEdit ? 'Update Changes' : 'Save Doctor'}
               </button>
           </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </PortalModal>
   )
 }
