@@ -495,6 +495,7 @@ export async function fetchAdminDoctorsDashboardSummary() {
         Number(
           pick(
             data,
+            'todayBookingsCount',
             'bookingsToday',
             'consultationBookingsToday',
             'appointmentsToday',

@@ -25,6 +25,7 @@ import {
   getDoctorTimingRows,
   statusMeta,
 } from './doctorUtils'
+import ConsultationBookingsModal from './ConsultationBookingsModal'
 import SpecialtyManagementModal from './SpecialtyManagementModal'
 import { colors } from '@/theme/colors'
 
@@ -61,14 +62,14 @@ function MetricCard({ label, value, hint, hintAccent = false, icon: Icon, action
 
   return (
     <GlassCard className="px-3.5 py-3 flex flex-col">
-      <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-start gap-2.5 min-w-0">
         <div
-          className="w-8 h-8 rounded-[9px] flex items-center justify-center flex-shrink-0"
+          className="w-8 h-8 rounded-[9px] flex items-center justify-center flex-shrink-0 mt-0.5"
           style={{ background: meta.bg, border: `1px solid ${meta.border}` }}
         >
           <Icon size={15} style={{ color: meta.icon }} />
         </div>
-        <div className="text-[11px] font-semibold leading-tight truncate" style={{ color: colors.textSecondary }}>
+        <div className="flex-1 min-w-0 text-[11px] font-semibold leading-snug" style={{ color: colors.textSecondary }}>
           {label}
         </div>
       </div>
@@ -116,6 +117,7 @@ export default function DoctorsList() {
   const [status, setStatus] = useState('active')
   const [page, setPage] = useState(0)
   const [specialtiesOpen, setSpecialtiesOpen] = useState(false)
+  const [bookingsOpen, setBookingsOpen] = useState(false)
   const { specialties } = useMedicalSpecialties()
   const {
     doctors,
@@ -185,10 +187,16 @@ export default function DoctorsList() {
             tone="orange"
           />
           <MetricCard
-            label="Consultation Bookings"
-            value={summary.consultationBookings}
-            hint={summary.bookingsToday ? `${summary.bookingsToday} today` : undefined}
-            hintAccent={Boolean(summary.bookingsToday)}
+            label={
+              <>
+                Consultation Booking
+                <br />
+                Today
+              </>
+            }
+            value={summary.bookingsToday}
+            actionLabel="View details →"
+            onAction={() => setBookingsOpen(true)}
             icon={CalendarCheck}
             tone="purple"
           />
@@ -469,6 +477,7 @@ export default function DoctorsList() {
       </GlassCard>
 
       {specialtiesOpen ? <SpecialtyManagementModal onClose={() => setSpecialtiesOpen(false)} /> : null}
+      {bookingsOpen ? <ConsultationBookingsModal onClose={() => setBookingsOpen(false)} /> : null}
     </div>
   )
 }
