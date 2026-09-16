@@ -26,6 +26,7 @@ import {
   statusMeta,
 } from './doctorUtils'
 import ConsultationBookingsModal from './ConsultationBookingsModal'
+import DoctorStatusActions from './DoctorStatusActions'
 import SpecialtyManagementModal from './SpecialtyManagementModal'
 import { colors } from '@/theme/colors'
 
@@ -345,6 +346,7 @@ export default function DoctorsList() {
                       >
                         <Eye size={15} strokeWidth={1.8} />
                       </button>
+                      <DoctorStatusActions doctor={doctor} onUpdated={reload} />
                     </div>
                   </div>
                 )
@@ -425,6 +427,7 @@ export default function DoctorsList() {
                             >
                               <Eye size={15} strokeWidth={1.8} />
                             </button>
+                            <DoctorStatusActions doctor={doctor} onUpdated={reload} />
                           </div>
                         </td>
                       </tr>

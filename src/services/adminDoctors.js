@@ -318,11 +318,11 @@ export function buildAdminDoctorFormPayload(draft = {}) {
     phoneNumber: String(draft.mobile ?? draft.phoneNumber ?? '').replace(/\D/g, ''),
     profileSummary: String(draft.profileSummary ?? '').trim(),
     specialtyId: Number(draft.specialtyId),
-    storeLocationId: Number(draft.storeLocationId),
-    yearsOfExperience:
-      draft.yearsOfExperience === '' || draft.yearsOfExperience == null
-        ? undefined
-        : Number(draft.yearsOfExperience),
+    storeLocationId:
+      draft.storeLocationId != null && draft.storeLocationId !== ''
+        ? Number(draft.storeLocationId)
+        : undefined,
+    yearsOfExperience: Number(draft.yearsOfExperience),
     consultationFee: Number(draft.consultationFee),
     doctorStatus: draft.doctorStatus ?? 'active',
     qualifications: (draft.qualifications ?? [])
@@ -357,10 +357,6 @@ function buildDoctorWritePayload(payload = {}) {
         ? undefined
         : Number(payload.consultationFee),
     specialtyId: payload.specialtyId != null ? Number(payload.specialtyId) : undefined,
-    storeLocationId:
-      payload.storeLocationId != null && payload.storeLocationId !== ''
-        ? Number(payload.storeLocationId)
-        : undefined,
     doctorStatus: STATUS_TO_API[payload.doctorStatus] ?? payload.doctorStatus ?? 'ACTIVE',
     qualifications: (payload.qualifications ?? [])
       .filter((row) => row.qualificationName?.trim())
@@ -389,14 +385,101 @@ function buildDoctorWritePayload(payload = {}) {
   return body
 }
 
-async function submitDoctorWrite(method, path, draft, profileImage) {
-  const formData = new FormData()
-  const body = buildDoctorWritePayload(buildAdminDoctorFormPayload(draft))
-  formData.append('doctor', new Blob([JSON.stringify(body)], { type: 'application/json' }))
-  if (profileImage) formData.append('profileImage', profileImage)
+function buildDoctorPutPayload(draft = {}) {
+  const formPayload = buildAdminDoctorFormPayload(draft)
+  const body = {
+    firstName: formPayload.firstName,
+    lastName: formPayload.lastName,
+    email: formPayload.email,
+    phoneNumber: normalizeAdminPhone(formPayload.phoneNumber),
+    yearsOfExperience: Number(formPayload.yearsOfExperience),
+    consultationFee: Number(formPayload.consultationFee),
+    profileSummary: formPayload.profileSummary,
+    specialtyId: Number(formPayload.specialtyId),
+    storeLocationId: formPayload.storeLocationId,
+    doctorStatus: STATUS_TO_API[formPayload.doctorStatus] ?? formPayload.doctorStatus ?? 'ACTIVE',
+    qualifications: (formPayload.qualifications ?? [])
+      .filter((row) => row.qualificationName?.trim())
+      .map((row, index) => {
+        const item = {
+          qualificationName: row.qualificationName?.trim(),
+          institutionName: row.institutionName?.trim() || undefined,
+          yearCompleted:
+            row.yearCompleted == null || row.yearCompleted === ''
+              ? undefined
+              : Number(row.yearCompleted),
+          displayOrder: Number(row.displayOrder) || index + 1,
+        }
+        Object.keys(item).forEach((key) => {
+          if (item[key] === undefined) delete item[key]
+        })
+        return item
+      }),
+    weeklySchedules: mapScheduleToApi(formPayload.schedule),
+  }
 
-  const res = await fetch(`${DOCTOR_API_BASE}${path}`, {
-    method,
+  Object.keys(body).forEach((key) => {
+    if (body[key] === undefined || body[key] === null) delete body[key]
+  })
+
+  return body
+}
+
+/** POST form-data: doctor (full JSON) + optional profileImage file. */
+function buildDoctorPostFormData(draft, profileImage) {
+  const formData = new FormData()
+  const doctorJson = JSON.stringify(buildDoctorWritePayload(buildAdminDoctorFormPayload(draft)))
+
+  formData.append('doctor', new Blob([doctorJson], { type: 'application/json' }))
+
+  if (profileImage instanceof File) {
+    formData.append('profileImage', profileImage)
+  }
+
+  return formData
+}
+
+/**
+ * PUT form-data — matches Postman:
+ * | KEY          | TYPE | VALUE            |
+ * | doctor       | Text | full doctor JSON |
+ * | profileImage | File | optional new photo |
+ */
+function buildDoctorPutFormData(draft, profileImage) {
+  const formData = new FormData()
+  const doctorJson = JSON.stringify(buildDoctorPutPayload(draft))
+
+  formData.append('doctor', doctorJson)
+
+  if (profileImage instanceof File) {
+    formData.append('profileImage', profileImage)
+  }
+
+  return formData
+}
+
+async function submitDoctorPost(draft, profileImage) {
+  const formData = buildDoctorPostFormData(draft, profileImage)
+
+  const res = await fetch(`${DOCTOR_API_BASE}${BASE}`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: formData,
+  })
+
+  const data = await parseJsonResponse(res)
+  if (res.status === 401) notifyUnauthorized()
+  if (!res.ok) throw new Error(getErrorMessage(data, res.status))
+
+  clearMedicalSpecialtiesCache()
+  return data
+}
+
+async function submitDoctorPut(id, draft, profileImage) {
+  const formData = buildDoctorPutFormData(draft, profileImage)
+
+  const res = await fetch(`${DOCTOR_API_BASE}${BASE}/${encodeURIComponent(String(id))}`, {
+    method: 'PUT',
     headers: authHeaders(),
     body: formData,
   })
@@ -461,7 +544,9 @@ function buildAdminDoctorsQuery({
     params.set('search', keyword)
   }
   if (specialtyId && specialtyId !== 'all') params.set('specialtyId', String(specialtyId))
-  if (status && status !== 'all') params.set('status', STATUS_TO_API[status] ?? String(status).toUpperCase())
+  if (status && status !== 'all') {
+    params.set('doctorStatus', STATUS_TO_API[status] ?? String(status).toUpperCase())
+  }
   if (storeId && storeId !== 'all') params.set('storeId', String(storeId))
   params.set('page', String(page))
   params.set('size', String(size))
@@ -555,17 +640,12 @@ export async function fetchAdminDoctorById(id) {
 }
 
 export async function createAdminDoctor(draft, profileImage) {
-  const response = await submitDoctorWrite('POST', BASE, draft, profileImage)
+  const response = await submitDoctorPost(draft, profileImage)
   return mapAdminDoctorFromApi(unwrapEntity(response))
 }
 
 export async function updateAdminDoctor(id, draft, profileImage) {
-  const response = await submitDoctorWrite(
-    'PUT',
-    `${BASE}/${encodeURIComponent(id)}`,
-    draft,
-    profileImage,
-  )
+  const response = await submitDoctorPut(id, draft, profileImage)
   inFlightDoctorRequests.delete(String(id))
   return mapAdminDoctorFromApi(unwrapEntity(response))
 }
@@ -576,7 +656,7 @@ export async function setAdminDoctorStatus(id, status) {
     {
       method: 'PATCH',
       body: JSON.stringify({
-        status: STATUS_TO_API[status] ?? String(status).toUpperCase(),
+        doctorStatus: STATUS_TO_API[status] ?? String(status).toUpperCase(),
       }),
     },
     DOCTOR_API_BASE,

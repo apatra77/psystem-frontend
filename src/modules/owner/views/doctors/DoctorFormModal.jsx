@@ -4,12 +4,11 @@ import { Camera, Minus, Plus, X } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput, ModalSelect, ToggleSwitch } from '../../components/PortalModal'
 import SpecialtyAutocomplete from '../../components/SpecialtyAutocomplete'
 import Spinner from '@/components/ui/Spinner'
-import { DOCTOR_STORES, WEEK_DAYS, createDefaultSchedule } from '../../data/doctorsData'
+import { WEEK_DAYS, createDefaultSchedule } from '../../data/doctorsData'
 import { cloneSchedule, TIME_SLOT_OPTIONS } from './doctorUtils'
 import {
   createAdminDoctor,
   fetchAdminDoctorById,
-  setAdminDoctorStatus,
   updateAdminDoctor,
 } from '@/services/adminDoctors'
 import { fetchMedicalSpecialties } from '@/services/medicalSpecialties'
@@ -64,7 +63,13 @@ function validateDraft(draft) {
   if (!draft.mobile.trim()) errors.mobile = 'Mobile number is required'
   else if (!/^\d{10}$/.test(draft.mobile.replace(/\D/g, ''))) errors.mobile = 'Enter a valid 10-digit mobile number'
   if (!draft.specialtyId) errors.specialtyId = 'Select a specialty'
-  if (!draft.storeLocationId) errors.storeLocationId = 'Select a store location'
+
+  if (draft.yearsOfExperience === '' || draft.yearsOfExperience == null) {
+    errors.yearsOfExperience = 'Years of experience is required'
+  } else {
+    const years = Number(draft.yearsOfExperience)
+    if (!Number.isFinite(years) || years < 0) errors.yearsOfExperience = 'Enter a valid non-negative number of years'
+  }
 
   const hasQualification = draft.qualifications.some((row) => row.qualificationName.trim())
   if (!hasQualification) errors.qualifications = 'Add at least one qualification'
@@ -312,7 +317,6 @@ export default function DoctorFormModal() {
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
   const [saveError, setSaveError] = useState('')
-  const [confirmDeactivate, setConfirmDeactivate] = useState(false)
   const [doctorStatus, setDoctorStatus] = useState('active')
   const [photoFile, setPhotoFile] = useState(null)
 
@@ -425,24 +429,6 @@ export default function DoctorFormModal() {
     }
   }
 
-  const handleDeactivate = async () => {
-    if (!routeId) return
-    setSaving(true)
-    try {
-      const nextStatus = doctorStatus === 'inactive' ? 'active' : 'inactive'
-      await setAdminDoctorStatus(routeId, nextStatus)
-      toast.success(nextStatus === 'inactive' ? 'Doctor deactivated' : 'Doctor activated')
-      close()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not update doctor status')
-    } finally {
-      setSaving(false)
-      setConfirmDeactivate(false)
-    }
-  }
-
-  const storeOptions = DOCTOR_STORES.map((s) => ({ value: String(s.id), label: s.label }))
-
   return (
     <PortalModal onClose={close} width={760} maxHeight="92vh">
       <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b sticky top-0 z-10" style={{ borderColor: 'rgba(255,255,255,0.09)', background: '#0d211a' }}>
@@ -528,8 +514,15 @@ export default function DoctorFormModal() {
                   <FieldError message={fieldErrors.mobile} />
                 </div>
                 <div>
-                  <ModalFieldLabel>Years of Experience</ModalFieldLabel>
-                  <ModalInput type="number" min="0" value={draft.yearsOfExperience} onChange={(e) => setField('yearsOfExperience', e.target.value)} placeholder="Enter years" />
+                  <RequiredLabel>Years of Experience</RequiredLabel>
+                  <ModalInput
+                    type="number"
+                    min="0"
+                    value={draft.yearsOfExperience}
+                    onChange={(e) => setField('yearsOfExperience', e.target.value)}
+                    placeholder="Enter years"
+                  />
+                  <FieldError message={fieldErrors.yearsOfExperience} />
                 </div>
                 <div>
                   <RequiredLabel>Specialty</RequiredLabel>
@@ -552,11 +545,6 @@ export default function DoctorFormModal() {
                     placeholder="Search or add specialty"
                   />
                   <FieldError message={fieldErrors.specialtyId} />
-                </div>
-                <div>
-                  <RequiredLabel>Store Location</RequiredLabel>
-                  <ModalSelect value={draft.storeLocationId} onChange={(e) => setField('storeLocationId', e.target.value)} options={storeOptions} placeholder="Select store location" />
-                  <FieldError message={fieldErrors.storeLocationId} />
                 </div>
                 <div className="sm:col-span-2">
                   <ModalFieldLabel>Profile Summary</ModalFieldLabel>
@@ -622,37 +610,13 @@ export default function DoctorFormModal() {
 
           {saveError && <p className="text-[12px] font-bold text-red-400">{saveError}</p>}
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.09)' }}>
-            {isEdit ? (
-              confirmDeactivate ? (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[12px]" style={{ color: colors.textDim }}>
-                    {doctorStatus === 'inactive' ? 'Activate this doctor?' : 'Deactivate this doctor?'}
-                  </span>
-                  <button type="button" onClick={handleDeactivate} disabled={saving} className="text-[12px] font-bold text-red-400 cursor-pointer">Confirm</button>
-                  <button type="button" onClick={() => setConfirmDeactivate(false)} className="text-[12px] font-bold cursor-pointer" style={{ color: colors.textMuted }}>Cancel</button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeactivate(true)}
-                  className="text-[12px] font-bold cursor-pointer self-start"
-                  style={{ color: doctorStatus === 'inactive' ? colors.accent : '#f87171' }}
-                >
-                  {doctorStatus === 'inactive' ? 'Activate Doctor' : 'Deactivate Doctor'}
-                </button>
-              )
-            ) : (
-              <span />
-            )}
-            <div className="flex justify-end gap-2.5">
+          <div className="flex justify-end gap-2.5 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.09)' }}>
               <button type="button" onClick={close} className="text-[12.5px] font-bold px-[18px] py-2 rounded-[10px] cursor-pointer" style={{ color: colors.textHighlight, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.16)' }}>
                 Cancel
               </button>
               <button type="button" onClick={handleSave} disabled={saving} className="text-[12.5px] font-extrabold px-5 py-2 rounded-[10px] cursor-pointer disabled:opacity-60" style={{ color: colors.accentText, background: colors.primaryBtn, boxShadow: '0 6px 18px rgba(64,222,170,0.35)' }}>
                 {isEdit ? 'Save Changes' : 'Save Doctor'}
               </button>
-            </div>
           </div>
         </div>
       )}

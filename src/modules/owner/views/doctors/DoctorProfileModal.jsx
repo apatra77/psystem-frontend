@@ -5,8 +5,7 @@ import PortalModal from '../../components/PortalModal'
 import Spinner from '@/components/ui/Spinner'
 import { WEEK_DAYS } from '../../data/doctorsData'
 import { CONSULTATION_TYPE_OPTIONS, doctorInitials, statusMeta } from './doctorUtils'
-import { fetchAdminDoctorById, setAdminDoctorStatus } from '@/services/adminDoctors'
-import { toast } from '@/app/store/uiStore'
+import { fetchAdminDoctorById } from '@/services/adminDoctors'
 import { colors } from '@/theme/colors'
 
 function consultationTypeLabel(value) {
@@ -20,9 +19,6 @@ export default function DoctorProfileModal() {
   const [doctor, setDoctor] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [confirmDeactivate, setConfirmDeactivate] = useState(false)
-  const [updating, setUpdating] = useState(false)
-
   const returnTo = useMemo(() => {
     const candidate = location.state?.returnTo
     return typeof candidate === 'string' && candidate.startsWith('/owner') ? candidate : '/owner/doctors'
@@ -52,22 +48,6 @@ export default function DoctorProfileModal() {
       cancelled = true
     }
   }, [id])
-
-  const handleStatusChange = async () => {
-    if (!doctor) return
-    setUpdating(true)
-    try {
-      const nextStatus = doctor.status === 'inactive' ? 'active' : 'inactive'
-      await setAdminDoctorStatus(doctor.id, nextStatus)
-      setDoctor((prev) => ({ ...prev, status: nextStatus }))
-      toast.success(nextStatus === 'inactive' ? 'Doctor deactivated' : 'Doctor activated')
-      setConfirmDeactivate(false)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not update doctor status')
-    } finally {
-      setUpdating(false)
-    }
-  }
 
   if (location.pathname.endsWith('/edit') || location.pathname.endsWith('/add')) return null
 
@@ -177,29 +157,11 @@ export default function DoctorProfileModal() {
             </div>
           </section>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.09)' }}>
-            {confirmDeactivate ? (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[12px]" style={{ color: colors.textDim }}>
-                  {doctor.status === 'inactive' ? 'Activate this doctor?' : 'Deactivate this doctor?'}
-                </span>
-                <button type="button" onClick={handleStatusChange} disabled={updating} className="text-[12px] font-bold text-red-400 cursor-pointer">Confirm</button>
-                <button type="button" onClick={() => setConfirmDeactivate(false)} className="text-[12px] font-bold cursor-pointer" style={{ color: colors.textMuted }}>Cancel</button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmDeactivate(true)}
-                className="text-[12px] font-bold cursor-pointer self-start"
-                style={{ color: doctor.status === 'inactive' ? colors.accent : '#f87171' }}
-              >
-                {doctor.status === 'inactive' ? 'Activate' : 'Deactivate'}
-              </button>
-            )}
+          <div className="flex justify-end pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.09)' }}>
             <button
               type="button"
               onClick={() => navigate(`/owner/doctors/${doctor.id}/edit`, { state: { returnTo: `/owner/doctors/${doctor.id}` } })}
-              className="inline-flex items-center justify-center gap-1.5 text-[12.5px] font-extrabold px-5 py-2 rounded-[10px] cursor-pointer self-end"
+              className="inline-flex items-center justify-center gap-1.5 text-[12.5px] font-extrabold px-5 py-2 rounded-[10px] cursor-pointer"
               style={{ color: colors.accentText, background: colors.primaryBtn }}
             >
               <Pencil size={14} />
