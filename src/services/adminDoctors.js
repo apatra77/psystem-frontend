@@ -1,4 +1,10 @@
-import { DOCTOR_SPECIALTIES, WEEK_DAYS, createDefaultSchedule } from '@/modules/owner/data/doctorsData'
+import { WEEK_DAYS, createDefaultSchedule } from '@/modules/owner/data/doctorsData'
+import {
+  clearMedicalSpecialtiesCache,
+  createMedicalSpecialty,
+  fetchMedicalSpecialties,
+  mergeMedicalSpecialtiesFromItems,
+} from './medicalSpecialties'
 import {
   authFetch,
   authHeaders,
@@ -53,7 +59,6 @@ const CONSULTATION_TO_API = {
 let inFlightSummaryRequest = null
 const inFlightDoctorRequests = new Map()
 const inFlightListRequests = new Map()
-let cachedSpecialties = null
 
 function pick(obj, ...keys) {
   for (const key of keys) {
@@ -335,7 +340,7 @@ async function submitDoctorWrite(method, path, payload, profileImage) {
   if (res.status === 401) notifyUnauthorized()
   if (!res.ok) throw new Error(getErrorMessage(data, res.status))
 
-  cachedSpecialties = null
+  clearMedicalSpecialtiesCache()
   return data
 }
 
@@ -409,6 +414,28 @@ export async function fetchAdminDoctorsDashboardSummary() {
       const availableToday = Number(pick(data, 'availableToday', 'availableNow', 'availableCount')) || 0
       const totalSpecialties = Number(pick(data, 'totalSpecialties', 'specialties', 'specialtyCount')) || 0
       const addedThisMonth = Number(pick(data, 'addedThisMonth', 'newThisMonth', 'doctorsAddedThisMonth')) || 0
+      const consultationBookings =
+        Number(
+          pick(
+            data,
+            'consultationBookings',
+            'totalConsultationBookings',
+            'totalBookings',
+            'appointmentCount',
+            'appointmentsCount',
+            'bookingCount',
+          ),
+        ) || 0
+      const bookingsToday =
+        Number(
+          pick(
+            data,
+            'bookingsToday',
+            'consultationBookingsToday',
+            'appointmentsToday',
+            'todayBookings',
+          ),
+        ) || 0
       const activePercent =
         Number(pick(data, 'activePercent', 'activePercentage')) ||
         (totalDoctors ? Math.round((activeDoctors / totalDoctors) * 100) : 0)
@@ -420,6 +447,8 @@ export async function fetchAdminDoctorsDashboardSummary() {
         availableToday,
         totalSpecialties,
         addedThisMonth,
+        consultationBookings,
+        bookingsToday,
       }
     })
     .finally(() => {
@@ -520,30 +549,20 @@ export async function uploadAdminDoctorProfileImage(id, file) {
 }
 
 export function mergeSpecialtiesFromDoctors(doctors = []) {
-  const map = new Map(
-    (cachedSpecialties ?? DOCTOR_SPECIALTIES).map((specialty) => [String(specialty.id), specialty]),
+  return mergeMedicalSpecialtiesFromItems(
+    doctors.map((doctor) => ({
+      specialtyId: doctor.specialtyId,
+      specialtyName: doctor.specialty,
+    })),
   )
-
-  doctors.forEach((doctor) => {
-    if (doctor.specialtyId == null || !doctor.specialty) return
-    map.set(String(doctor.specialtyId), {
-      id: doctor.specialtyId,
-      label: doctor.specialty,
-    })
-  })
-
-  cachedSpecialties = Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
-  return cachedSpecialties
 }
 
-export async function fetchAdminSpecialties() {
-  if (cachedSpecialties?.length) return cachedSpecialties
-  cachedSpecialties = DOCTOR_SPECIALTIES.map((specialty) => ({ ...specialty }))
-  return cachedSpecialties
+export async function fetchAdminSpecialties(options = {}) {
+  return fetchMedicalSpecialties(options)
 }
 
 export function clearAdminDoctorsCache({ invalidateLists = false } = {}) {
-  cachedSpecialties = null
+  clearMedicalSpecialtiesCache()
   inFlightDoctorRequests.clear()
   if (invalidateLists) {
     inFlightListRequests.clear()
@@ -551,8 +570,8 @@ export function clearAdminDoctorsCache({ invalidateLists = false } = {}) {
   }
 }
 
-export async function createAdminSpecialty() {
-  throw new Error('Specialty creation is not available through the doctor API')
+export async function createAdminSpecialty(payload) {
+  return createMedicalSpecialty(payload)
 }
 
 export async function deleteAdminSpecialty() {
@@ -568,5 +587,7 @@ export function getDoctorSummary() {
     availableToday: 0,
     totalSpecialties: 0,
     addedThisMonth: 0,
+    consultationBookings: 0,
+    bookingsToday: 0,
   }
 }

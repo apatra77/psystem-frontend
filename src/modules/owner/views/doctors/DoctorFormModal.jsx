@@ -2,16 +2,17 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Camera, Minus, Plus, X } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput, ModalSelect, ToggleSwitch } from '../../components/PortalModal'
+import SpecialtyAutocomplete from '../../components/SpecialtyAutocomplete'
 import Spinner from '@/components/ui/Spinner'
 import { DOCTOR_STORES, WEEK_DAYS, createDefaultSchedule } from '../../data/doctorsData'
 import { cloneSchedule, TIME_SLOT_OPTIONS } from './doctorUtils'
 import {
   createAdminDoctor,
   fetchAdminDoctorById,
-  fetchAdminSpecialties,
   setAdminDoctorStatus,
   updateAdminDoctor,
 } from '@/services/adminDoctors'
+import { fetchMedicalSpecialties } from '@/services/medicalSpecialties'
 import { toast } from '@/app/store/uiStore'
 import { colors } from '@/theme/colors'
 
@@ -29,6 +30,7 @@ const EMPTY_DRAFT = {
   mobile: '',
   profileSummary: '',
   specialtyId: '',
+  specialtyName: '',
   storeLocationId: '',
   yearsOfExperience: '',
   consultationFee: '',
@@ -99,6 +101,7 @@ function mapDoctorToDraft(doctor) {
     mobile: doctor.mobile ?? '',
     profileSummary: doctor.profileSummary ?? '',
     specialtyId: String(doctor.specialtyId ?? ''),
+    specialtyName: doctor.specialty ?? '',
     storeLocationId: String(doctor.storeLocationId ?? doctor.storeId ?? ''),
     yearsOfExperience: doctor.experienceYears != null ? String(doctor.experienceYears) : '',
     consultationFee: doctor.consultationFee != null ? String(doctor.consultationFee) : '',
@@ -327,6 +330,8 @@ export default function DoctorFormModal() {
 
   const [draft, setDraft] = useState(EMPTY_DRAFT)
   const [specialties, setSpecialties] = useState([])
+  const [loadingSpecialties, setLoadingSpecialties] = useState(true)
+  const [specialtiesError, setSpecialtiesError] = useState('')
   const [loading, setLoading] = useState(isEdit)
   const [loadError, setLoadError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -344,18 +349,31 @@ export default function DoctorFormModal() {
   const close = () => navigate(returnTo)
 
   useEffect(() => {
+    if (!isAdd && !isEdit) return undefined
+
     let cancelled = false
-    fetchAdminSpecialties()
-      .then((list) => {
+
+    const loadSpecialties = async () => {
+      setLoadingSpecialties(true)
+      setSpecialtiesError('')
+      try {
+        const list = await fetchMedicalSpecialties({ force: true })
         if (!cancelled) setSpecialties(list)
-      })
-      .catch(() => {
-        if (!cancelled) setSpecialties([])
-      })
+      } catch (err) {
+        if (!cancelled) {
+          setSpecialties([])
+          setSpecialtiesError(err instanceof Error ? err.message : 'Could not load specialties')
+        }
+      } finally {
+        if (!cancelled) setLoadingSpecialties(false)
+      }
+    }
+
+    loadSpecialties()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [isAdd, isEdit])
 
   useEffect(() => {
     if (!isEdit || !routeId) return undefined
@@ -443,7 +461,6 @@ export default function DoctorFormModal() {
     }
   }
 
-  const specialtyOptions = specialties.map((s) => ({ value: String(s.id), label: s.label }))
   const storeOptions = DOCTOR_STORES.map((s) => ({ value: String(s.id), label: s.label }))
 
   return (
@@ -536,7 +553,24 @@ export default function DoctorFormModal() {
                 </div>
                 <div>
                   <RequiredLabel>Specialty</RequiredLabel>
-                  <ModalSelect value={draft.specialtyId} onChange={(e) => setField('specialtyId', e.target.value)} options={specialtyOptions} placeholder="Select specialty" />
+                  <SpecialtyAutocomplete
+                    specialtyId={draft.specialtyId}
+                    specialtyName={draft.specialtyName}
+                    specialties={specialties}
+                    loading={loadingSpecialties}
+                    loadError={specialtiesError}
+                    onSpecialtiesChange={setSpecialties}
+                    onChange={({ id, name }) => {
+                      setFieldErrors((prev) => {
+                        if (!prev.specialtyId) return prev
+                        const next = { ...prev }
+                        delete next.specialtyId
+                        return next
+                      })
+                      setDraft((prev) => ({ ...prev, specialtyId: id, specialtyName: name }))
+                    }}
+                    placeholder="Search or add specialty"
+                  />
                   <FieldError message={fieldErrors.specialtyId} />
                 </div>
                 <div>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
+  CalendarCheck,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -9,7 +10,6 @@ import {
   Pencil,
   RotateCcw,
   Search,
-  Stethoscope,
   Users,
   X,
 } from 'lucide-react'
@@ -17,7 +17,7 @@ import GlassCard from '../../components/GlassCard'
 import { ModalSelect } from '../../components/PortalModal'
 import Spinner from '@/components/ui/Spinner'
 import { useAdminDoctorsQuery } from '../../hooks/useAdminDoctorsQuery'
-import { DOCTOR_SPECIALTIES } from '../../data/doctorsData'
+import { useMedicalSpecialties } from '@/hooks/useMedicalSpecialties'
 import {
   DOCTOR_STATUS_FILTERS,
   DOCTORS_PAGE_SIZE,
@@ -48,6 +48,11 @@ const METRIC_CARD_TONES = {
     bg: 'rgba(255,138,128,0.14)',
     border: 'rgba(255,138,128,0.34)',
     icon: '#ff9f7a',
+  },
+  purple: {
+    bg: 'rgba(168,85,247,0.16)',
+    border: 'rgba(196,181,253,0.32)',
+    icon: '#c4b5fd',
   },
 }
 
@@ -111,6 +116,7 @@ export default function DoctorsList() {
   const [status, setStatus] = useState('active')
   const [page, setPage] = useState(0)
   const [specialtiesOpen, setSpecialtiesOpen] = useState(false)
+  const { specialties } = useMedicalSpecialties()
   const {
     doctors,
     summary,
@@ -135,9 +141,9 @@ export default function DoctorsList() {
   const specialtyOptions = useMemo(
     () => [
       { value: 'all', label: 'All Specialties' },
-      ...DOCTOR_SPECIALTIES.map((s) => ({ value: String(s.id), label: s.label })),
+      ...specialties.map((s) => ({ value: String(s.id), label: s.label })),
     ],
-    [],
+    [specialties],
   )
   const statusOptions = useMemo(
     () => DOCTOR_STATUS_FILTERS.map((opt) => ({ value: opt.id, label: opt.label })),
@@ -163,13 +169,6 @@ export default function DoctorsList() {
             tone="blueWhite"
           />
           <MetricCard
-            label="Active Doctors"
-            value={summary.activeDoctors}
-            hint={`${summary.activePercent}% of total`}
-            icon={Stethoscope}
-            tone="green"
-          />
-          <MetricCard
             label="Available Today"
             value={summary.availableToday}
             actionLabel="View schedule →"
@@ -184,6 +183,14 @@ export default function DoctorsList() {
             onAction={() => setSpecialtiesOpen(true)}
             icon={CalendarDays}
             tone="orange"
+          />
+          <MetricCard
+            label="Consultation Bookings"
+            value={summary.consultationBookings}
+            hint={summary.bookingsToday ? `${summary.bookingsToday} today` : undefined}
+            hintAccent={Boolean(summary.bookingsToday)}
+            icon={CalendarCheck}
+            tone="purple"
           />
         </div>
         <button

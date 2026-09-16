@@ -55,10 +55,15 @@ export default function SpecialtyManagementModal({ onClose }) {
             {specialties.map((item, index) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between gap-3 px-4 py-3"
+                className="px-4 py-3"
                 style={{ borderTop: index ? `1px solid ${colors.borderSubtle}` : undefined }}
               >
-                <span className="text-[13px] font-bold text-white">{item.label}</span>
+                <div className="text-[13px] font-bold text-white">{item.label}</div>
+                {item.description ? (
+                  <div className="text-[11.5px] mt-0.5" style={{ color: colors.textDim }}>
+                    {item.description}
+                  </div>
+                ) : null}
               </div>
             ))}
             {!specialties.length && (

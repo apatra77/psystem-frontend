@@ -14,6 +14,8 @@ const EMPTY_SUMMARY = {
   availableToday: 0,
   totalSpecialties: 0,
   addedThisMonth: 0,
+  consultationBookings: 0,
+  bookingsToday: 0,
 }
 
 export function useAdminDoctorsQuery({

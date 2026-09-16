@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ArrowRight, ChevronDown, MapPin, Search } from 'lucide-react'
 import DoctorTopCard from '@/modules/customer/components/consultation/DoctorTopCard'
 import PopularDoctorCard from '@/modules/customer/components/consultation/PopularDoctorCard'
@@ -11,11 +11,8 @@ import { useOrderStore } from '@/app/store/orderStore'
 import { toast } from '@/app/store/uiStore'
 import { bookAppointment, buildAppointmentPayload } from '@/services/appointments'
 import { isDoctorBookable } from '@/services/doctors'
-import {
-  CONSULTATION_MORE_SPECIALTIES,
-  CONSULTATION_SPECIALTIES,
-  DEFAULT_CONSULTATION_CITY,
-} from '@/shared/mocks/doctorConsultation'
+import { DEFAULT_CONSULTATION_CITY } from '@/shared/mocks/doctorConsultation'
+import { useMedicalSpecialties } from '@/hooks/useMedicalSpecialties'
 import { colors } from '@/app/themes/colors'
 
 function SectionHeader({ title, actionLabel, onAction, hideAction = false }) {
@@ -90,6 +87,13 @@ export default function DoctorConsultationPage() {
   const [bookingDoctor, setBookingDoctor] = useState(null)
   const [profileDoctorId, setProfileDoctorId] = useState(null)
   const [booking, setBooking] = useState(false)
+  const { specialties, loading: loadingSpecialties } = useMedicalSpecialties()
+
+  const primarySpecialties = useMemo(
+    () => [{ id: null, label: 'All Specialties' }, ...specialties.slice(0, 5)],
+    [specialties],
+  )
+  const moreSpecialties = useMemo(() => specialties.slice(5), [specialties])
 
   const openBooking = (doctor) => {
     if (!isDoctorBookable(doctor)) return
@@ -129,7 +133,7 @@ export default function DoctorConsultationPage() {
   }
 
   const moreSpecialtyLabel =
-    CONSULTATION_MORE_SPECIALTIES.find((item) => item.id === specialtyId)?.label ?? 'More'
+    moreSpecialties.find((item) => item.id === specialtyId)?.label ?? 'More'
 
   return (
     <div className="pb-2">
@@ -170,84 +174,94 @@ export default function DoctorConsultationPage() {
           </div>
 
           <div className="mb-5 flex flex-wrap items-center gap-2">
-            {CONSULTATION_SPECIALTIES.map((chip) => {
-              const active = specialtyId === chip.id
-              return (
-                <button
-                  key={chip.label}
-                  type="button"
-                  onClick={() => handleSpecialtySelect(chip.id)}
-                  className="rounded-full px-3.5 py-2 text-[12px] font-bold transition-colors"
-                  style={
-                    active
-                      ? {
-                          color: colors.accent,
-                          background: 'rgba(64,222,170,0.1)',
-                          border: '1px solid rgba(64,222,170,0.35)',
-                        }
-                      : {
-                          color: colors.textMuted,
-                          background: 'rgba(255,255,255,0.03)',
-                          border: `1px solid ${colors.borderSubtle}`,
-                        }
-                  }
-                >
-                  {chip.label}
-                </button>
-              )
-            })}
-
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setMoreOpen((open) => !open)}
-                className="inline-flex items-center gap-1 rounded-full px-3.5 py-2 text-[12px] font-bold"
-                style={{
-                  color: CONSULTATION_MORE_SPECIALTIES.some((item) => item.id === specialtyId)
-                    ? colors.accent
-                    : colors.textMuted,
-                  background: 'rgba(255,255,255,0.03)',
-                  border: `1px solid ${colors.borderSubtle}`,
-                }}
-              >
-                {CONSULTATION_MORE_SPECIALTIES.some((item) => item.id === specialtyId)
-                  ? moreSpecialtyLabel
-                  : 'More'}
-                <ChevronDown size={14} />
-              </button>
-              {moreOpen && (
-                <>
+            {loadingSpecialties
+              ? Array.from({ length: 6 }).map((_, index) => (
                   <div
-                    className="absolute left-0 top-[calc(100%+6px)] z-20 min-w-[180px] rounded-[12px] p-1.5"
-                    style={{
-                      background: 'rgba(10,28,22,0.98)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      boxShadow: '0 20px 50px rgba(0,0,0,0.45)',
-                    }}
-                  >
-                    {CONSULTATION_MORE_SPECIALTIES.map((chip) => (
-                      <button
-                        key={chip.id}
-                        type="button"
-                        onClick={() => handleSpecialtySelect(chip.id)}
-                        className="block w-full rounded-[8px] px-3 py-2 text-left text-[12px] font-semibold hover:bg-white/5"
-                        style={{
-                          color: specialtyId === chip.id ? colors.accent : colors.textMuted,
-                        }}
-                      >
-                        {chip.label}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    className="fixed inset-0 z-10 cursor-default"
-                    aria-label="Close specialty menu"
-                    onClick={() => setMoreOpen(false)}
+                    key={index}
+                    className="h-[34px] w-[110px] animate-pulse rounded-full"
+                    style={{ background: 'rgba(255,255,255,0.05)' }}
                   />
-                </>
-              )}
-            </div>
+                ))
+              : primarySpecialties.map((chip) => {
+                  const active = specialtyId === chip.id
+                  return (
+                    <button
+                      key={chip.id ?? 'all'}
+                      type="button"
+                      onClick={() => handleSpecialtySelect(chip.id)}
+                      className="rounded-full px-3.5 py-2 text-[12px] font-bold transition-colors"
+                      style={
+                        active
+                          ? {
+                              color: colors.accent,
+                              background: 'rgba(64,222,170,0.1)',
+                              border: '1px solid rgba(64,222,170,0.35)',
+                            }
+                          : {
+                              color: colors.textMuted,
+                              background: 'rgba(255,255,255,0.03)',
+                              border: `1px solid ${colors.borderSubtle}`,
+                            }
+                      }
+                    >
+                      {chip.label}
+                    </button>
+                  )
+                })}
+
+            {!loadingSpecialties && moreSpecialties.length > 0 ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMoreOpen((open) => !open)}
+                  className="inline-flex items-center gap-1 rounded-full px-3.5 py-2 text-[12px] font-bold"
+                  style={{
+                    color: moreSpecialties.some((item) => item.id === specialtyId)
+                      ? colors.accent
+                      : colors.textMuted,
+                    background: 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${colors.borderSubtle}`,
+                  }}
+                >
+                  {moreSpecialties.some((item) => item.id === specialtyId)
+                    ? moreSpecialtyLabel
+                    : 'More'}
+                  <ChevronDown size={14} />
+                </button>
+                {moreOpen && (
+                  <>
+                    <div
+                      className="absolute left-0 top-[calc(100%+6px)] z-20 min-w-[180px] rounded-[12px] p-1.5"
+                      style={{
+                        background: 'rgba(10,28,22,0.98)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        boxShadow: '0 20px 50px rgba(0,0,0,0.45)',
+                      }}
+                    >
+                      {moreSpecialties.map((chip) => (
+                        <button
+                          key={chip.id}
+                          type="button"
+                          onClick={() => handleSpecialtySelect(chip.id)}
+                          className="block w-full rounded-[8px] px-3 py-2 text-left text-[12px] font-semibold hover:bg-white/5"
+                          style={{
+                            color: specialtyId === chip.id ? colors.accent : colors.textMuted,
+                          }}
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="fixed inset-0 z-10 cursor-default"
+                      aria-label="Close specialty menu"
+                      onClick={() => setMoreOpen(false)}
+                    />
+                  </>
+                )}
+              </div>
+            ) : null}
           </div>
 
           {error ? (
