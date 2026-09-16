@@ -5,6 +5,7 @@ import {
   fetchMedicalSpecialties,
   mergeMedicalSpecialtiesFromItems,
 } from './medicalSpecialties'
+import { resolveDoctorImageUrl } from './doctorImages'
 import {
   authFetch,
   authHeaders,
@@ -110,13 +111,15 @@ function formatApiTime(timeStr) {
   return `${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}:00`
 }
 
-function formatPhoneForApi(value) {
+function normalizeAdminPhone(value) {
   const digits = String(value ?? '').replace(/\D/g, '')
+  if (!digits) return ''
+  return digits.length >= 10 ? digits.slice(-10) : digits
+}
+
+function formatPhoneForApi(value) {
+  const digits = normalizeAdminPhone(value)
   if (digits.length === 10) return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`
-  if (digits.length === 12 && digits.startsWith('91')) {
-    const local = digits.slice(2)
-    return `+91 ${local.slice(0, 5)} ${local.slice(5)}`
-  }
   return String(value ?? '').trim()
 }
 
@@ -231,11 +234,32 @@ export function mapScheduleToApi(schedule) {
 }
 
 export function mapAdminDoctorFromApi(item = {}) {
-  const specialtyId = pick(item, 'specialtyId', 'specializationId')
-  const storeLocationId = pick(item, 'storeLocationId', 'storeId', 'outletId', 'clinicId')
-  const store = pick(item, 'store', 'storeName', 'outletName', 'clinicName', 'location')
+  const specialtyObj = item.medicalSpecialty ?? item.specialty
+  const specialtyName =
+    typeof specialtyObj === 'object' && specialtyObj != null
+      ? pick(specialtyObj, 'specialtyName', 'name', 'label')
+      : pick(item, 'specialty', 'specialization', 'specialtyName', 'speciality')
+  const specialtyIdRaw =
+    typeof specialtyObj === 'object' && specialtyObj != null
+      ? pick(specialtyObj, 'specialtyId', 'id')
+      : pick(item, 'specialtyId', 'specializationId')
+  const specialtyId = specialtyIdRaw != null && specialtyIdRaw !== '' ? Number(specialtyIdRaw) : null
+
+  const storeLocationObj = item.storeLocation ?? item.store
+  const storeLocationIdRaw =
+    typeof storeLocationObj === 'object' && storeLocationObj != null
+      ? pick(storeLocationObj, 'storeLocationId', 'id', 'storeId')
+      : pick(item, 'storeLocationId', 'storeId', 'outletId', 'clinicId')
+  const storeLocationId =
+    storeLocationIdRaw != null && storeLocationIdRaw !== '' ? Number(storeLocationIdRaw) : null
+  const store =
+    typeof storeLocationObj === 'object' && storeLocationObj != null
+      ? pick(storeLocationObj, 'storeName', 'name', 'label')
+      : pick(item, 'store', 'storeName', 'outletName', 'clinicName', 'location')
+
   const firstName = pick(item, 'firstName')
   const lastName = pick(item, 'lastName')
+  const rawPhone = pick(item, 'phoneNumber', 'mobileNumber', 'phone', 'mobile')
   const rawQualifications = pick(item, 'qualifications', 'qualification', 'degree', 'credentials')
   const qualificationRows = mapQualificationsFromApi(rawQualifications)
 
@@ -248,13 +272,13 @@ export function mapAdminDoctorFromApi(item = {}) {
       pick(item, 'name', 'doctorName', 'fullName') ??
       [firstName, lastName].filter(Boolean).join(' ').trim(),
     email: pick(item, 'email', 'emailAddress') ?? '',
-    mobile: String(pick(item, 'mobile', 'mobileNumber', 'phone', 'phoneNumber') ?? '').replace(/\D/g, ''),
-    phoneNumber: pick(item, 'phoneNumber', 'mobileNumber', 'phone', 'mobile') ?? '',
+    mobile: normalizeAdminPhone(rawPhone),
+    phoneNumber: rawPhone ?? '',
     qualifications: formatQualificationsLabel(rawQualifications),
     qualificationRows,
     profileSummary: pick(item, 'profileSummary', 'summary', 'bio') ?? '',
-    specialty: pick(item, 'specialty', 'specialization', 'specialtyName', 'speciality') ?? '',
-    specialtyId: specialtyId != null ? Number(specialtyId) : null,
+    specialty: specialtyName ?? '',
+    specialtyId,
     store: store ?? '',
     storeLocationId: storeLocationId != null ? Number(storeLocationId) : null,
     storeId: storeLocationId != null ? String(storeLocationId) : '',
@@ -264,8 +288,9 @@ export function mapAdminDoctorFromApi(item = {}) {
       pick(item, 'consultationType', 'consultationMode', 'mode'),
     ),
     status: normalizeStatus(pick(item, 'status', 'doctorStatus')),
-    imageUrl:
-      pick(item, 'imageUrl', 'profileImageUrl', 'profileImage', 'photoUrl', 'avatarUrl') ?? '',
+    imageUrl: resolveDoctorImageUrl(
+      pick(item, 'profileImageUrl', 'imageUrl', 'profileImage', 'photoUrl', 'avatarUrl') ?? '',
+    ),
     consultationTimingsSummary:
       pick(item, 'consultationTimingsSummary', 'consultationTimingSummary', 'timingsSummary') ?? '',
     schedule: mapScheduleFromApi(
@@ -280,6 +305,38 @@ export function mapAdminDoctorFromApi(item = {}) {
       ),
     ),
     createdAt: pick(item, 'createdAt', 'createdOn') ?? null,
+  }
+}
+
+/** Normalize add/edit doctor form draft into one shared write shape for POST and PUT. */
+export function buildAdminDoctorFormPayload(draft = {}) {
+  return {
+    doctorCode: String(draft.doctorCode ?? '').trim(),
+    firstName: String(draft.firstName ?? '').trim(),
+    lastName: String(draft.lastName ?? '').trim(),
+    email: String(draft.email ?? '').trim(),
+    phoneNumber: String(draft.mobile ?? draft.phoneNumber ?? '').replace(/\D/g, ''),
+    profileSummary: String(draft.profileSummary ?? '').trim(),
+    specialtyId: Number(draft.specialtyId),
+    storeLocationId: Number(draft.storeLocationId),
+    yearsOfExperience:
+      draft.yearsOfExperience === '' || draft.yearsOfExperience == null
+        ? undefined
+        : Number(draft.yearsOfExperience),
+    consultationFee: Number(draft.consultationFee),
+    doctorStatus: draft.doctorStatus ?? 'active',
+    qualifications: (draft.qualifications ?? [])
+      .filter((row) => String(row?.qualificationName ?? '').trim())
+      .map((row, index) => ({
+        qualificationName: String(row.qualificationName).trim(),
+        institutionName: String(row.institutionName ?? '').trim(),
+        yearCompleted:
+          row.yearCompleted === '' || row.yearCompleted == null
+            ? undefined
+            : Number(row.yearCompleted),
+        displayOrder: index + 1,
+      })),
+    schedule: draft.schedule,
   }
 }
 
@@ -305,28 +362,36 @@ function buildDoctorWritePayload(payload = {}) {
         ? Number(payload.storeLocationId)
         : undefined,
     doctorStatus: STATUS_TO_API[payload.doctorStatus] ?? payload.doctorStatus ?? 'ACTIVE',
-    qualifications: (payload.qualifications ?? []).map((row, index) => ({
-      qualificationName: row.qualificationName?.trim(),
-      institutionName: row.institutionName?.trim(),
-      yearCompleted:
-        row.yearCompleted == null || row.yearCompleted === ''
-          ? undefined
-          : Number(row.yearCompleted),
-      displayOrder: Number(row.displayOrder) || index + 1,
-    })),
+    qualifications: (payload.qualifications ?? [])
+      .filter((row) => row.qualificationName?.trim())
+      .map((row, index) => {
+        const item = {
+          qualificationName: row.qualificationName?.trim(),
+          institutionName: row.institutionName?.trim() || undefined,
+          yearCompleted:
+            row.yearCompleted == null || row.yearCompleted === ''
+              ? undefined
+              : Number(row.yearCompleted),
+          displayOrder: Number(row.displayOrder) || index + 1,
+        }
+        Object.keys(item).forEach((key) => {
+          if (item[key] === undefined) delete item[key]
+        })
+        return item
+      }),
     weeklySchedules: mapScheduleToApi(payload.schedule),
   }
 
   Object.keys(body).forEach((key) => {
-    if (body[key] === undefined) delete body[key]
+    if (body[key] === undefined || body[key] === null) delete body[key]
   })
 
   return body
 }
 
-async function submitDoctorWrite(method, path, payload, profileImage) {
+async function submitDoctorWrite(method, path, draft, profileImage) {
   const formData = new FormData()
-  const body = buildDoctorWritePayload(payload)
+  const body = buildDoctorWritePayload(buildAdminDoctorFormPayload(draft))
   formData.append('doctor', new Blob([JSON.stringify(body)], { type: 'application/json' }))
   if (profileImage) formData.append('profileImage', profileImage)
 
@@ -488,16 +553,16 @@ export async function fetchAdminDoctorById(id) {
   return request
 }
 
-export async function createAdminDoctor(payload, profileImage) {
-  const response = await submitDoctorWrite('POST', BASE, payload, profileImage)
+export async function createAdminDoctor(draft, profileImage) {
+  const response = await submitDoctorWrite('POST', BASE, draft, profileImage)
   return mapAdminDoctorFromApi(unwrapEntity(response))
 }
 
-export async function updateAdminDoctor(id, payload, profileImage) {
+export async function updateAdminDoctor(id, draft, profileImage) {
   const response = await submitDoctorWrite(
     'PUT',
     `${BASE}/${encodeURIComponent(id)}`,
-    payload,
+    draft,
     profileImage,
   )
   inFlightDoctorRequests.delete(String(id))
@@ -542,10 +607,13 @@ export async function uploadAdminDoctorProfileImage(id, file) {
     return mapAdminDoctorFromApi(entity)
   }
 
-  const imageUrl = pick(data, 'imageUrl', 'profileImageUrl', 'profileImage', 'url') ??
-    pick(entity, 'imageUrl', 'profileImageUrl', 'profileImage', 'url')
+  const imageUrl = resolveDoctorImageUrl(
+    pick(data, 'profileImageUrl', 'imageUrl', 'profileImage', 'url') ??
+      pick(entity, 'profileImageUrl', 'imageUrl', 'profileImage', 'url') ??
+      '',
+  )
 
-  return { id: String(id), imageUrl: imageUrl ?? '' }
+  return { id: String(id), imageUrl }
 }
 
 export function mergeSpecialtiesFromDoctors(doctors = []) {

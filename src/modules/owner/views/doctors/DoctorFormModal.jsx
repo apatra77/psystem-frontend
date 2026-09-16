@@ -98,7 +98,7 @@ function mapDoctorToDraft(doctor) {
     firstName: doctor.firstName || nameParts[0] || '',
     lastName: doctor.lastName || nameParts.slice(1).join(' ') || '',
     email: doctor.email ?? '',
-    mobile: doctor.mobile ?? '',
+    mobile: String(doctor.mobile ?? '').replace(/\D/g, '').slice(-10),
     profileSummary: doctor.profileSummary ?? '',
     specialtyId: String(doctor.specialtyId ?? ''),
     specialtyName: doctor.specialty ?? '',
@@ -109,31 +109,6 @@ function mapDoctorToDraft(doctor) {
     imageUrl: doctor.imageUrl ?? '',
     qualifications: qualificationRows,
     schedule: cloneSchedule(doctor.schedule ?? createDefaultSchedule()),
-  }
-}
-
-function buildPayload(draft) {
-  return {
-    doctorCode: draft.doctorCode.trim(),
-    firstName: draft.firstName.trim(),
-    lastName: draft.lastName.trim(),
-    email: draft.email.trim(),
-    phoneNumber: draft.mobile.replace(/\D/g, ''),
-    profileSummary: draft.profileSummary.trim(),
-    specialtyId: Number(draft.specialtyId),
-    storeLocationId: Number(draft.storeLocationId),
-    yearsOfExperience: draft.yearsOfExperience === '' ? null : Number(draft.yearsOfExperience),
-    consultationFee: Number(draft.consultationFee),
-    doctorStatus: draft.doctorStatus,
-    qualifications: draft.qualifications
-      .filter((row) => row.qualificationName.trim())
-      .map((row, index) => ({
-        qualificationName: row.qualificationName.trim(),
-        institutionName: row.institutionName.trim(),
-        yearCompleted: row.yearCompleted === '' ? undefined : Number(row.yearCompleted),
-        displayOrder: index + 1,
-      })),
-    schedule: cloneSchedule(draft.schedule),
   }
 }
 
@@ -429,12 +404,17 @@ export default function DoctorFormModal() {
     setSaving(true)
     setSaveError('')
     try {
-      const payload = buildPayload({ ...draft, doctorStatus: isEdit ? doctorStatus : 'active' })
+      const saveDraft = {
+        ...draft,
+        doctorStatus: isEdit ? doctorStatus : 'active',
+        schedule: cloneSchedule(draft.schedule),
+      }
+
       if (isEdit) {
-        await updateAdminDoctor(routeId, payload, photoFile)
+        await updateAdminDoctor(routeId, saveDraft, photoFile)
         toast.success('Doctor updated successfully')
       } else {
-        await createAdminDoctor(payload, photoFile)
+        await createAdminDoctor(saveDraft, photoFile)
         toast.success('Doctor added successfully')
       }
       close()

@@ -1,4 +1,5 @@
 import { authFetch, DOCTOR_API_BASE } from './api'
+import { resolveDoctorImageUrl } from './doctorImages'
 
 const BASE = '/api/v1/public/doctors'
 
@@ -30,15 +31,6 @@ function formatDayLabel(day) {
   if (!raw) return ''
   const lower = raw.toLowerCase()
   return lower.charAt(0).toUpperCase() + lower.slice(1)
-}
-
-function resolveDoctorImageUrl(url) {
-  if (!url) return ''
-  const value = String(url).trim()
-  if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://')) {
-    return value
-  }
-  return `${DOCTOR_API_BASE}${value.startsWith('/') ? value : `/${value}`}`
 }
 
 function mapQualificationsList(raw) {

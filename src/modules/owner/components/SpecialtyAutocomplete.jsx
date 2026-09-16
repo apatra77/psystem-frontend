@@ -146,8 +146,8 @@ export default function SpecialtyAutocomplete({
   }
 
   useEffect(() => {
-    if (!open) setInputText(specialtyName)
-  }, [specialtyName, open])
+    setInputText(specialtyName)
+  }, [specialtyName, specialtyId])
 
   useEffect(() => {
     setHighlightIndex(0)
