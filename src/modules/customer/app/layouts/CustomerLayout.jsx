@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import CustomerHeader from '@/modules/customer/components/CustomerHeader'
 import CustomerFooter from '@/modules/customer/components/CustomerFooter'
+import { useCartStore } from '@/app/store/cartStore'
 import { colors } from '@/app/themes/colors'
 
 /**
@@ -15,6 +17,10 @@ import { colors } from '@/app/themes/colors'
  * container, which silently breaks `position: sticky` on the header.
  */
 export default function CustomerLayout() {
+  useEffect(() => {
+    useCartStore.getState().loadCart({ silent: true })
+  }, [])
+
   return (
     <div
       className="flex min-h-screen w-full flex-col overflow-x-clip"

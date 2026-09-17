@@ -31,28 +31,44 @@ export function useCustomerProductBrowse({ page = 1, categorySlug = '', enabled 
       setError('')
 
       try {
-        let categories = useCatalogStore.getState().categories
-        if (!categories.length) {
-          const fetched = await fetchCategories()
-          if (fetched.length > 0) {
-            useCatalogStore.getState().setCategoriesFromApi(fetched)
-            categories = fetched
-          }
+        const fetchedCategories = await fetchCategories()
+        let categories = fetchedCategories
+
+        if (fetchedCategories.length > 0) {
+          useCatalogStore.getState().setCategoriesFromApi(fetchedCategories)
+        } else {
+          categories = useCatalogStore.getState().categories
         }
 
-        const category = categorySlug
-          ? categories.find((item) => item.slug === categorySlug)
-          : null
+        if (categorySlug) {
+          const category = categories.find((item) => item.slug === categorySlug)
+          if (!category) {
+            if (cancelled) return
+            setProducts([])
+            setTotalElements(0)
+            setTotalPages(1)
+            setError('Category not found')
+            return
+          }
 
-        const result = category?.id
-          ? await fetchCustomerProductsByCategoryPage(category.id, categories, {
-              page: Math.max(0, page - 1),
-              size: OWNER_PRODUCTS_PAGE_SIZE,
-            })
-          : await fetchCustomerProductsPage(categories, {
-              page: Math.max(0, page - 1),
-              size: OWNER_PRODUCTS_PAGE_SIZE,
-            })
+          const result = await fetchCustomerProductsByCategoryPage(category.id, categories, {
+            page: Math.max(0, page - 1),
+            size: OWNER_PRODUCTS_PAGE_SIZE,
+          })
+
+          if (cancelled) return
+
+          setProducts(result.products)
+          setTotalElements(result.totalElements)
+          setTotalPages(Math.max(1, result.totalPages))
+          useCatalogStore.getState().mergeProducts(result.products)
+          return
+        }
+
+        const result = await fetchCustomerProductsPage(categories, {
+          page: Math.max(0, page - 1),
+          size: OWNER_PRODUCTS_PAGE_SIZE,
+        })
 
         if (cancelled) return
 
