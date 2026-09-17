@@ -49,6 +49,131 @@ export function resolveProductLooseMeta(item) {
   }
 }
 
+function readInventoryNumber(item, product = {}, ...keys) {
+  const packings = Array.isArray(item?.packings) ? item.packings : []
+  const primary = packings[0] ?? {}
+  const productPackings = Array.isArray(product?.packings) ? product.packings : []
+  const productPrimary = productPackings[0] ?? {}
+
+  for (const source of [item, primary, product, productPrimary]) {
+    const value = pick(source, ...keys)
+    if (value != null && value !== '') return Number(value)
+  }
+
+  return NaN
+}
+
+/** Customer catalog stock from full-pack / loose inventory fields. */
+export function resolveCustomerProductStock(item, fallbackStock = 0) {
+  const fullPackQuantity = readInventoryNumber(item, item, 'fullPackQuantity', 'fullPackQty')
+  const looseUnitQuantity = readInventoryNumber(item, item, 'looseUnitQuantity', 'looseUnitQty', 'looseQty')
+  const looseSaleAllowed = resolveLooseSaleAllowed(item, item)
+
+  if (!Number.isFinite(fullPackQuantity)) {
+    const stock = Number(fallbackStock) || 0
+    return {
+      stock,
+      fullPackQuantity: undefined,
+      looseUnitQuantity: Number.isFinite(looseUnitQuantity) ? Math.max(0, looseUnitQuantity) : 0,
+      looseSaleAllowed,
+      inStock: stock > 0,
+    }
+  }
+
+  const fullPacks = Math.max(0, fullPackQuantity)
+  const looseUnits = Number.isFinite(looseUnitQuantity) ? Math.max(0, looseUnitQuantity) : 0
+
+  if (fullPacks > 0) {
+    return {
+      stock: fullPacks,
+      fullPackQuantity: fullPacks,
+      looseUnitQuantity: looseUnits,
+      looseSaleAllowed,
+      inStock: true,
+    }
+  }
+
+  if (looseSaleAllowed && looseUnits > 0) {
+    return {
+      stock: looseUnits,
+      fullPackQuantity: 0,
+      looseUnitQuantity: looseUnits,
+      looseSaleAllowed,
+      inStock: true,
+    }
+  }
+
+  return {
+    stock: 0,
+    fullPackQuantity: 0,
+    looseUnitQuantity: looseUnits,
+    looseSaleAllowed,
+    inStock: false,
+  }
+}
+
+export function isProductInStock(product = {}) {
+  if (Number.isFinite(Number(product?.stock))) return Number(product.stock) > 0
+  return resolveCustomerProductStock(product).inStock
+}
+
+export function getProductStockLimits(product = {}) {
+  const inventory = resolveCustomerProductStock(product, product.stock)
+  const maxFullPacks = Number.isFinite(inventory.fullPackQuantity)
+    ? Math.max(0, inventory.fullPackQuantity)
+    : Math.max(0, Number(inventory.stock) || 0)
+
+  return {
+    maxFullPacks,
+    maxLooseUnits: inventory.looseSaleAllowed
+      ? Math.max(0, Number(inventory.looseUnitQuantity) || 0)
+      : 0,
+    looseSaleAllowed: inventory.looseSaleAllowed,
+  }
+}
+
+export function clampPackQuantity(product, requestedQty) {
+  const { maxFullPacks } = getProductStockLimits(product)
+  const requested = Math.max(0, Number(requestedQty) || 0)
+
+  if (requested <= 0) {
+    return { qty: 0, capped: false, maxQty: maxFullPacks }
+  }
+
+  const qty = Math.min(requested, maxFullPacks)
+  return { qty, capped: requested > maxFullPacks, maxQty: maxFullPacks }
+}
+
+export function clampLooseQuantities(product, fullPackQty, looseUnitQty) {
+  const { maxFullPacks, maxLooseUnits, looseSaleAllowed } = getProductStockLimits(product)
+  const requestedFull = Math.max(0, Number(fullPackQty) || 0)
+  const requestedLoose = Math.max(0, Number(looseUnitQty) || 0)
+  const nextFull = Math.min(requestedFull, maxFullPacks)
+  const nextLoose = looseSaleAllowed ? Math.min(requestedLoose, maxLooseUnits) : 0
+
+  return {
+    fullPackQty: nextFull,
+    looseUnitQty: nextLoose,
+    capped: nextFull < requestedFull || nextLoose < requestedLoose,
+    maxFullPacks,
+    maxLooseUnits,
+  }
+}
+
+export function productForStockClamp(source = {}) {
+  if (Number.isFinite(Number(source.maxFullPacks))) {
+    return {
+      stock: source.maxFullPacks,
+      fullPackQuantity: source.maxFullPacks,
+      looseUnitQuantity: source.maxLooseUnits,
+      looseSaleAllowed: source.looseSaleAllowed,
+      looseQuantity: source.looseSaleAllowed,
+    }
+  }
+
+  return source
+}
+
 export function resolveLooseSaleAllowed(item, product = {}) {
   const allowed = pick(item, 'looseSaleAllowed', 'looseSaleEnabled', 'allowLoose')
   if (allowed === true || allowed === 'true') return true

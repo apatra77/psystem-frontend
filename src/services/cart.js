@@ -1,5 +1,9 @@
 import { authFetch, CART_API_BASE } from './api'
-import { resolveProductLooseMeta, resolveLooseSaleAllowed } from '@/modules/customer/utils/looseQuantity'
+import {
+  getProductStockLimits,
+  resolveProductLooseMeta,
+  resolveLooseSaleAllowed,
+} from '@/modules/customer/utils/looseQuantity'
 
 function pick(obj, ...keys) {
   for (const key of keys) {
@@ -119,6 +123,7 @@ export function mapCartLineToStoreItem(line) {
   }
 
   const genericName = pick(line, 'genericName', 'brand') ?? pick(product, 'genericName', 'brand') ?? ''
+  const limits = getProductStockLimits({ ...product, stock: pick(product, 'stock', 'fullPackQuantity') })
 
   const base = {
     id: String(productId ?? cartItemId ?? ''),
@@ -145,6 +150,8 @@ export function mapCartLineToStoreItem(line) {
     unitLabel: looseMeta.unitLabel,
     looseSaleAllowed,
     packBased: hasPackFields,
+    maxFullPacks: limits.maxFullPacks,
+    maxLooseUnits: limits.maxLooseUnits,
   }
 
   const lineTotal = Number(pick(line, 'lineTotal', 'totalPrice', 'itemTotal', 'subtotal', 'total'))

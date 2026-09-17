@@ -4,10 +4,13 @@ import PortalModal from '@/shared/ui/PortalModal'
 import Spinner from '@/shared/ui/Spinner'
 import {
   calcLooseLineAmounts,
+  clampLooseQuantities,
   formatLoosePackLine,
   formatLooseUnitLine,
 } from '@/modules/customer/utils/looseQuantity'
+import { toast } from '@/app/store/uiStore'
 import { fmtDecimalINR } from '@/app/utils/format'
+import { msg } from '@/shared/messages/messages'
 import { colors } from '@/app/themes/colors'
 
 function QuantityRow({ icon: Icon, title, subtitle, value, onDecrease, onIncrease, disabled }) {
@@ -97,6 +100,19 @@ export default function LooseQuantityModal({
       ? (product?.unitLabel ?? 'Unit').toLowerCase()
       : `${(product?.unitLabel ?? 'Unit').toLowerCase()}s`
   const canSubmit = amounts.totalUnits > 0 && !saving
+
+  const updateLooseQty = (nextFull, nextLoose) => {
+    const clamped = clampLooseQuantities(product, nextFull, nextLoose)
+
+    if (clamped.capped) {
+      const max =
+        clamped.fullPackQty < nextFull ? clamped.maxFullPacks : clamped.maxLooseUnits
+      toast.error(msg('customer.maxQuantityReached', { max, name: product.name }))
+    }
+
+    setFullPackQty(clamped.fullPackQty)
+    setLooseUnitQty(clamped.looseUnitQty)
+  }
 
   const submit = () => {
     if (!canSubmit) return
@@ -198,8 +214,8 @@ export default function LooseQuantityModal({
               title="Full Pack"
               subtitle={formatLoosePackLine(product)}
               value={fullPackQty}
-              onDecrease={() => setFullPackQty((value) => Math.max(0, value - 1))}
-              onIncrease={() => setFullPackQty((value) => value + 1)}
+              onDecrease={() => updateLooseQty(fullPackQty - 1, looseUnitQty)}
+              onIncrease={() => updateLooseQty(fullPackQty + 1, looseUnitQty)}
               disabled={saving}
             />
             <QuantityRow
@@ -207,8 +223,8 @@ export default function LooseQuantityModal({
               title="Loose Quantity"
               subtitle={formatLooseUnitLine(product)}
               value={looseUnitQty}
-              onDecrease={() => setLooseUnitQty((value) => Math.max(0, value - 1))}
-              onIncrease={() => setLooseUnitQty((value) => value + 1)}
+              onDecrease={() => updateLooseQty(fullPackQty, looseUnitQty - 1)}
+              onIncrease={() => updateLooseQty(fullPackQty, looseUnitQty + 1)}
               disabled={saving}
             />
           </div>

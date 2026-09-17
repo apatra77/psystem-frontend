@@ -64,7 +64,7 @@ export default function CartAddControl({
 
   const increase = (e) => {
     stop(e)
-    run(() => setQty(product.id, cartQty + 1))
+    run(() => setQty(product.id, cartQty + 1, { product }))
   }
 
   const add = (e) => {
@@ -174,7 +174,7 @@ export default function CartAddControl({
             <button
               type="button"
               onClick={increase}
-              disabled={pending || cartQty >= stock}
+              disabled={pending}
               className="flex shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-45"
               style={{ width: btnSize, height: btnSize, marginRight: 3, color: colors.accent }}
               aria-label="Increase quantity"

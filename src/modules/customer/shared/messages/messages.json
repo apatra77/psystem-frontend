@@ -96,7 +96,8 @@
     "rxRequired": "This item needs a valid prescription. Upload one at checkout.",
     "wishlistAdded": "{name} saved to your wishlist.",
     "wishlistRemoved": "{name} removed from your wishlist.",
-    "prescriptionDeleted": "Prescription removed."
+    "prescriptionDeleted": "Prescription removed.",
+    "maxQuantityReached": "Only {max} available for {name}. Quantity updated to the maximum in stock."
   },
   "admin": {
     "productSaved": "Product saved.",

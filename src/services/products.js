@@ -1,6 +1,10 @@
 import { authFetch, authHeaders, getErrorMessage, parseJsonResponse, PRODUCT_API_BASE } from './api'
 import { notifyUnauthorized } from '@/shared/api/tokenBridge'
-import { resolveProductLooseMeta, resolveLooseSaleAllowed } from '@/modules/customer/utils/looseQuantity'
+import {
+  resolveCustomerProductStock,
+  resolveProductLooseMeta,
+  resolveLooseSaleAllowed,
+} from '@/modules/customer/utils/looseQuantity'
 
 function pick(obj, ...keys) {
   for (const key of keys) {
@@ -378,6 +382,7 @@ export function mapProductToCustomerCatalog(item, categories = []) {
   const packings = Array.isArray(item.packings) ? item.packings : []
   const looseMeta = resolveProductLooseMeta(item)
   const looseSaleAllowed = resolveLooseSaleAllowed(item, item)
+  const inventory = resolveCustomerProductStock(item, base.stock)
   const mrp = base.mrp || base.price
   const price = base.price
   const off = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0
@@ -388,6 +393,9 @@ export function mapProductToCustomerCatalog(item, categories = []) {
     pack: formatPackingLabel(packings[0]),
     desc: pick(item, 'description', 'desc') ?? '',
     off,
+    stock: inventory.stock,
+    fullPackQuantity: inventory.fullPackQuantity,
+    looseUnitQuantity: inventory.looseUnitQuantity,
     looseQuantity: looseSaleAllowed,
     looseSaleAllowed,
     unitsPerPack: looseMeta.unitsPerPack,
