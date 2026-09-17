@@ -353,6 +353,7 @@ export function mapProductFromApi(item, categories = []) {
     cat,
     catName,
     sku: pick(item, 'sku', 'productSku', 'code', 'packType') ?? '',
+    groupName: pick(item, 'groupName', 'manufacturerName', 'mfrName', 'mktName') ?? '',
     price,
     mrp,
     stock,

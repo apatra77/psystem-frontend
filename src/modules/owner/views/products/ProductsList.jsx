@@ -8,7 +8,6 @@ import Spinner from '@/components/ui/Spinner'
 import { ModalSelect } from '../../components/PortalModal'
 import { useOwnerPortal } from '../../context/OwnerPortalContext'
 import { useProductsQuery } from '../../hooks/useProductsQuery'
-import { stockMeta } from '../../utils/helpers'
 import { colors } from '@/theme/colors'
 
 function ProductThumb() {
@@ -31,7 +30,7 @@ function Th({ children, align = 'left' }) {
     <th
       className={`${
         align === 'center' ? 'text-center' : 'text-left'
-      } text-[10.5px] font-extrabold tracking-[0.1em] uppercase px-4 py-3.5`}
+      } text-[10.5px] font-extrabold tracking-[0.1em] uppercase px-3 py-3.5`}
       style={{ color: colors.textDim, borderBottom: `1px solid ${colors.borderSubtle}` }}
     >
       {children}
@@ -273,13 +272,23 @@ export default function ProductsList() {
           </div>
         ) : (
         <>
-        <table className="w-full border-collapse">
+        <table className="w-full table-fixed border-collapse">
+          <colgroup>
+            <col style={{ width: '26%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '16%' }} />
+          </colgroup>
           <thead>
             <tr>
               <Th>Product</Th>
+              <Th>MFR/MKT Name</Th>
               <Th>Category</Th>
               <Th>Price</Th>
-              <Th>Stock</Th>
+              <Th>SKU</Th>
               <Th>Status</Th>
               <Th align="center">Action</Th>
             </tr>
@@ -287,40 +296,43 @@ export default function ProductsList() {
           <tbody>
             {products.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-14 text-center text-[13px]" style={{ color: colors.textDim }}>
+                <td colSpan={7} className="px-3 py-14 text-center text-[13px]" style={{ color: colors.textDim }}>
                   No products found.
                 </td>
               </tr>
             ) : (
             products.map((p) => {
-              const sm = stockMeta(p.stock)
               const isActive = p.status === 'active'
               return (
                 <tr key={p.id} className="border-b border-white/6 hover:bg-white/3">
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-3">
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <ProductThumb />
                       <div className="min-w-0">
                         <button
                           type="button"
                           onClick={() => navigate(`/owner/products/${p.id}`)}
-                          className="text-[12.5px] font-bold text-white whitespace-nowrap hover:text-[#40deaa] cursor-pointer text-left"
+                          className="block w-full truncate text-[12.5px] font-bold text-white hover:text-[#40deaa] cursor-pointer text-left"
+                          title={p.name}
                         >
                           {p.name}
                         </button>
-                        <div className="text-[10.5px] mt-0.5" style={{ color: colors.textDim }}>
+                        <div className="truncate text-[10.5px] mt-0.5" style={{ color: colors.textDim }} title={p.sku}>
                           {p.sku}
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-xs whitespace-nowrap" style={{ color: '#cfe6dc' }}>
+                  <td className="px-3 py-2.5 text-xs truncate" style={{ color: '#cfe6dc' }} title={p.groupName || undefined}>
+                    {p.groupName || '—'}
+                  </td>
+                  <td className="px-3 py-2.5 text-xs truncate" style={{ color: '#cfe6dc' }} title={p.catName ?? p.cat}>
                     {categories.find((c) => String(c.id) === String(p.cat))?.categoryName ??
                       categories.find((c) => String(c.id) === String(p.cat))?.name ??
                       p.catName ??
                       p.cat}
                   </td>
-                  <td className="px-4 py-2.5 whitespace-nowrap">
+                  <td className="px-3 py-2.5">
                     <span className="text-[12.5px] font-bold text-white tabular-nums">₹{p.price}</span>
                     {p.mrp > p.price && (
                       <span className="text-[11px] line-through ml-1.5" style={{ color: '#5f7d73' }}>
@@ -328,18 +340,12 @@ export default function ProductsList() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 whitespace-nowrap">
-                    <div className="text-xs" style={{ color: '#cfe6dc' }}>
+                  <td className="px-3 py-2.5">
+                    <div className="truncate text-xs" style={{ color: '#cfe6dc' }}>
                       {p.stock} {p.stockUnit ?? 'units'}
                     </div>
-                    <span
-                      className="text-[9.5px] font-extrabold px-[7px] py-0.5 rounded-full inline-block mt-0.5"
-                      style={{ background: sm.bg, color: sm.color, border: `1px solid ${sm.border}` }}
-                    >
-                      {sm.label}
-                    </span>
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-3 py-2.5">
                     <button
                       type="button"
                       onClick={() =>
@@ -358,7 +364,7 @@ export default function ProductsList() {
                       {isActive ? 'Active' : 'Inactive'}
                     </button>
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-3 py-2.5">
                     <div className="flex items-center justify-center gap-1">
                       <button
                         type="button"

@@ -53,7 +53,7 @@ function formatElapsedClock(totalSeconds) {
 function UploadLoadingOverlay({ elapsedSeconds, onCancel }) {
   return (
     <div
-      className="absolute inset-0 z-20 flex items-center justify-center rounded-[22px] px-6"
+      className="absolute inset-0 z-20 flex items-center justify-center rounded-[22px] px-4 sm:px-6"
       style={{
         background: 'rgba(4,10,8,0.72)',
         backdropFilter: 'blur(10px)',
@@ -64,7 +64,7 @@ function UploadLoadingOverlay({ elapsedSeconds, onCancel }) {
       aria-label="Uploading file"
     >
       <div
-        className="w-full max-w-[400px] rounded-[18px] px-8 py-8 text-center"
+        className="w-full max-w-[400px] rounded-[18px] px-5 py-6 sm:px-8 sm:py-8 text-center"
         style={{
           background: 'rgba(8,20,16,0.96)',
           border: '1px solid rgba(255,255,255,0.1)',
@@ -282,18 +282,19 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
     <PortalModal
       onClose={uploadResult ? handleDismissUploadResult : onClose}
       width={720}
-      maxHeight="88vh"
       scrollable={false}
       closeOnBackdrop={!busy && !uploadResult}
     >
-      <div className="relative flex flex-col max-h-[88vh]">
+      <div className="relative flex flex-col max-h-[min(88vh,calc(100dvh-1.5rem))]">
         {submitting && (
           <UploadLoadingOverlay elapsedSeconds={elapsedSeconds} onCancel={handleCancelUpload} />
         )}
-        <div className="flex-shrink-0 flex items-start justify-between px-4 pt-4 pb-3">
-          <div className="min-w-0 pr-4">
-            <h2 className="text-[22px] font-extrabold text-white leading-tight">Bulk Upload Products</h2>
-            <p className="text-[13px] mt-1" style={{ color: colors.textSecondary }}>
+        <div className="flex-shrink-0 flex items-start justify-between gap-3 px-4 pt-4 pb-3 sm:px-5">
+          <div className="min-w-0">
+            <h2 className="text-[18px] sm:text-[22px] font-extrabold text-white leading-tight">
+              Bulk Upload Products
+            </h2>
+            <p className="text-[12px] sm:text-[13px] mt-1 leading-snug" style={{ color: colors.textSecondary }}>
               Upload CSV or Excel file to add multiple products at once
             </p>
           </div>
@@ -309,9 +310,10 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
           </button>
         </div>
 
+        <div className="flex-1 overflow-y-auto owner-scroll min-h-0 px-4 sm:px-5 py-1">
         <form
           id={FORM_ID}
-          className="flex-1 px-4 py-2 flex flex-col gap-4 min-h-0"
+          className="flex flex-col gap-3 sm:gap-4 pb-3"
           onSubmit={handleSubmit}
         >
         {uploadResult ? (
@@ -361,7 +363,7 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
             setDragging(false)
           }}
           onDrop={handleDrop}
-          className="rounded-[16px] px-6 py-7 text-center cursor-pointer transition-colors"
+          className="rounded-[16px] px-4 py-5 sm:px-6 sm:py-7 text-center cursor-pointer transition-colors"
           style={{
             border: `1.5px dashed ${dragging ? colors.accent : 'rgba(255,255,255,0.18)'}`,
             background: dragging ? 'rgba(64,222,170,0.06)' : 'rgba(255,255,255,0.02)',
@@ -378,7 +380,7 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
 
           <label
             htmlFor={FILE_INPUT_ID}
-            className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-[10px] text-[12.5px] font-extrabold cursor-pointer"
+            className="inline-flex items-center gap-2 mb-3 sm:mb-4 px-4 py-2 rounded-[10px] text-[12px] sm:text-[12.5px] font-extrabold cursor-pointer"
             style={{
               color: colors.accent,
               background: 'rgba(64,222,170,0.08)',
@@ -389,16 +391,16 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
             Choose File
           </label>
 
-          <p className="text-[15px] font-extrabold text-white">
+          <p className="text-[14px] sm:text-[15px] font-extrabold text-white">
             Upload CSV or Excel file
           </p>
-          <p className="text-[12.5px] mt-1" style={{ color: colors.textDim }}>
+          <p className="text-[12px] sm:text-[12.5px] mt-1 break-words px-1" style={{ color: colors.textDim }}>
             {file
               ? `${file.name} · ${formatFileSize(file.size)} · Click or drop to replace`
               : 'Drag and drop your file here, or click to browse'}
           </p>
 
-          <div className="mt-5 space-y-0.5 text-[11px]" style={{ color: colors.textDim }}>
+          <div className="mt-4 sm:mt-5 space-y-0.5 text-[10.5px] sm:text-[11px]" style={{ color: colors.textDim }}>
             <p>Supported formats: CSV, XLS, XLSX</p>
             <p>Maximum file size: 10MB</p>
           </div>
@@ -424,25 +426,26 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
 
         {error && (
           <div
-            className="rounded-[10px] px-3.5 py-2 text-[12px] font-bold text-red-400"
+            className="rounded-[10px] px-3.5 py-2 text-[12px] font-bold text-red-400 break-words"
             style={{ background: 'rgba(255,138,128,0.08)', border: '1px solid rgba(255,138,128,0.24)' }}
           >
             {error}
           </div>
         )}
         </form>
+        </div>
 
         <div
-          className="flex-shrink-0 px-4 py-4 border-t"
+          className="flex-shrink-0 px-4 py-3 sm:px-5 sm:py-4 border-t bg-[#0d211a]"
           style={{ borderColor: 'rgba(255,255,255,0.09)' }}
         >
         {uploadResult ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-2.5 sm:grid sm:grid-cols-2 sm:gap-3">
             <button
               type="button"
               onClick={handleDownloadFailedRecords}
               disabled={busy || !uploadResult.failedRecordsDownloadUrl}
-              className="inline-flex items-center justify-center gap-2 py-3 rounded-[12px] text-[13px] font-extrabold cursor-pointer disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-2 py-2.5 sm:py-3 rounded-[12px] text-[12.5px] sm:text-[13px] font-extrabold cursor-pointer disabled:opacity-60"
               style={{
                 color: colors.accentText,
                 background: colors.primaryBtn,
@@ -465,7 +468,7 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
               type="button"
               onClick={handleDismissUploadResult}
               disabled={busy}
-              className="inline-flex items-center justify-center gap-2 py-3 rounded-[12px] text-[13px] font-extrabold cursor-pointer disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-2 py-2.5 sm:py-3 rounded-[12px] text-[12.5px] sm:text-[13px] font-extrabold cursor-pointer disabled:opacity-60"
               style={{
                 color: colors.textHighlight,
                 background: 'rgba(255,255,255,0.04)',
@@ -476,12 +479,12 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
             </button>
           </div>
         ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-2.5 sm:grid sm:grid-cols-2 sm:gap-3">
           <button
             type="button"
             onClick={handleDownloadTemplate}
             disabled={busy}
-            className="inline-flex items-center justify-center gap-2 py-3 rounded-[12px] text-[13px] font-extrabold cursor-pointer disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center gap-2 py-2.5 sm:py-3 rounded-[12px] text-[12.5px] sm:text-[13px] font-extrabold cursor-pointer disabled:opacity-60"
             style={{
               color: colors.accent,
               background: 'rgba(255,255,255,0.04)',
@@ -504,7 +507,7 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
             type="submit"
             form={FORM_ID}
             disabled={submitting || downloading}
-            className="inline-flex items-center justify-center gap-2 py-3 rounded-[12px] text-[13px] font-extrabold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex w-full items-center justify-center gap-2 py-2.5 sm:py-3 rounded-[12px] text-[12.5px] sm:text-[13px] font-extrabold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               color: colors.accentText,
               background: colors.primaryBtn,
