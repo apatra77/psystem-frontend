@@ -24,7 +24,7 @@ import { toast } from '@/app/store/uiStore'
 import { colors } from '@/theme/colors'
 
 const PROFILE_TABS = [
-  { id: 'overview', label: 'Overview' },
+  // { id: 'overview', label: 'Overview' },
   { id: 'qualifications', label: 'Qualifications' },
   { id: 'consultation', label: 'Consultation Details' },
   { id: 'schedule', label: 'Schedule' },
@@ -75,7 +75,7 @@ export default function DoctorProfileModal() {
   const [doctor, setDoctor] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab] = useState('qualifications')
   const [bookingsOpen, setBookingsOpen] = useState(false)
   const [statusUpdating, setStatusUpdating] = useState(false)
 
@@ -140,7 +140,7 @@ export default function DoctorProfileModal() {
 
   return (
     <>
-      <PortalModal onClose={close} width={1040} scrollable={false} maxHeight="92vh">
+      <PortalModal onClose={close} width={1040} scrollable={false} maxHeight="92vh" closeOnBackdrop={false}>
         <div className="flex flex-col flex-1 min-h-0">
           <div
             className="flex-shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b"
@@ -274,6 +274,7 @@ export default function DoctorProfileModal() {
                       })}
                     </div>
 
+                    {/* Overview tab — hidden for now
                     {tab === 'overview' ? (
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
@@ -293,6 +294,7 @@ export default function DoctorProfileModal() {
                         </section>
                       </div>
                     ) : null}
+                    */}
 
                     {tab === 'qualifications' ? (
                       <div className="space-y-2.5">

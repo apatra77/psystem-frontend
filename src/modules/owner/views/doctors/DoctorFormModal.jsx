@@ -491,7 +491,7 @@ export default function DoctorFormModal() {
   }
 
   return (
-    <PortalModal onClose={close} width={960} scrollable={false} maxHeight="92vh">
+    <PortalModal onClose={close} width={960} scrollable={false} maxHeight="92vh" closeOnBackdrop={false}>
       <div className="flex flex-col flex-1 min-h-0">
         <div
           className="flex-shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b"

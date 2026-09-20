@@ -26,8 +26,12 @@ function FieldError({ message }) {
 }
 
 const SCHEDULE_SELECT_WRAPPER = 'w-full min-w-0'
+/** Fits full labels like "09:00 AM" with chevron (weekly table + time rows). */
+const SCHEDULE_TIME_SELECT_WRAPPER = 'w-full min-w-[6.85rem]'
 const SCHEDULE_CONTROL_INNER =
   '!h-[38px] !min-h-[38px] !max-h-[38px] !py-0 px-3 text-[12px] !leading-[38px] box-border'
+const SCHEDULE_TIME_CONTROL_INNER =
+  `${SCHEDULE_CONTROL_INNER} !pr-9 tabular-nums tracking-normal`
 
 function parseOptionalCount(raw) {
   const trimmed = String(raw ?? '').trim()
@@ -152,8 +156,8 @@ function TimeWindowFields({
     : `Up to ${SLOTS_CAP_WITHOUT_DURATION} slots without duration`
 
   const gridClass = showRemove
-    ? 'grid-cols-2 md:[grid-template-columns:minmax(0,1.15fr)_minmax(0,1.15fr)_minmax(72px,0.7fr)_minmax(64px,0.55fr)_36px]'
-    : 'grid-cols-2 md:[grid-template-columns:minmax(0,1.15fr)_minmax(0,1.15fr)_minmax(72px,0.7fr)_minmax(64px,0.55fr)]'
+    ? 'grid-cols-2 md:[grid-template-columns:minmax(6.85rem,1.15fr)_minmax(6.85rem,1.15fr)_minmax(72px,0.7fr)_minmax(64px,0.55fr)_36px]'
+    : 'grid-cols-2 md:[grid-template-columns:minmax(6.85rem,1.15fr)_minmax(6.85rem,1.15fr)_minmax(72px,0.7fr)_minmax(64px,0.55fr)]'
 
   return (
     <div className={`${compact ? '' : 'w-full min-w-0'}`}>
@@ -165,8 +169,8 @@ function TimeWindowFields({
               value={window.start}
               onChange={(e) => patch('start', e.target.value)}
               options={TIME_SLOT_OPTIONS}
-              className={SCHEDULE_SELECT_WRAPPER}
-              inputClassName={SCHEDULE_CONTROL_INNER}
+              className={SCHEDULE_TIME_SELECT_WRAPPER}
+              inputClassName={SCHEDULE_TIME_CONTROL_INNER}
             />
           </div>
         </div>
@@ -177,8 +181,8 @@ function TimeWindowFields({
               value={window.end}
               onChange={(e) => patch('end', e.target.value)}
               options={TIME_SLOT_OPTIONS}
-              className={SCHEDULE_SELECT_WRAPPER}
-              inputClassName={SCHEDULE_CONTROL_INNER}
+              className={SCHEDULE_TIME_SELECT_WRAPPER}
+              inputClassName={SCHEDULE_TIME_CONTROL_INNER}
             />
           </div>
         </div>
@@ -252,11 +256,20 @@ function WeeklyScheduleTable({ weekly, onChange, errors }) {
       </div>
 
       <div className="overflow-x-auto owner-scroll rounded-[12px]" style={{ border: `1px solid ${colors.borderSubtle}` }}>
-        <table className="w-full table-fixed text-[11.5px]">
+        <table className="w-full min-w-[720px] text-[11.5px]">
+          <colgroup>
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '112px' }} />
+            <col style={{ width: '112px' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '14%' }} />
+          </colgroup>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
               {['Day', 'Available', 'Start Time', 'End Time', 'Slot Duration', 'Slots per Day', 'Actions'].map((h) => (
-                <th key={h} className="text-left font-extrabold px-3 py-2.5" style={{ color: colors.textDim }}>
+                <th key={h} className="text-left font-extrabold px-3 py-2.5 whitespace-nowrap" style={{ color: colors.textDim }}>
                   {h}
                 </th>
               ))}
@@ -302,25 +315,25 @@ function WeeklyScheduleTable({ weekly, onChange, errors }) {
                         ) : null
                       ) : (
                         <>
-                          <td className="px-2 py-2 align-middle">
+                          <td className="px-2 py-2 align-middle min-w-[112px]">
                             <div className="h-[38px] flex items-center">
                               <ModalSelect
                                 value={slot.start}
                                 onChange={(e) => patchSlot(key, slotIndex, 'start', e.target.value)}
                                 options={TIME_SLOT_OPTIONS}
-                                className={SCHEDULE_SELECT_WRAPPER}
-                                inputClassName={SCHEDULE_CONTROL_INNER}
+                                className={SCHEDULE_TIME_SELECT_WRAPPER}
+                                inputClassName={SCHEDULE_TIME_CONTROL_INNER}
                               />
                             </div>
                           </td>
-                          <td className="px-2 py-2 align-middle">
+                          <td className="px-2 py-2 align-middle min-w-[112px]">
                             <div className="h-[38px] flex items-center">
                               <ModalSelect
                                 value={slot.end}
                                 onChange={(e) => patchSlot(key, slotIndex, 'end', e.target.value)}
                                 options={TIME_SLOT_OPTIONS}
-                                className={SCHEDULE_SELECT_WRAPPER}
-                                inputClassName={SCHEDULE_CONTROL_INNER}
+                                className={SCHEDULE_TIME_SELECT_WRAPPER}
+                                inputClassName={SCHEDULE_TIME_CONTROL_INNER}
                               />
                             </div>
                           </td>
