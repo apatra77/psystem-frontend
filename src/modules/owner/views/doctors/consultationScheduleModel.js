@@ -175,6 +175,15 @@ export function applyTimeWindowPatch(window = {}, field, value) {
   return next
 }
 
+/** Clamp slots to cap and align with duration rules before persisting a rule. */
+export function normalizeTimeWindow(window = {}) {
+  let next = { ...window }
+  for (const field of ['start', 'end', 'slotDuration']) {
+    next = applyTimeWindowPatch(next, field, next[field])
+  }
+  return applyTimeWindowPatch(next, 'slotsPerDay', next.slotsPerDay)
+}
+
 export function validateTimeWindow(window, labelPrefix = '') {
   const errors = {}
   const startMin = parseTimeToMinutes(window.start)

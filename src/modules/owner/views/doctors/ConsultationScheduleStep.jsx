@@ -7,6 +7,7 @@ import {
   MONTH_WEEK_OPTIONS,
   SLOTS_CAP_WITHOUT_DURATION,
   applyTimeWindowPatch,
+  normalizeTimeWindow,
   buildMonthlyRuleSummary,
   buildScheduleSummaryLines,
   createDefaultTimeWindow,
@@ -414,9 +415,9 @@ function MonthlySchedulePanel({ rules, onChange, errors }) {
     weeks: ['2', '4'],
     dayKey: 'thursday',
     start: '09:00 AM',
-    end: '05:00 PM',
+    end: '01:00 PM',
     slotDuration: 30,
-    slotsPerDay: 20,
+    slotsPerDay: 8,
   })
 
   const toggleWeek = (weekId) => {
@@ -427,9 +428,12 @@ function MonthlySchedulePanel({ rules, onChange, errors }) {
   }
 
   const addRule = () => {
+    const time = normalizeTimeWindow(draft)
+    const windowErrors = validateTimeWindow(time, 'monthly-draft-')
+    if (Object.keys(windowErrors).length) return
     onChange([
       ...rules,
-      { id: nextScheduleId('monthly'), ...draft, weeks: [...draft.weeks].sort() },
+      { id: nextScheduleId('monthly'), ...time, weeks: [...draft.weeks].sort() },
     ])
   }
 
@@ -508,7 +512,16 @@ function MonthlySchedulePanel({ rules, onChange, errors }) {
                     >
                       <Trash2 size={13} className="text-red-400" />
                     </button>
-                    <FieldError message={errors[`monthly-${index}-dup`] || errors[`monthly-${index}-time`]} />
+                    <FieldError
+                      message={
+                        errors[`monthly-${index}-dup`]
+                        || errors[`monthly-${index}-slots`]
+                        || errors[`monthly-${index}-time`]
+                        || errors[`monthly-${index}-duration`]
+                        || errors[`monthly-${index}-weeks`]
+                        || errors[`monthly-${index}-day`]
+                      }
+                    />
                   </td>
                 </tr>
               ))}
@@ -534,7 +547,7 @@ function CustomPatternPanel({ rules, onChange, errors }) {
     start: '09:00 AM',
     end: '01:00 PM',
     slotDuration: 30,
-    slotsPerDay: 10,
+    slotsPerDay: 8,
   })
 
   const toggleDay = (dayKey) => {
@@ -542,6 +555,13 @@ function CustomPatternPanel({ rules, onChange, errors }) {
       ...prev,
       days: prev.days.includes(dayKey) ? prev.days.filter((d) => d !== dayKey) : [...prev.days, dayKey],
     }))
+  }
+
+  const addCustomRule = () => {
+    const time = normalizeTimeWindow(draft)
+    const windowErrors = validateTimeWindow(time, 'custom-draft-')
+    if (Object.keys(windowErrors).length) return
+    onChange([...rules, { id: nextScheduleId('custom'), ...time, days: [...draft.days] }])
   }
 
   return (
@@ -580,7 +600,7 @@ function CustomPatternPanel({ rules, onChange, errors }) {
         <TimeWindowFields window={draft} onChange={setDraft} errorPrefix="custom-draft-" errors={errors} />
         <button
           type="button"
-          onClick={() => onChange([...rules, { id: nextScheduleId('custom'), ...draft }])}
+          onClick={addCustomRule}
           className="inline-flex items-center gap-1 text-[11.5px] font-extrabold px-3 py-2 rounded-[9px] cursor-pointer"
           style={{ color: colors.accent, border: '1px solid rgba(64,222,170,0.4)' }}
         >
@@ -589,14 +609,23 @@ function CustomPatternPanel({ rules, onChange, errors }) {
         </button>
       </div>
       {rules.map((rule, index) => (
-        <div key={rule.id} className="flex items-center justify-between rounded-[10px] px-3 py-2 text-[11.5px]" style={{ border: `1px solid ${colors.borderSubtle}` }}>
-          <span style={{ color: colors.textMuted }}>
-            Every {rule.every} week(s): {(rule.days ?? []).map((d) => WEEK_DAYS.find((w) => w.key === d)?.label).join(', ')} · {rule.start}–{rule.end}
-          </span>
-          <button type="button" onClick={() => onChange(rules.filter((r) => r.id !== rule.id))} className="cursor-pointer" aria-label="Remove">
-            <Trash2 size={14} className="text-red-400" />
-          </button>
-          <FieldError message={errors[`custom-${index}-days`]} />
+        <div key={rule.id} className="rounded-[10px] px-3 py-2 text-[11.5px] space-y-1" style={{ border: `1px solid ${colors.borderSubtle}` }}>
+          <div className="flex items-center justify-between gap-2">
+            <span style={{ color: colors.textMuted }}>
+              Every {rule.every} week(s): {(rule.days ?? []).map((d) => WEEK_DAYS.find((w) => w.key === d)?.label).join(', ')} · {rule.start}–{rule.end}
+            </span>
+            <button type="button" onClick={() => onChange(rules.filter((r) => r.id !== rule.id))} className="cursor-pointer flex-shrink-0" aria-label="Remove">
+              <Trash2 size={14} className="text-red-400" />
+            </button>
+          </div>
+          <FieldError
+            message={
+              errors[`custom-${index}-days`]
+              || errors[`custom-${index}-slots`]
+              || errors[`custom-${index}-time`]
+              || errors[`custom-${index}-duration`]
+            }
+          />
         </div>
       ))}
       <FieldError message={errors.scheduleGeneral} />
@@ -610,7 +639,7 @@ function CustomDatesPanel({ customDates, onChange, errors }) {
     start: '09:00 AM',
     end: '01:00 PM',
     slotDuration: 30,
-    slotsPerDay: 10,
+    slotsPerDay: 8,
   })
   const [dateDraftError, setDateDraftError] = useState('')
 
@@ -618,10 +647,11 @@ function CustomDatesPanel({ customDates, onChange, errors }) {
     weekOfMonth: '2',
     dayKey: 'thursday',
     start: '09:00 AM',
-    end: '05:00 PM',
+    end: '01:00 PM',
     slotDuration: 30,
-    slotsPerDay: 20,
+    slotsPerDay: 8,
   })
+  const [repeatDraftError, setRepeatDraftError] = useState('')
 
   const addSpecificDate = () => {
     if (!dateDraft.date) {
@@ -642,12 +672,14 @@ function CustomDatesPanel({ customDates, onChange, errors }) {
           id: nextScheduleId('date'),
           date: dateDraft.date,
           slots: [
-            createDefaultTimeWindow({
-              start: dateDraft.start,
-              end: dateDraft.end,
-              slotDuration: dateDraft.slotDuration,
-              slotsPerDay: dateDraft.slotsPerDay,
-            }),
+            normalizeTimeWindow(
+              createDefaultTimeWindow({
+                start: dateDraft.start,
+                end: dateDraft.end,
+                slotDuration: dateDraft.slotDuration,
+                slotsPerDay: dateDraft.slotsPerDay,
+              }),
+            ),
           ],
         },
       ],
@@ -784,18 +816,39 @@ function CustomDatesPanel({ customDates, onChange, errors }) {
               />
             </div>
           </div>
-          <TimeWindowFields window={repeatDraft} onChange={setRepeatDraft} errorPrefix="repeat-draft-" errors={errors} />
+          <TimeWindowFields
+            window={repeatDraft}
+            onChange={(next) => {
+              setRepeatDraftError('')
+              setRepeatDraft(next)
+            }}
+            errorPrefix="repeat-draft-"
+            errors={errors}
+          />
+          {repeatDraftError ? <FieldError message={repeatDraftError} /> : null}
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              const time = normalizeTimeWindow(repeatDraft)
+              const windowErrors = validateTimeWindow(time, 'repeat-draft-')
+              if (Object.keys(windowErrors).length) {
+                setRepeatDraftError(
+                  windowErrors['repeat-draft-time']
+                  || windowErrors['repeat-draft-duration']
+                  || windowErrors['repeat-draft-slots']
+                  || 'Fix the time slot details.',
+                )
+                return
+              }
+              setRepeatDraftError('')
               onChange({
                 ...customDates,
                 repeatingDayRules: [
                   ...customDates.repeatingDayRules,
-                  { id: nextScheduleId('repeat'), ...repeatDraft },
+                  { id: nextScheduleId('repeat'), ...time },
                 ],
               })
-            }
+            }}
             className="inline-flex items-center gap-1 text-[11.5px] font-extrabold px-3 py-2 rounded-[9px] cursor-pointer"
             style={{ color: colors.accent, border: '1px solid rgba(64,222,170,0.4)' }}
           >
@@ -817,7 +870,7 @@ function CustomDatesPanel({ customDates, onChange, errors }) {
                 </tr>
               </thead>
               <tbody>
-                {customDates.repeatingDayRules.map((rule) => (
+                {customDates.repeatingDayRules.map((rule, index) => (
                   <tr key={rule.id} style={{ borderTop: `1px solid ${colors.borderSubtle}` }}>
                     <td className="px-3 py-2.5 text-white font-semibold">
                       {MONTH_WEEK_OPTIONS.find((w) => w.id === rule.weekOfMonth)?.label}
@@ -843,6 +896,13 @@ function CustomDatesPanel({ customDates, onChange, errors }) {
                       >
                         <Trash2 size={13} className="text-red-400" />
                       </button>
+                      <FieldError
+                        message={
+                          errors[`repeat-${index}-slots`]
+                          || errors[`repeat-${index}-time`]
+                          || errors[`repeat-${index}-dup`]
+                        }
+                      />
                     </td>
                   </tr>
                 ))}
@@ -854,6 +914,14 @@ function CustomDatesPanel({ customDates, onChange, errors }) {
       <FieldError message={errors.scheduleGeneral} />
     </div>
   )
+}
+
+function scheduleStepBannerMessage(errors = {}) {
+  if (errors.scheduleGeneral) return errors.scheduleGeneral
+  const key = Object.keys(errors).find(
+    (k) => k.startsWith('monthly-') || k.startsWith('custom-') || k.startsWith('repeat-') || k.startsWith('date-'),
+  )
+  return key ? errors[key] : ''
 }
 
 function ScheduleSummaryCard({ schedule }) {
@@ -894,8 +962,19 @@ export default function ConsultationScheduleStep({ value, onChange, errors = {} 
       recurring: { ...schedule.recurring, pattern },
     })
 
+  const bannerMessage = scheduleStepBannerMessage(errors)
+
   return (
     <div className="space-y-4 pb-2">
+      {bannerMessage ? (
+        <div
+          className="rounded-[10px] px-3 py-2.5 text-[12px] font-semibold"
+          style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(248,113,113,0.35)', color: '#fca5a5' }}
+          role="alert"
+        >
+          {bannerMessage}
+        </div>
+      ) : null}
       <div>
         <p className="text-[12px] leading-relaxed" style={{ color: colors.textDim }}>
           Define when the doctor is available for consultation. Choose a recurring schedule or specific dates.
