@@ -1,6 +1,10 @@
 import { Activity, BadgeCheck, FlaskConical, Pill, ShieldCheck, Truck, Video } from 'lucide-react'
 
-export const NAV_LINKS = ['Medicines', 'Lab Tests', 'Consult Doctor', 'Offers']
+export const NAV_LINKS = [
+  { label: 'Medicines', path: '/customer/search' },
+  { label: 'Consult Doctor', path: '/customer/doctor-consultation' },
+  { label: 'Offers', path: '/customer/offers' },
+]
 
 export const STATS = [
   { val: '2 Cr+', label: 'Happy Customers' },

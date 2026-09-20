@@ -4,8 +4,9 @@ import Logo from '../ui/Logo'
 import { NAV_LINKS } from '../../data/landingData'
 import { colors } from '../../theme/colors'
 
-export default function Header({ onAuth, onDownload, onCallback }) {
+export default function Header({ onAuth, onNav, onDownload, onCallback }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [activeNav, setActiveNav] = useState(0)
 
   return (
     <header
@@ -31,19 +32,23 @@ export default function Header({ onAuth, onDownload, onCallback }) {
         </div>
 
         <nav className="hidden md:flex items-center gap-6 text-sm font-semibold" style={{ color: colors.textMuted }}>
-          {NAV_LINKS.map((n, i) => (
-            <a
-              key={n}
-              href="#"
-              className="transition-colors relative group"
-              style={{ color: i === 0 ? colors.textBright : colors.textMuted }}
+          {NAV_LINKS.map((link, i) => (
+            <button
+              key={link.label}
+              type="button"
+              onClick={() => {
+                setActiveNav(i)
+                onNav?.(link.path)
+              }}
+              className="transition-colors relative group cursor-pointer bg-transparent border-0 p-0 font-semibold text-sm"
+              style={{ color: i === activeNav ? colors.textBright : colors.textMuted }}
             >
-              {n}
+              {link.label}
               <span
                 className="absolute -bottom-0.5 left-0 rounded-full transition-all duration-200"
                 style={{
                   height: 2,
-                  width: i === 0 ? '100%' : 0,
+                  width: i === activeNav ? '100%' : 0,
                   background: colors.accent,
                 }}
               />
@@ -51,7 +56,7 @@ export default function Header({ onAuth, onDownload, onCallback }) {
                 className="absolute -bottom-0.5 left-0 w-0 h-0.5 rounded-full group-hover:w-full transition-all duration-200"
                 style={{ background: colors.accent }}
               />
-            </a>
+            </button>
           ))}
         </nav>
 
@@ -111,15 +116,20 @@ export default function Header({ onAuth, onDownload, onCallback }) {
             borderTop: `1px solid ${colors.borderSubtle}`,
           }}
         >
-          {NAV_LINKS.map((n) => (
-            <a
-              key={n}
-              href="#"
-              className="block text-sm font-semibold py-1 transition-colors"
+          {NAV_LINKS.map((link, i) => (
+            <button
+              key={link.label}
+              type="button"
+              onClick={() => {
+                setActiveNav(i)
+                onNav?.(link.path)
+                setMenuOpen(false)
+              }}
+              className="block w-full text-left text-sm font-semibold py-1 transition-colors cursor-pointer bg-transparent border-0"
               style={{ color: colors.textMuted }}
             >
-              {n}
-            </a>
+              {link.label}
+            </button>
           ))}
           <div className="pt-2 flex flex-col gap-2.5">
             <button

@@ -17,12 +17,18 @@ import PasswordStrength from '../ui/PasswordStrength'
 import Spinner from '../ui/Spinner'
 import PrimaryBtn, { SuccessState, AuthTermsNotice } from '../auth/AuthFormParts'
 import { isValidEmail } from '../../utils/validation'
-import { requestLoginOtp, verifyLoginOtp, saveAuthSession, getPostLoginPath } from '../../services/auth'
+import {
+  requestLoginOtp,
+  verifyLoginOtp,
+  saveAuthSession,
+  getPostLoginPath,
+  isOwnerRole,
+} from '../../services/auth'
 import { colors } from '../../theme/colors'
 
 const RESEND_SECONDS = 30
 
-export default function AuthModal({ onClose }) {
+export default function AuthModal({ onClose, redirectPath }) {
   const navigate = useNavigate()
   const [mode, setMode] = useState('login')
 
@@ -123,7 +129,9 @@ export default function AuthModal({ onClose }) {
       const data = await verifyLoginOtp(lEmail.trim(), otp)
       const user = saveAuthSession(data, lEmail.trim())
       onClose()
-      navigate(getPostLoginPath(user))
+      const destination =
+        redirectPath && !isOwnerRole(user?.role) ? redirectPath : getPostLoginPath(user)
+      navigate(destination)
     } catch (error) {
       setOtpError(
         error instanceof Error ? error.message : 'Invalid OTP. Please try again.',
