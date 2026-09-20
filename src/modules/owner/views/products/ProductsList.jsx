@@ -8,6 +8,8 @@ import Spinner from '@/components/ui/Spinner'
 import { ModalSelect } from '../../components/PortalModal'
 import { useOwnerPortal } from '../../context/OwnerPortalContext'
 import { useProductsQuery } from '../../hooks/useProductsQuery'
+import { updateProductStatus } from '@/services/products'
+import { toast } from '@/app/store/uiStore'
 import { colors } from '@/theme/colors'
 
 function ProductThumb() {
@@ -77,6 +79,7 @@ export default function ProductsList() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null)
 
   useEffect(() => {
     loadCategories()
@@ -112,6 +115,23 @@ export default function ProductsList() {
     if (deleting) return
     setDeleteTarget(null)
     setDeleteError('')
+  }
+
+  const handleToggleProductStatus = async (product) => {
+    if (!product?.id || statusUpdatingId === product.id) return
+    const previousStatus = product.status === 'active' ? 'active' : 'inactive'
+    const nextStatus = previousStatus === 'active' ? 'inactive' : 'active'
+    setStatusUpdatingId(product.id)
+    updateProductLocally(product.id, (row) => ({ ...row, status: nextStatus }))
+    try {
+      await updateProductStatus(product.id, nextStatus)
+      toast.success(nextStatus === 'active' ? 'Product marked as active' : 'Product marked as inactive')
+    } catch (error) {
+      updateProductLocally(product.id, (row) => ({ ...row, status: previousStatus }))
+      toast.error(error instanceof Error ? error.message : 'Could not update product status')
+    } finally {
+      setStatusUpdatingId(null)
+    }
   }
 
   const handleConfirmDelete = async () => {
@@ -348,18 +368,16 @@ export default function ProductsList() {
                   <td className="px-3 py-2.5">
                     <button
                       type="button"
-                      onClick={() =>
-                        updateProductLocally(p.id, (product) => ({
-                          ...product,
-                          status: product.status === 'active' ? 'inactive' : 'active',
-                        }))
-                      }
-                      className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full cursor-pointer"
+                      disabled={statusUpdatingId === p.id}
+                      onClick={() => handleToggleProductStatus(p)}
+                      className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full cursor-pointer disabled:opacity-60 disabled:cursor-wait"
                       style={{
                         background: isActive ? 'rgba(64,222,170,0.14)' : 'rgba(255,255,255,0.08)',
                         color: isActive ? colors.accent : colors.textSecondary,
                         border: isActive ? '1px solid rgba(64,222,170,0.34)' : '1px solid rgba(255,255,255,0.16)',
                       }}
+                      aria-busy={statusUpdatingId === p.id}
+                      aria-label={isActive ? 'Set product inactive' : 'Set product active'}
                     >
                       {isActive ? 'Active' : 'Inactive'}
                     </button>

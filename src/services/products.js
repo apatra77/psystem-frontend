@@ -761,6 +761,24 @@ export async function updateProduct(productId, payload) {
   )
 }
 
+/** API expects title-case status, e.g. `"Active"` | `"Inactive"`. */
+export function productStatusToApi(status) {
+  const normalized = String(status ?? '').trim().toLowerCase()
+  if (normalized === 'inactive' || normalized === 'disabled') return 'Inactive'
+  return 'Active'
+}
+
+export async function updateProductStatus(productId, status) {
+  return authFetch(
+    `/api/products/${encodeURIComponent(productId)}/status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ status: productStatusToApi(status) }),
+    },
+    PRODUCT_API_BASE,
+  )
+}
+
 export async function deleteProductById(productId) {
   return authFetch(
     `/api/products/${encodeURIComponent(productId)}`,

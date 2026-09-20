@@ -6,11 +6,9 @@
  * without touching a single component.
  */
 
-export const TICKER_OFFERS = [
-  'FIRST20 — flat 20% off your first medicine order',
-  'Free delivery above ₹499 · no minimum for Circle members',
-  'Full body checkup at home — 89 tests at ₹999',
-]
+/** Top banner on the customer home page. */
+export const STORE_STATUS_BANNER =
+  'We’re open — order your medicines online and get them delivered to your doorstep.'
 
 export const HOME_NAV = [
   { label: 'Medicines', slug: 'medicines' },
