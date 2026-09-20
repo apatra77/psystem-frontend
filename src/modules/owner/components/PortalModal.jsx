@@ -34,11 +34,11 @@ export default function PortalModal({
       role="presentation"
     >
       <div
-        className={`max-w-[92vw] rounded-[22px] shadow-[0_40px_100px_rgba(0,0,0,0.6)] ${scrollable ? 'overflow-auto owner-scroll' : 'overflow-hidden'}`}
+        className={`max-w-[92vw] rounded-[22px] shadow-[0_40px_100px_rgba(0,0,0,0.6)] ${scrollable ? 'overflow-auto owner-scroll' : 'overflow-hidden flex flex-col min-h-0'}`}
         style={{
           width,
           minHeight,
-          maxHeight: maxHeight ?? (scrollable ? '88vh' : undefined),
+          maxHeight: maxHeight ?? (scrollable ? '88vh' : '92vh'),
           background: '#0d211a',
           animation: 'modalIn 0.22s cubic-bezier(0.2,0.7,0.2,1)',
         }}
@@ -84,6 +84,7 @@ export function ModalInput({ className = '', disabled = false, style, type, ...p
 
 export function ModalSelect({
   className = '',
+  inputClassName = '',
   value,
   onChange,
   options = [],
@@ -193,7 +194,7 @@ export function ModalSelect({
             if (!open) setOpen(true)
           }}
           onKeyDown={handleKeyDown}
-          className="w-full rounded-[10px] px-3 py-2 pr-8 text-[13px] text-white font-[inherit] outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+          className={`w-full rounded-[10px] px-3 py-2 pr-8 text-[13px] text-white font-[inherit] outline-none disabled:opacity-60 disabled:cursor-not-allowed ${inputClassName}`}
           style={{
             background: 'rgba(255,255,255,0.06)',
             border: '1px solid rgba(255,255,255,0.16)',

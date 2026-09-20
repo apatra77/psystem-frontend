@@ -337,6 +337,7 @@ export function buildAdminDoctorFormPayload(draft = {}) {
         displayOrder: index + 1,
       })),
     schedule: draft.schedule,
+    consultationSchedule: draft.consultationSchedule ?? undefined,
   }
 }
 
@@ -345,7 +346,7 @@ function buildDoctorWritePayload(payload = {}) {
     doctorCode: payload.doctorCode?.trim(),
     firstName: payload.firstName?.trim(),
     lastName: payload.lastName?.trim(),
-    email: payload.email?.trim(),
+    email: payload.email?.trim() || undefined,
     phoneNumber: formatPhoneForApi(payload.phoneNumber ?? payload.mobile),
     yearsOfExperience:
       payload.yearsOfExperience == null || payload.yearsOfExperience === ''
@@ -376,6 +377,7 @@ function buildDoctorWritePayload(payload = {}) {
         return item
       }),
     weeklySchedules: mapScheduleToApi(payload.schedule),
+    consultationSchedule: payload.consultationSchedule,
   }
 
   Object.keys(body).forEach((key) => {
@@ -390,7 +392,7 @@ function buildDoctorPutPayload(draft = {}) {
   const body = {
     firstName: formPayload.firstName,
     lastName: formPayload.lastName,
-    email: formPayload.email,
+    email: formPayload.email?.trim() || undefined,
     phoneNumber: normalizeAdminPhone(formPayload.phoneNumber),
     yearsOfExperience: Number(formPayload.yearsOfExperience),
     consultationFee: Number(formPayload.consultationFee),
@@ -416,6 +418,7 @@ function buildDoctorPutPayload(draft = {}) {
         return item
       }),
     weeklySchedules: mapScheduleToApi(formPayload.schedule),
+    consultationSchedule: formPayload.consultationSchedule,
   }
 
   Object.keys(body).forEach((key) => {

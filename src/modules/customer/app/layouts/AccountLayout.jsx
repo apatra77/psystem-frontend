@@ -15,7 +15,10 @@ const LINKS = [
 export default function AccountLayout() {
   return (
     <div className="grid gap-6" style={{ gridTemplateColumns: 'minmax(0,220px) minmax(0,1fr)' }}>
-      <aside className="rounded-[18px] p-2 h-fit" style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}>
+      <aside
+        className="rounded-[18px] p-2 h-fit sticky top-0 self-start max-h-full overflow-y-auto"
+        style={{ background: colors.cardBg, border: `1px solid ${colors.border}` }}
+      >
         {LINKS.map(({ to, label, icon: Icon, matchChildren = false }) => (
           <NavLink
             key={to}

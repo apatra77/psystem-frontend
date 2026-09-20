@@ -23,7 +23,7 @@ export default function CustomerLayout() {
 
   return (
     <div
-      className="flex min-h-screen w-full flex-col overflow-x-clip"
+      className="flex h-screen max-h-[100dvh] w-full flex-col overflow-hidden"
       style={{
         fontFamily: "'Manrope', sans-serif",
         background: colors.pageBg,
@@ -32,7 +32,7 @@ export default function CustomerLayout() {
     >
       <CustomerHeader />
 
-      <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 py-6 sm:px-5 sm:py-8">
+      <main className="mx-auto w-full max-w-[1180px] flex-1 min-h-0 overflow-y-auto overflow-x-clip px-4 py-6 sm:px-5 sm:py-8">
         <Outlet />
       </main>
 
