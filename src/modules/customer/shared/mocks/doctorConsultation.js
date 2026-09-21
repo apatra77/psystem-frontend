@@ -38,7 +38,7 @@ export const CONSULTATION_WHY_US = [
 
   { label: 'Verified & experienced doctors', icon: 'user' },
 
-  { label: 'Online and in-clinic consultation', icon: 'consult' },
+  { label: 'In-clinic consultation at our pharmacy', icon: 'consult' },
 
   { label: 'Easy appointment booking', icon: 'calendar' },
 

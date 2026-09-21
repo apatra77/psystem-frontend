@@ -1,4 +1,4 @@
-import { Activity, BadgeCheck, FlaskConical, Pill, ShieldCheck, Truck, Video } from 'lucide-react'
+import { BadgeCheck, Pill, ShieldCheck, Stethoscope, Truck, Upload } from 'lucide-react'
 
 export const NAV_LINKS = [
   { label: 'Medicines', path: '/customer/search' },
@@ -9,7 +9,7 @@ export const NAV_LINKS = [
 export const STATS = [
   { val: '2 Cr+', label: 'Happy Customers' },
   { val: '10k+', label: 'Medicines' },
-  { val: '200+', label: 'Doctors' },
+  { val: '20+', label: 'Doctors' },
   { val: '500+', label: 'Cities Covered' },
 ]
 
@@ -23,28 +23,28 @@ export const FEATURES = [
     badge: '10k+ Products',
   },
   {
-    icon: FlaskConical,
-    title: 'Book Lab Tests',
-    desc: '800+ diagnostic tests at NABL accredited labs. Home sample collection available.',
+    icon: Upload,
+    title: 'Upload Prescription',
+    desc: 'Send a photo of your Rx — our pharmacists verify it and add medicines to your cart.',
     color: 'bg-[rgba(111,194,255,0.12)]',
     ic: 'text-[#6fc2ff]',
-    badge: '35% off today',
+    badge: 'Pharmacist verified',
   },
   {
-    icon: Video,
+    icon: Stethoscope,
     title: 'Consult Doctors',
-    desc: '200+ specialists online. Video, audio or chat consultations in minutes.',
+    desc: '20+ specialists In-clinic consultations at our pharmacy — see your doctor in person.',
     color: 'bg-[rgba(178,135,255,0.12)]',
     ic: 'text-[#b287ff]',
-    badge: '₹99 onwards',
+    badge: 'Book an appointment',
   },
   {
-    icon: Activity,
-    title: 'Health Records',
-    desc: 'Store prescriptions, lab reports, and health history securely in one place.',
+    icon: Truck,
+    title: 'Fast Home Delivery',
+    desc: 'Genuine medicines packed with care and delivered to your doorstep, often within hours.',
     color: 'bg-[rgba(255,213,143,0.12)]',
     ic: 'text-[#ffd58f]',
-    badge: 'Encrypted & safe',
+    badge: 'Live order tracking',
   },
 ]
 
