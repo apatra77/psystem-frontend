@@ -6,9 +6,13 @@
  * without touching a single component.
  */
 
-/** Top banner on the customer home page. */
-export const STORE_STATUS_BANNER =
+/** Top banner on the customer home page (store open). */
+export const STORE_STATUS_BANNER_OPEN =
   'We’re open — order your medicines online and get them delivered to your doorstep.'
+
+/** Shown when profile `isStoreOpen` is N — orders still allowed. */
+export const STORE_STATUS_BANNER_CLOSED =
+  'Store is closed right now — you can still place orders online, but delivery may be delayed until we reopen.'
 
 export const HOME_NAV = [
   { label: 'Medicines', slug: 'medicines' },
@@ -24,6 +28,13 @@ export const HERO = {
   titleAccent: '120 minutes.',
   subtitle: '2.4 lakh+ products, every order verified by a registered pharmacist.',
   trust: ['100% GENUINE', 'RX VERIFIED', 'LIVE TRACKING', '7-DAY RETURNS'],
+  ctaOpen: 'Order medicines',
+}
+
+export const HERO_STORE_CLOSED = {
+  titleLead: 'Order medicines now.',
+  titleAccent: "We'll deliver when we reopen.",
+  cta: 'Order for later',
 }
 
 export const AISLES = [
