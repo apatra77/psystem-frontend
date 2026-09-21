@@ -105,6 +105,71 @@
   }
 }
 
+@keyframes orderSuccessCheck {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes orderSuccessRipple {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.75);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.85);
+  }
+}
+
+@keyframes orderSuccessSpark {
+  0% {
+    opacity: 0;
+    transform: scale(0) translateY(6px);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1) translateY(-14px);
+  }
+}
+
+@keyframes orderSuccessBar {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.order-success-check {
+  animation: orderSuccessCheck 0.55s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.order-success-ripple {
+  animation: orderSuccessRipple 0.9s ease-out 0.15s both;
+}
+
+.order-success-spark {
+  animation: orderSuccessSpark 0.85s ease-out both;
+}
+
+.order-success-auto-bar {
+  transform-origin: left center;
+  animation: orderSuccessBar 3.5s linear forwards;
+}
+
 .owner-dropdown {
   animation: dropIn 0.18s ease;
 }

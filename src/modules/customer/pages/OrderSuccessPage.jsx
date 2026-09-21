@@ -1,4 +1,5 @@
-import { Link, useParams } from 'react-router-dom'
+import { useCallback, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Banknote,
   CheckCircle2,
@@ -14,6 +15,7 @@ import { PATHS, buildPath } from '@/app/router/paths'
 import { useOrderStore } from '@/app/store/orderStore'
 import { fmtDate, fmtINR } from '@/app/utils/format'
 import { colors } from '@/app/themes/colors'
+import OrderThankYouModal from '@/modules/customer/components/orders/OrderThankYouModal'
 
 const COD = {
   border: 'rgba(240, 160, 48, 0.55)',
@@ -302,12 +304,21 @@ function OrderProgressStepper() {
 
 export default function OrderSuccessPage() {
   const { id } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
   const order = useOrderStore((s) => s.getOrder(id))
   const totals = order ? resolveTotals(order) : null
   const isCod = order?.paymentMethod === 'cod'
+  const [thankYouOpen, setThankYouOpen] = useState(() => location.state?.thankYou === true)
+
+  const closeThankYou = useCallback(() => {
+    setThankYouOpen(false)
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.pathname, navigate])
 
   return (
     <div className="max-w-[720px] mx-auto py-8 sm:py-10">
+      <OrderThankYouModal open={thankYouOpen} orderId={id} onClose={closeThankYou} />
       <div className="text-center mb-8">
         <CheckCircle2 size={54} style={{ color: colors.accent }} className="mx-auto" strokeWidth={1.75} />
         <h1 className="text-[28px] font-extrabold mt-5" style={{ color: colors.textBright }}>

@@ -131,7 +131,10 @@ function CheckoutForm({ addresses, items, totals, scheduledFor, prescriptionId, 
         total: apiOrderTotal ?? undefined,
       })
       clear()
-      navigate(buildPath(PATHS.customer.orderSuccess, { id: order.id }), { replace: true })
+      navigate(buildPath(PATHS.customer.orderSuccess, { id: order.id }), {
+        replace: true,
+        state: { thankYou: true },
+      })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not place order')
     }
