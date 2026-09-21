@@ -1,10 +1,11 @@
 import { create } from 'zustand'
 import { PRODUCTS, SORT_OPTIONS } from '@/shared/mocks/catalog'
 import { PAGE_SIZE } from '@/app/constants/app'
+import { resolveCustomerProductStock } from '@/modules/customer/utils/looseQuantity'
 
 const DEFAULT_FILTERS = {
   query: '', category: 'all', brands: [], minPrice: 0, maxPrice: 5000,
-  minRating: 0, minDiscount: 0, maxEta: 0, rxOnly: false, inStockOnly: false, sort: 'relevance',
+  minRating: 0, minDiscount: 0, maxEta: 0, inStockOnly: false, sort: 'relevance',
 }
 
 const etaMinutes = (eta) => Number(String(eta).match(/\d+/)?.[0] ?? 999)
@@ -54,8 +55,7 @@ export const useProductStore = create((set, get) => ({
       if (p.rating < f.minRating) return false
       if (discountOf(p) < f.minDiscount) return false
       if (f.maxEta && etaMinutes(p.eta) > f.maxEta) return false
-      if (f.rxOnly && !p.rx) return false
-      if (f.inStockOnly && p.stock <= 0) return false
+      if (f.inStockOnly && !resolveCustomerProductStock(p, p.stock).inStock) return false
       return true
     })
     const sorted = [...list]

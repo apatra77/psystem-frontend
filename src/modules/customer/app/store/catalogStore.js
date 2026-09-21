@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { CATEGORIES, PRODUCTS } from '@/shared/mocks/catalog'
 import { memoizeDerived } from './memoize'
+import { resolveCustomerProductStock } from '@/modules/customer/utils/looseQuantity'
 
 const DEFAULT_FILTERS = {
   query: '',
@@ -9,7 +10,6 @@ const DEFAULT_FILTERS = {
   minPrice: 0,
   maxPrice: 5000,
   minRating: 0,
-  rxOnly: false,
   inStockOnly: false,
   sort: 'relevance',
 }
@@ -29,8 +29,7 @@ const computeResults = memoizeDerived((products, f) => {
     if (f.brands.length && !f.brands.includes(p.brand)) return false
     if (p.price < f.minPrice || p.price > f.maxPrice) return false
     if (p.rating < f.minRating) return false
-    if (f.rxOnly && !p.rx) return false
-    if (f.inStockOnly && p.stock <= 0) return false
+    if (f.inStockOnly && !resolveCustomerProductStock(p, p.stock).inStock) return false
     return true
   })
 

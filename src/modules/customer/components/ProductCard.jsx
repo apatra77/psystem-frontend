@@ -6,8 +6,10 @@ import { PATHS, buildPath } from '@/app/router/paths'
 import { useCatalogStore } from '@/app/store/catalogStore'
 import { fmtINR } from '@/app/utils/format'
 import { colors } from '@/app/themes/colors'
+import { resolveCustomerProductStock } from '@/modules/customer/utils/looseQuantity'
 
 export default function ProductCard({ product }) {
+  const inStock = resolveCustomerProductStock(product, product.stock).inStock
   const wishlist = useCatalogStore((s) => s.wishlist)
   const toggleWishlist = useCatalogStore((s) => s.toggleWishlist)
   const wished = wishlist.includes(product.id)
@@ -64,7 +66,7 @@ export default function ProductCard({ product }) {
             Loose available
           </Badge>
         )}
-        {product.stock <= 0 && <Badge tone="danger">Out of stock</Badge>}
+        {!inStock && <Badge tone="danger">Out of stock</Badge>}
       </div>
 
       <Link to={buildPath(PATHS.customer.product, { id: product.id })} className="block">

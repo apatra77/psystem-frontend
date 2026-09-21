@@ -15,6 +15,7 @@ import { PATHS, buildPath } from '@/app/router/paths'
 import { fetchCategories } from '@/services/products'
 import { BRANDS, SORT_OPTIONS } from '@/shared/mocks/catalog'
 import { colors } from '@/app/themes/colors'
+import { resolveCustomerProductStock } from '@/modules/customer/utils/looseQuantity'
 
 function FilterBlock({ title, children }) {
   return (
@@ -41,8 +42,7 @@ function applyClientFilters(products, filters, { skipQuery = false, skipCategory
     if (!skipCategory && filters.category !== 'all' && p.cat !== filters.category) return false
     if (filters.brands.length && !filters.brands.includes(p.brand)) return false
     if (p.price < filters.minPrice || p.price > filters.maxPrice) return false
-    if (filters.rxOnly && !p.rx) return false
-    if (filters.inStockOnly && p.stock <= 0) return false
+    if (filters.inStockOnly && !resolveCustomerProductStock(p, p.stock).inStock) return false
     return true
   })
 }
@@ -368,12 +368,24 @@ export default function SearchPage() {
 
           <FilterBlock title="Availability">
             <label className="flex items-center gap-2 text-[12.5px] cursor-pointer mb-1.5" style={{ color: colors.textMuted }}>
-              <input type="checkbox" className="accent-[#40deaa]" checked={filters.inStockOnly} onChange={(e) => setFilter({ inStockOnly: e.target.checked })} />
-              In stock only
+              <input
+                type="radio"
+                name="shop-availability"
+                className="accent-[#40deaa]"
+                checked={!filters.inStockOnly}
+                onChange={() => setFilter({ inStockOnly: false })}
+              />
+              In stock and out of stock
             </label>
             <label className="flex items-center gap-2 text-[12.5px] cursor-pointer" style={{ color: colors.textMuted }}>
-              <input type="checkbox" className="accent-[#40deaa]" checked={filters.rxOnly} onChange={(e) => setFilter({ rxOnly: e.target.checked })} />
-              Prescription items only
+              <input
+                type="radio"
+                name="shop-availability"
+                className="accent-[#40deaa]"
+                checked={filters.inStockOnly}
+                onChange={() => setFilter({ inStockOnly: true })}
+              />
+              In stock only
             </label>
           </FilterBlock>
         </aside>
