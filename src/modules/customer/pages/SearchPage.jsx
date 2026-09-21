@@ -13,7 +13,7 @@ import { useCustomerProductBrowse } from '@/modules/customer/hooks/useCustomerPr
 import { useCustomerProductSearch } from '@/modules/customer/hooks/useCustomerProductSearch'
 import { PATHS, buildPath } from '@/app/router/paths'
 import { fetchCategories } from '@/services/products'
-import { BRANDS, SORT_OPTIONS } from '@/shared/mocks/catalog'
+import { BRANDS, SORT_OPTIONS, productMatchesAnyShopBrand } from '@/shared/mocks/catalog'
 import { colors } from '@/app/themes/colors'
 import { resolveCustomerProductStock } from '@/modules/customer/utils/looseQuantity'
 
@@ -40,7 +40,7 @@ function applyClientFilters(products, filters, { skipQuery = false, skipCategory
   return products.filter((p) => {
     if (q && !`${p.name} ${p.brand} ${p.desc}`.toLowerCase().includes(q)) return false
     if (!skipCategory && filters.category !== 'all' && p.cat !== filters.category) return false
-    if (filters.brands.length && !filters.brands.includes(p.brand)) return false
+    if (filters.brands.length && !productMatchesAnyShopBrand(p, filters.brands)) return false
     if (p.price < filters.minPrice || p.price > filters.maxPrice) return false
     if (filters.inStockOnly && !resolveCustomerProductStock(p, p.stock).inStock) return false
     return true
@@ -356,11 +356,11 @@ export default function SearchPage() {
           </FilterBlock>
 
               <FilterBlock title="Brand">
-            <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+            <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
               {BRANDS.map((b) => (
-                <label key={b} className="flex items-center gap-2 text-[12.5px] cursor-pointer" style={{ color: colors.textMuted }}>
-                  <input type="checkbox" className="accent-[#40deaa]" checked={filters.brands.includes(b)} onChange={() => toggleBrand(b)} />
-                  {b}
+                <label key={b} className="flex items-start gap-2 text-[12px] leading-snug cursor-pointer" style={{ color: colors.textMuted }}>
+                  <input type="checkbox" className="accent-[#40deaa] mt-0.5 shrink-0" checked={filters.brands.includes(b)} onChange={() => toggleBrand(b)} />
+                  <span title={b}>{b}</span>
                 </label>
               ))}
             </div>

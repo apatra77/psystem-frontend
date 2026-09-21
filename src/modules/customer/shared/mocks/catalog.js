@@ -28,4 +28,97 @@ export const SORT_OPTIONS = [
   { id: 'price-desc', label: 'Price: high to low' },
 ]
 
-export const BRANDS = [...new Set(PRODUCTS.map((p) => p.brand))].sort()
+/** Major manufacturers shown in customer shop filters (full legal-style names). */
+const SHOP_BRAND_ENTRIES = [
+  {
+    label: 'Sun Pharmaceutical Industries Ltd.',
+    aliases: ['sun pharmaceutical', 'sun pharma', 'sunpharma'],
+  },
+  {
+    label: 'Intas Pharmaceuticals Ltd.',
+    aliases: ['intas pharmaceutical', 'intas'],
+  },
+  {
+    label: 'Mankind Pharma Ltd.',
+    aliases: ['mankind pharma', 'mankind'],
+  },
+  {
+    label: "Dr. Reddy's Laboratories Ltd.",
+    aliases: ['dr reddys laboratories', 'dr reddy', 'dr reddys', 'reddys laboratories'],
+  },
+  {
+    label: 'Macleods Pharmaceuticals Ltd.',
+    aliases: ['mac leods', 'macleods pharma', 'macleods'],
+  },
+  {
+    label: 'Indchemie Health Specialities Pvt. Ltd.',
+    aliases: ['indchemie health', 'indchemie'],
+  },
+  {
+    label: 'USV Ltd.',
+    aliases: ['usv limited', 'usv private', 'usv'],
+  },
+  {
+    label: 'Micro Labs Ltd.',
+    aliases: ['micro labs', 'micro lab'],
+  },
+  {
+    label: 'Elder Pharmaceuticals Ltd.',
+    aliases: ['elder pharmaceutical', 'elder pharma', 'elder'],
+  },
+  {
+    label: 'Systopic Laboratories Pvt. Ltd.',
+    aliases: ['systopic laboratories', 'systopic'],
+  },
+  {
+    label: 'Alkem Laboratories Ltd.',
+    aliases: ['alkem laboratories', 'alkem lab', 'alkem'],
+  },
+  {
+    label: 'Cadila Healthcare Ltd.',
+    aliases: ['cadila healthcare', 'cadila', 'zydus cadila', 'zydus'],
+  },
+  {
+    label: 'Lupin Ltd.',
+    aliases: ['lupin limited', 'lupin'],
+  },
+  {
+    label: 'Wellwise Pharma',
+    aliases: ['wellwise pharmaceutical', 'well wise pharma'],
+  },
+  {
+    label: 'Vivo Life Science Pvt. Ltd.',
+    aliases: ['vivo life science', 'vivo life sciences'],
+  },
+  {
+    label: 'Medley Pharmaceuticals Ltd.',
+    aliases: ['medley pharma', 'medley pharmaceutical'],
+  },
+]
+
+export const BRANDS = SHOP_BRAND_ENTRIES.map((entry) => entry.label).sort()
+
+function normalizeManufacturerKey(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/[''`.]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+/** Match API `groupName` (manufacturer) against a sidebar brand label. */
+export function productMatchesShopBrand(product, brandLabel) {
+  const entry = SHOP_BRAND_ENTRIES.find((item) => item.label === brandLabel)
+  const hay = normalizeManufacturerKey(product?.groupName || product?.brand)
+  if (!hay) return false
+  if (!entry) return normalizeManufacturerKey(product?.brand) === normalizeManufacturerKey(brandLabel)
+
+  const needles = [entry.label, ...entry.aliases].map(normalizeManufacturerKey)
+  return needles.some(
+    (needle) => needle && (hay === needle || hay.includes(needle) || needle.includes(hay)),
+  )
+}
+
+export function productMatchesAnyShopBrand(product, selectedBrandLabels) {
+  return selectedBrandLabels.some((label) => productMatchesShopBrand(product, label))
+}

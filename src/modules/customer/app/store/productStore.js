@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { PRODUCTS, SORT_OPTIONS } from '@/shared/mocks/catalog'
+import { PRODUCTS, SORT_OPTIONS, productMatchesAnyShopBrand } from '@/shared/mocks/catalog'
 import { PAGE_SIZE } from '@/app/constants/app'
 import { resolveCustomerProductStock } from '@/modules/customer/utils/looseQuantity'
 
@@ -50,7 +50,7 @@ export const useProductStore = create((set, get) => ({
     const list = items.filter((p) => {
       if (q && !`${p.name} ${p.brand} ${p.desc}`.toLowerCase().includes(q)) return false
       if (f.category !== 'all' && p.cat !== f.category) return false
-      if (f.brands.length && !f.brands.includes(p.brand)) return false
+      if (f.brands.length && !productMatchesAnyShopBrand(p, f.brands)) return false
       if (p.price < f.minPrice || p.price > f.maxPrice) return false
       if (p.rating < f.minRating) return false
       if (discountOf(p) < f.minDiscount) return false
