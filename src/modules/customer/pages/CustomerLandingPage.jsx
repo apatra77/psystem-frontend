@@ -28,6 +28,7 @@ const DEALS_RAIL = RAILS.find((rail) => rail.id === 'deals') ?? RAILS[0]
 export default function CustomerLandingPage() {
   const [dealsItems, setDealsItems] = useState(DEALS_RAIL.items)
   const [dealsLoading, setDealsLoading] = useState(true)
+  const [callbackBarOpen, setCallbackBarOpen] = useState(true)
 
   useEffect(() => {
     let cancelled = false
@@ -75,11 +76,14 @@ export default function CustomerLandingPage() {
   )
 
   return (
-    <div className="pb-[88px] sm:pb-[76px]" style={{ background: colors.pageBg, color: colors.text, overflowX: 'clip' }}>
+    <div
+      className={`flex min-h-[100dvh] flex-col ${callbackBarOpen ? 'pb-[88px] sm:pb-[76px]' : ''}`}
+      style={{ background: colors.pageBg, color: colors.text, overflowX: 'clip' }}
+    >
       <OfferTicker />
       <HomeHeader />
 
-      <main>
+      <main className="flex-1">
         <HomeHero />
         <CategoryAisles />
 
@@ -91,7 +95,7 @@ export default function CustomerLandingPage() {
       </main>
 
       <HomeFooter />
-      <FloatingOrderCallbackBar />
+      <FloatingOrderCallbackBar onDismiss={() => setCallbackBarOpen(false)} />
     </div>
   )
 }

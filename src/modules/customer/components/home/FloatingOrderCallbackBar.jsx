@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Phone, X } from 'lucide-react'
 import CallbackRequestModal from '@/modules/customer/components/CallbackRequestModal'
 import { useAuthStore } from '@/app/store/authStore'
+import { getStoredAuthUser } from '@/services/auth'
+import { syncAuthStoreFromStoredUser } from '@/app/syncAuthSession'
 import {
   contactPhoneTelHref,
   fetchStoreContactPhone,
@@ -9,18 +12,17 @@ import {
 } from '@/services/generalSettings'
 import { colors } from '@/app/themes/colors'
 
-const DISMISS_KEY = 'mediq-order-callback-bar-dismissed'
-
-export default function FloatingOrderCallbackBar() {
+export default function FloatingOrderCallbackBar({ onDismiss }) {
   const authUser = useAuthStore((s) => s.user)
-  const [visible, setVisible] = useState(false)
+  /** Hidden only after dismiss on this visit; shows again on next landing load. */
+  const [dismissed, setDismissed] = useState(false)
   const [phone, setPhone] = useState('')
   const [supportPhone, setSupportPhone] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [phoneError, setPhoneError] = useState('')
 
   useEffect(() => {
-    setVisible(sessionStorage.getItem(DISMISS_KEY) !== '1')
+    syncAuthStoreFromStoredUser(getStoredAuthUser())
   }, [])
 
   useEffect(() => {
@@ -47,8 +49,8 @@ export default function FloatingOrderCallbackBar() {
   }, [])
 
   const dismiss = () => {
-    sessionStorage.setItem(DISMISS_KEY, '1')
-    setVisible(false)
+    setDismissed(true)
+    onDismiss?.()
   }
 
   const openCallback = () => {
@@ -61,12 +63,12 @@ export default function FloatingOrderCallbackBar() {
     setModalOpen(true)
   }
 
-  if (!visible) return null
+  if (dismissed) return null
 
   const supportPhoneDisplay = formatContactPhoneDisplay(supportPhone)
   const supportPhoneTel = contactPhoneTelHref(supportPhone)
 
-  return (
+  return createPortal(
     <>
       <div
         className="fixed inset-x-0 bottom-0 z-[70]"
@@ -171,13 +173,14 @@ export default function FloatingOrderCallbackBar() {
         )}
       </div>
 
-      {modalOpen && (
+      {modalOpen ? (
         <CallbackRequestModal
           initialMobile={phone.trim()}
           initialDescription="Need help ordering medicines"
           onClose={() => setModalOpen(false)}
         />
-      )}
-    </>
+      ) : null}
+    </>,
+    document.body,
   )
 }
