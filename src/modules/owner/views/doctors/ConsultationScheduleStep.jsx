@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Calendar, CalendarDays, Info, Plus, Trash2 } from 'lucide-react'
 import { ModalFieldLabel, ModalInput, ModalSelect, ToggleSwitch } from '../../components/PortalModal'
 import { WEEK_DAYS } from '../../data/doctorsData'
@@ -553,99 +553,6 @@ function MonthlySchedulePanel({ rules, onChange, errors }) {
   )
 }
 
-function CustomPatternPanel({ rules, onChange, errors }) {
-  const [draft, setDraft] = useState({
-    every: 2,
-    days: ['monday', 'wednesday', 'friday'],
-    start: '09:00 AM',
-    end: '01:00 PM',
-    slotDuration: 30,
-    slotsPerDay: 8,
-  })
-
-  const toggleDay = (dayKey) => {
-    setDraft((prev) => ({
-      ...prev,
-      days: prev.days.includes(dayKey) ? prev.days.filter((d) => d !== dayKey) : [...prev.days, dayKey],
-    }))
-  }
-
-  const addCustomRule = () => {
-    const time = normalizeTimeWindow(draft)
-    const windowErrors = validateTimeWindow(time, 'custom-draft-')
-    if (Object.keys(windowErrors).length) return
-    onChange([...rules, { id: nextScheduleId('custom'), ...time, days: [...draft.days] }])
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-[12px] p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${colors.borderSubtle}` }}>
-        <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3">
-          <div>
-            <ModalFieldLabel>Every</ModalFieldLabel>
-            <ModalInput type="number" min="1" max="12" value={draft.every} onChange={(e) => setDraft((p) => ({ ...p, every: Number(e.target.value) || 1 }))} />
-            <span className="text-[10px] mt-1 block" style={{ color: colors.textDim }}>
-              weeks
-            </span>
-          </div>
-        </div>
-        <ModalFieldLabel>Days</ModalFieldLabel>
-        <div className="flex flex-wrap gap-2">
-          {WEEK_DAYS.map(({ key, label }) => {
-            const active = draft.days.includes(key)
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => toggleDay(key)}
-                className="px-2.5 py-1.5 rounded-[8px] text-[11px] font-bold cursor-pointer"
-                style={{
-                  color: active ? colors.accentText : colors.textMuted,
-                  background: active ? colors.accent : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${active ? 'rgba(64,222,170,0.45)' : colors.borderSubtle}`,
-                }}
-              >
-                {label.slice(0, 3)}
-              </button>
-            )
-          })}
-        </div>
-        <TimeWindowFields window={draft} onChange={setDraft} errorPrefix="custom-draft-" errors={errors} />
-        <button
-          type="button"
-          onClick={addCustomRule}
-          className="inline-flex items-center gap-1 text-[11.5px] font-extrabold px-3 py-2 rounded-[9px] cursor-pointer"
-          style={{ color: colors.accent, border: '1px solid rgba(64,222,170,0.4)' }}
-        >
-          <Plus size={14} />
-          Add Rule
-        </button>
-      </div>
-      {rules.map((rule, index) => (
-        <div key={rule.id} className="rounded-[10px] px-3 py-2 text-[11.5px] space-y-1" style={{ border: `1px solid ${colors.borderSubtle}` }}>
-          <div className="flex items-center justify-between gap-2">
-            <span style={{ color: colors.textMuted }}>
-              Every {rule.every} week(s): {(rule.days ?? []).map((d) => WEEK_DAYS.find((w) => w.key === d)?.label).join(', ')} · {rule.start}–{rule.end}
-            </span>
-            <button type="button" onClick={() => onChange(rules.filter((r) => r.id !== rule.id))} className="cursor-pointer flex-shrink-0" aria-label="Remove">
-              <Trash2 size={14} className="text-red-400" />
-            </button>
-          </div>
-          <FieldError
-            message={
-              errors[`custom-${index}-days`]
-              || errors[`custom-${index}-slots`]
-              || errors[`custom-${index}-time`]
-              || errors[`custom-${index}-duration`]
-            }
-          />
-        </div>
-      ))}
-      <FieldError message={errors.scheduleGeneral} />
-    </div>
-  )
-}
-
 function CustomDatesPanel({ customDates, onChange, errors }) {
   const [dateDraft, setDateDraft] = useState({
     date: '',
@@ -975,6 +882,14 @@ export default function ConsultationScheduleStep({ value, onChange, errors = {} 
       recurring: { ...schedule.recurring, pattern },
     })
 
+  useEffect(() => {
+    if (schedule.scheduleType !== 'RECURRING' || schedule.recurring?.pattern !== 'CUSTOM') return
+    onChange({
+      ...schedule,
+      recurring: { ...schedule.recurring, pattern: 'WEEKLY' },
+    })
+  }, [schedule, onChange])
+
   const bannerMessage = scheduleStepBannerMessage(errors)
 
   return (
@@ -1019,7 +934,6 @@ export default function ConsultationScheduleStep({ value, onChange, errors = {} 
           <div className="flex flex-wrap gap-2 pt-1" role="tablist" aria-label="Recurring pattern">
             <PatternTab active={schedule.recurring.pattern === 'WEEKLY'} label="Weekly" onClick={() => setPattern('WEEKLY')} />
             <PatternTab active={schedule.recurring.pattern === 'MONTHLY'} label="Monthly" onClick={() => setPattern('MONTHLY')} />
-            <PatternTab active={schedule.recurring.pattern === 'CUSTOM'} label="Custom Pattern" onClick={() => setPattern('CUSTOM')} />
           </div>
 
           {schedule.recurring.pattern === 'WEEKLY' ? (
@@ -1043,19 +957,6 @@ export default function ConsultationScheduleStep({ value, onChange, errors = {} 
                 onChange({
                   ...schedule,
                   recurring: { ...schedule.recurring, monthlyRules },
-                })
-              }
-            />
-          ) : null}
-
-          {schedule.recurring.pattern === 'CUSTOM' ? (
-            <CustomPatternPanel
-              rules={schedule.recurring.customPatternRules}
-              errors={errors}
-              onChange={(customPatternRules) =>
-                onChange({
-                  ...schedule,
-                  recurring: { ...schedule.recurring, customPatternRules },
                 })
               }
             />

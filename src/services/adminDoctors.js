@@ -1,7 +1,14 @@
 import { WEEK_DAYS, createDefaultSchedule } from '@/modules/owner/data/doctorsData'
 import {
+  computeMaxSlots,
+  createDefaultConsultationSchedule,
+  createDefaultTimeWindow,
+  nextScheduleId,
+} from '@/modules/owner/views/doctors/consultationScheduleModel'
+import {
   clearMedicalSpecialtiesCache,
   createMedicalSpecialty,
+  fetchAdminMedicalSpecialties,
   fetchMedicalSpecialties,
   mergeMedicalSpecialtiesFromItems,
 } from './medicalSpecialties'
@@ -198,7 +205,26 @@ export function mapScheduleFromApi(rawSchedule) {
   }
 
   if (typeof rawSchedule === 'object') {
+    if (Array.isArray(rawSchedule.weeklyRules)) {
+      rawSchedule.weeklyRules.forEach((dayItem) => {
+        const dayKey = resolveDayKey(dayItem.dayOfWeek)
+        if (!dayKey) return
+        const windows = dayItem.timeWindows ?? dayItem.consultationSlots ?? []
+        schedule[dayKey] = {
+          enabled: dayItem.isAvailable !== false && windows.length > 0,
+          slots: windows
+            .map((slot) => ({
+              start: formatUiTime(pick(slot, 'startTime', 'start')),
+              end: formatUiTime(pick(slot, 'endTime', 'end')),
+            }))
+            .filter((slot) => slot.start && slot.end),
+        }
+      })
+      return schedule
+    }
+
     Object.entries(rawSchedule).forEach(([key, dayValue]) => {
+      if (key === 'weeklyRules' || key === 'monthlyRules') return
       const dayKey = resolveDayKey(key)
       if (!dayKey || !dayValue || typeof dayValue !== 'object') return
       const slotsRaw = dayValue.slots ?? dayValue.timeSlots ?? []
@@ -213,6 +239,326 @@ export function mapScheduleFromApi(rawSchedule) {
   }
 
   return schedule
+}
+
+function mapMonthWeekTokenToApi(weekId) {
+  if (String(weekId).toLowerCase() === 'last') return 'LAST'
+  return String(weekId)
+}
+
+function mapMonthWeekTokenFromApi(token) {
+  const normalized = String(token ?? '').trim().toUpperCase()
+  if (normalized === 'LAST') return 'last'
+  return normalized.toLowerCase()
+}
+
+function mapSlotToApiTimeWindow(slot) {
+  const slotDurationMinutes = Number(slot.slotDuration) > 0 ? Number(slot.slotDuration) : 30
+  const maxCapacity =
+    Number(slot.slotsPerDay) > 0
+      ? Number(slot.slotsPerDay)
+      : computeMaxSlots(slot.start, slot.end, slotDurationMinutes) || 1
+
+  return {
+    startTime: formatApiTime(slot.start),
+    endTime: formatApiTime(slot.end),
+    slotDurationMinutes,
+    maxCapacity,
+  }
+}
+
+function buildApiScheduleShell(partial = {}) {
+  return {
+    weeklyRules: partial.weeklyRules ?? [],
+    monthlyRules: partial.monthlyRules ?? [],
+    customDates: partial.customDates ?? [],
+    customPatternRules: partial.customPatternRules ?? [],
+  }
+}
+
+/** Maps wizard consultation schedule → POST/PUT `schedule`. */
+export function mapConsultationScheduleToApiSchedule(consultationSchedule) {
+  const cs = consultationSchedule
+  if (!cs) return undefined
+
+  if (cs.scheduleType === 'CUSTOM_DATE') {
+    const { specificDates, repeatingDayRules } = cs.customDates ?? {}
+
+    const customDates = (specificDates ?? []).flatMap((entry) =>
+      (entry.slots ?? [])
+        .map((slot) => {
+          const window = mapSlotToApiTimeWindow(slot)
+          if (!entry.date || !window.startTime || !window.endTime) return null
+          return {
+            consultationDate: entry.date,
+            isAvailable: true,
+            ...window,
+          }
+        })
+        .filter(Boolean),
+    )
+
+    const customPatternRules = (repeatingDayRules ?? [])
+      .map((rule) => {
+        const window = mapSlotToApiTimeWindow(rule)
+        if (!window.startTime || !window.endTime || !rule.dayKey) return null
+        return {
+          everyWeeks: 1,
+          daysOfWeek: [DAY_KEY_TO_API[rule.dayKey] ?? String(rule.dayKey).toUpperCase()],
+          isAvailable: true,
+          timeWindows: [window],
+        }
+      })
+      .filter(Boolean)
+
+    if (!customDates.length && !customPatternRules.length) return undefined
+
+    return buildApiScheduleShell({ customDates, customPatternRules })
+  }
+
+  if (cs.scheduleType !== 'RECURRING') return undefined
+
+  const { pattern, weekly, monthlyRules } = cs.recurring ?? {}
+
+  if (pattern === 'WEEKLY') {
+    const weeklyRules = []
+    WEEK_DAYS.forEach(({ key }) => {
+      const day = weekly?.[key]
+      if (!day?.enabled) return
+
+      const timeWindows = (day.slots ?? [])
+        .map((slot) => mapSlotToApiTimeWindow(slot))
+        .filter((window) => window.startTime && window.endTime)
+
+      if (!timeWindows.length) return
+
+      weeklyRules.push({
+        dayOfWeek: DAY_KEY_TO_API[key],
+        isAvailable: true,
+        timeWindows,
+      })
+    })
+
+    return weeklyRules.length ? buildApiScheduleShell({ weeklyRules }) : undefined
+  }
+
+  if (pattern === 'MONTHLY') {
+    const mappedMonthlyRules = (monthlyRules ?? [])
+      .map((rule) => {
+        const weeksOfMonth = (rule.weeks ?? []).map(mapMonthWeekTokenToApi).filter(Boolean).join(',')
+        const dayKey = rule.dayKey
+        const window = mapSlotToApiTimeWindow(rule)
+        return {
+          weeksOfMonth,
+          dayOfWeek: DAY_KEY_TO_API[dayKey] ?? String(dayKey ?? '').toUpperCase(),
+          startTime: window.startTime,
+          endTime: window.endTime,
+          isAvailable: true,
+          slotDurationMinutes: window.slotDurationMinutes,
+          maxCapacity: window.maxCapacity,
+        }
+      })
+      .filter((rule) => rule.weeksOfMonth && rule.dayOfWeek && rule.startTime && rule.endTime)
+
+    return mappedMonthlyRules.length ? buildApiScheduleShell({ monthlyRules: mappedMonthlyRules }) : undefined
+  }
+
+  return undefined
+}
+
+/** GET edit API may nest times under `timeWindows` or flatten on the row (POST shape). */
+function resolveApiScheduleTimeWindows(row) {
+  if (Array.isArray(row?.timeWindows) && row.timeWindows.length) {
+    return row.timeWindows
+  }
+  if (row?.startTime && row?.endTime) {
+    return [
+      {
+        startTime: row.startTime,
+        endTime: row.endTime,
+        slotDurationMinutes: row.slotDurationMinutes,
+        maxCapacity: row.maxCapacity,
+      },
+    ]
+  }
+  return []
+}
+
+function mapApiCustomPatternRuleToUi(rule) {
+  const window = Array.isArray(rule.timeWindows) ? rule.timeWindows[0] : rule
+  const start = formatUiTime(window?.startTime)
+  const end = formatUiTime(window?.endTime)
+  const slotDuration = Number(window?.slotDurationMinutes) || 30
+
+  return {
+    id: nextScheduleId('custom'),
+    every: Number(rule.everyWeeks) > 0 ? Number(rule.everyWeeks) : 1,
+    days: (rule.daysOfWeek ?? [])
+      .map((day) => resolveDayKey(day))
+      .filter(Boolean),
+    start,
+    end,
+    slotDuration,
+    slotsPerDay:
+      Number(window?.maxCapacity) > 0
+        ? Number(window.maxCapacity)
+        : computeMaxSlots(start, end, slotDuration) || 8,
+  }
+}
+
+export function consultationScheduleFromApiSchedule(rawSchedule) {
+  const base = createDefaultConsultationSchedule()
+  if (!rawSchedule || typeof rawSchedule !== 'object') return base
+
+  const hasCustomDates = Array.isArray(rawSchedule.customDates) && rawSchedule.customDates.length > 0
+  const hasCustomPatternRules =
+    Array.isArray(rawSchedule.customPatternRules) && rawSchedule.customPatternRules.length > 0
+
+  if (hasCustomDates || (hasCustomPatternRules && !rawSchedule.weeklyRules?.length && !rawSchedule.monthlyRules?.length)) {
+    base.scheduleType = 'CUSTOM_DATE'
+    base.customDates = { specificDates: [], repeatingDayRules: [] }
+
+    if (hasCustomDates) {
+      const grouped = new Map()
+      rawSchedule.customDates.forEach((row) => {
+        const date = row.consultationDate
+        if (!date) return
+
+        resolveApiScheduleTimeWindows(row).forEach((window) => {
+          const start = formatUiTime(window.startTime)
+          const end = formatUiTime(window.endTime)
+          if (!start || !end) return
+
+          const slotDuration = Number(window.slotDurationMinutes) || 30
+          const slot = createDefaultTimeWindow({
+            start,
+            end,
+            slotDuration,
+            slotsPerDay:
+              Number(window.maxCapacity) > 0
+                ? Number(window.maxCapacity)
+                : computeMaxSlots(start, end, slotDuration) || 8,
+          })
+
+          if (!grouped.has(date)) {
+            grouped.set(date, { id: nextScheduleId('date'), date, slots: [] })
+          }
+          grouped.get(date).slots.push(slot)
+        })
+      })
+      base.customDates.specificDates = [...grouped.values()]
+    }
+
+    if (hasCustomPatternRules) {
+      const looksLikeRecurringCustom = rawSchedule.customPatternRules.some(
+        (rule) => (rule.daysOfWeek?.length ?? 0) > 1 || Number(rule.everyWeeks) > 1,
+      )
+
+      if (looksLikeRecurringCustom && !hasCustomDates) {
+        base.scheduleType = 'RECURRING'
+        base.recurring.pattern = 'CUSTOM'
+        base.recurring.customPatternRules = rawSchedule.customPatternRules.map(mapApiCustomPatternRuleToUi)
+        return base
+      }
+
+      base.customDates.repeatingDayRules = rawSchedule.customPatternRules.map((rule) => {
+        const window = Array.isArray(rule.timeWindows) ? rule.timeWindows[0] : rule
+        const start = formatUiTime(window?.startTime)
+        const end = formatUiTime(window?.endTime)
+        const slotDuration = Number(window?.slotDurationMinutes) || 30
+        return {
+          id: nextScheduleId('repeat'),
+          weekOfMonth: '1',
+          dayKey: resolveDayKey(rule.daysOfWeek?.[0]) ?? 'monday',
+          start,
+          end,
+          slotDuration,
+          slotsPerDay:
+            Number(window?.maxCapacity) > 0
+              ? Number(window.maxCapacity)
+              : computeMaxSlots(start, end, slotDuration) || 8,
+        }
+      })
+    }
+
+    return base
+  }
+
+  if (Array.isArray(rawSchedule.weeklyRules) && rawSchedule.weeklyRules.length) {
+    base.scheduleType = 'RECURRING'
+    base.recurring.pattern = 'WEEKLY'
+    WEEK_DAYS.forEach(({ key }) => {
+      base.recurring.weekly[key] = { enabled: false, slots: [] }
+    })
+
+    rawSchedule.weeklyRules.forEach((rule) => {
+      const dayKey = resolveDayKey(rule.dayOfWeek)
+      if (!dayKey) return
+
+      const slots = (rule.timeWindows ?? []).map((window) => {
+        const start = formatUiTime(window.startTime)
+        const end = formatUiTime(window.endTime)
+        const slotDuration = Number(window.slotDurationMinutes) || 30
+        return createDefaultTimeWindow({
+          start,
+          end,
+          slotDuration,
+          slotsPerDay:
+            Number(window.maxCapacity) > 0
+              ? Number(window.maxCapacity)
+              : computeMaxSlots(start, end, slotDuration) || 10,
+        })
+      })
+
+      base.recurring.weekly[dayKey] = {
+        enabled: rule.isAvailable !== false && slots.length > 0,
+        slots: slots.length ? slots : [],
+      }
+    })
+
+    return base
+  }
+
+  if (hasCustomPatternRules) {
+    base.scheduleType = 'RECURRING'
+    base.recurring.pattern = 'CUSTOM'
+    base.recurring.customPatternRules = rawSchedule.customPatternRules.map(mapApiCustomPatternRuleToUi)
+    return base
+  }
+
+  if (Array.isArray(rawSchedule.monthlyRules) && rawSchedule.monthlyRules.length) {
+    base.scheduleType = 'RECURRING'
+    base.recurring.pattern = 'MONTHLY'
+    base.recurring.monthlyRules = rawSchedule.monthlyRules.map((rule) => {
+      const start = formatUiTime(rule.startTime)
+      const end = formatUiTime(rule.endTime)
+      const slotDuration = Number(rule.slotDurationMinutes) || 30
+      return {
+        id: nextScheduleId('monthly'),
+        weeks: String(rule.weeksOfMonth ?? '')
+          .split(',')
+          .map((part) => mapMonthWeekTokenFromApi(part.trim()))
+          .filter(Boolean),
+        dayKey: resolveDayKey(rule.dayOfWeek) ?? 'monday',
+        start,
+        end,
+        slotDuration,
+        slotsPerDay: Number(rule.maxCapacity) > 0 ? Number(rule.maxCapacity) : 20,
+      }
+    })
+    return base
+  }
+
+  return base
+}
+
+function applyScheduleToWriteBody(body, payload) {
+  const apiSchedule = mapConsultationScheduleToApiSchedule(payload.consultationSchedule)
+  if (apiSchedule) {
+    body.schedule = apiSchedule
+    return
+  }
+  body.weeklySchedules = mapScheduleToApi(payload.schedule)
 }
 
 export function mapScheduleToApi(schedule) {
@@ -294,16 +640,28 @@ export function mapAdminDoctorFromApi(item = {}) {
     consultationTimingsSummary:
       pick(item, 'consultationTimingsSummary', 'consultationTimingSummary', 'timingsSummary') ?? '',
     schedule: mapScheduleFromApi(
-      pick(
-        item,
-        'weeklySchedules',
-        'schedule',
-        'consultationSchedule',
-        'weeklySchedule',
-        'availabilitySchedule',
-        'consultationTimings',
-      ),
+      pick(item, 'schedule') ??
+        pick(
+          item,
+          'weeklySchedules',
+          'consultationSchedule',
+          'weeklySchedule',
+          'availabilitySchedule',
+          'consultationTimings',
+        ),
     ),
+    consultationSchedule: (() => {
+      const scheduleObj = pick(item, 'schedule')
+      if (
+        scheduleObj?.weeklyRules?.length
+        || scheduleObj?.monthlyRules?.length
+        || scheduleObj?.customDates?.length
+        || scheduleObj?.customPatternRules?.length
+      ) {
+        return consultationScheduleFromApiSchedule(scheduleObj)
+      }
+      return undefined
+    })(),
     createdAt: pick(item, 'createdAt', 'createdOn') ?? null,
   }
 }
@@ -376,9 +734,9 @@ function buildDoctorWritePayload(payload = {}) {
         })
         return item
       }),
-    weeklySchedules: mapScheduleToApi(payload.schedule),
-    consultationSchedule: payload.consultationSchedule,
   }
+
+  applyScheduleToWriteBody(body, payload)
 
   Object.keys(body).forEach((key) => {
     if (body[key] === undefined || body[key] === null) delete body[key]
@@ -417,9 +775,9 @@ function buildDoctorPutPayload(draft = {}) {
         })
         return item
       }),
-    weeklySchedules: mapScheduleToApi(formPayload.schedule),
-    consultationSchedule: formPayload.consultationSchedule,
   }
+
+  applyScheduleToWriteBody(body, formPayload)
 
   Object.keys(body).forEach((key) => {
     if (body[key] === undefined || body[key] === null) delete body[key]
@@ -709,8 +1067,8 @@ export function mergeSpecialtiesFromDoctors(doctors = []) {
   )
 }
 
-export async function fetchAdminSpecialties(options = {}) {
-  return fetchMedicalSpecialties(options)
+export async function fetchAdminSpecialties({ force = true } = {}) {
+  return fetchAdminMedicalSpecialties({ force })
 }
 
 export function clearAdminDoctorsCache({ invalidateLists = false } = {}) {

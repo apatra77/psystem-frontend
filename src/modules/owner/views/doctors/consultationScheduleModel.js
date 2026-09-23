@@ -1,7 +1,7 @@
 import { WEEK_DAYS, createDefaultSchedule } from '../../data/doctorsData'
 
 /** @typedef {'RECURRING' | 'CUSTOM_DATE'} ConsultationScheduleType */
-/** @typedef {'WEEKLY' | 'MONTHLY' | 'CUSTOM'} RecurringPatternType */
+/** @typedef {'WEEKLY' | 'MONTHLY'} RecurringPatternType */
 
 /**
  * @typedef {Object} TimeSlotWindow
@@ -265,7 +265,7 @@ export function validateConsultationSchedule(schedule) {
   const errors = {}
 
   if (schedule.scheduleType === 'RECURRING') {
-    const { pattern, weekly, monthlyRules, customPatternRules } = schedule.recurring ?? {}
+    const { pattern, weekly, monthlyRules } = schedule.recurring ?? {}
 
     if (pattern === 'WEEKLY') {
       let anyEnabled = false
@@ -292,15 +292,6 @@ export function validateConsultationSchedule(schedule) {
       })
     }
 
-    if (pattern === 'CUSTOM') {
-      if (!customPatternRules?.length) {
-        errors.scheduleGeneral = 'Add at least one custom pattern rule.'
-      }
-      customPatternRules?.forEach((rule, index) => {
-        if (!rule.days?.length) errors[`custom-${index}-days`] = 'Select at least one weekday.'
-        Object.assign(errors, validateTimeWindow(rule, `custom-${index}-`))
-      })
-    }
   }
 
   if (schedule.scheduleType === 'CUSTOM_DATE') {
@@ -426,7 +417,7 @@ export function buildScheduleSummaryLines(schedule) {
   const cs = schedule ?? createDefaultConsultationSchedule()
 
   if (cs.scheduleType === 'RECURRING') {
-    const { pattern, weekly, monthlyRules, customPatternRules } = cs.recurring ?? {}
+    const { pattern, weekly, monthlyRules } = cs.recurring ?? {}
 
     if (pattern === 'WEEKLY') {
       WEEK_DAYS.forEach(({ key, label }) => {
@@ -453,16 +444,6 @@ export function buildScheduleSummaryLines(schedule) {
       })
     }
 
-    if (pattern === 'CUSTOM') {
-      customPatternRules?.forEach((rule) => {
-        const days = (rule.days ?? []).map(dayLabel).join(', ')
-        lines.push({
-          title: `Every ${rule.every || 1} week(s): ${days}`,
-          time: `${rule.start} – ${rule.end}`,
-          meta: `${rule.slotDuration} min · ${rule.slotsPerDay} slots`,
-        })
-      })
-    }
   }
 
   if (cs.scheduleType === 'CUSTOM_DATE') {

@@ -227,7 +227,9 @@ function mapDoctorToDraft(doctor) {
     imageUrl: doctor.imageUrl ?? '',
     qualifications: qualificationRows,
     schedule: cloneSchedule(doctor.schedule ?? createDefaultSchedule()),
-    consultationSchedule: consultationScheduleFromLegacySchedule(doctor.schedule ?? createDefaultSchedule()),
+    consultationSchedule: doctor.consultationSchedule
+      ? cloneConsultationSchedule(doctor.consultationSchedule)
+      : consultationScheduleFromLegacySchedule(doctor.schedule ?? createDefaultSchedule()),
   }
 }
 

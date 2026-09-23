@@ -5,6 +5,8 @@ const ADMIN_BASE = '/api/v1/admin/medical-specialties'
 
 let cachedSpecialties = null
 let inFlightRequest = null
+let cachedAdminSpecialties = null
+let inFlightAdminRequest = null
 
 function pick(obj, ...keys) {
   for (const key of keys) {
@@ -72,6 +74,8 @@ export function mapMedicalSpecialtyFromApi(item = {}) {
 export function clearMedicalSpecialtiesCache() {
   cachedSpecialties = null
   inFlightRequest = null
+  cachedAdminSpecialties = null
+  inFlightAdminRequest = null
 }
 
 export async function fetchMedicalSpecialties({ force = false, activeOnly = true } = {}) {
@@ -98,6 +102,33 @@ export async function fetchMedicalSpecialties({ force = false, activeOnly = true
     })
 
   return inFlightRequest
+}
+
+/** GET /api/v1/admin/medical-specialties — full list for admin manage view. */
+export async function fetchAdminMedicalSpecialties({ force = false } = {}) {
+  if (!force && cachedAdminSpecialties !== null) return cachedAdminSpecialties
+  if (inFlightAdminRequest) return inFlightAdminRequest
+
+  inFlightAdminRequest = authFetch(ADMIN_BASE, {}, DOCTOR_API_BASE)
+    .then((payload) => {
+      const list = extractList(payload)
+        .map(mapMedicalSpecialtyFromApi)
+        .filter((item) => item.id !== '' && item.label)
+        .sort((a, b) => a.label.localeCompare(b.label))
+
+      cachedAdminSpecialties = list
+      mergeMedicalSpecialtiesFromItems(list)
+      return list
+    })
+    .catch((error) => {
+      if (force) cachedAdminSpecialties = null
+      throw error
+    })
+    .finally(() => {
+      inFlightAdminRequest = null
+    })
+
+  return inFlightAdminRequest
 }
 
 export function mergeMedicalSpecialtiesFromItems(items = []) {
@@ -148,5 +179,6 @@ export async function createMedicalSpecialty({
 
   const created = mapMedicalSpecialtyFromApi(unwrapEntity(response))
   mergeMedicalSpecialtiesFromItems([created])
+  cachedAdminSpecialties = null
   return created
 }

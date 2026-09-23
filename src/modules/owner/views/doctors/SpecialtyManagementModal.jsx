@@ -16,7 +16,7 @@ export default function SpecialtyManagementModal({ onClose }) {
     const load = async () => {
       setLoading(true)
       try {
-        const list = await fetchAdminSpecialties()
+        const list = await fetchAdminSpecialties({ force: true })
         if (!cancelled) setSpecialties(list)
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Could not load specialties')
