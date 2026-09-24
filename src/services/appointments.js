@@ -103,8 +103,15 @@ export async function fetchPatientAppointments(patientPhone) {
     .filter((appointment) => appointment.id || appointment.code)
 }
 
+function unwrapAppointmentEntity(payload) {
+  const data = payload?.data ?? payload
+  if (data?.appointment && typeof data.appointment === 'object') return data.appointment
+  if (data && typeof data === 'object' && !Array.isArray(data)) return data
+  return payload
+}
+
 export async function bookAppointment(payload) {
-  return authFetch(
+  const response = await authFetch(
     BASE,
     {
       method: 'POST',
@@ -112,6 +119,8 @@ export async function bookAppointment(payload) {
     },
     DOCTOR_API_BASE,
   )
+
+  return mapAppointmentFromApi(unwrapAppointmentEntity(response))
 }
 
 export async function cancelAppointment(appointmentCode, { patientPhone, cancellationReason }) {

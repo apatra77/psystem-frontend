@@ -9,6 +9,7 @@ import { useDoctorConsultation } from '@/modules/customer/hooks/useDoctorConsult
 import { useAuthStore } from '@/app/store/authStore'
 import { useOrderStore } from '@/app/store/orderStore'
 import { toast } from '@/app/store/uiStore'
+import ConsultationBookingThankYouModal from '@/modules/customer/components/consultation/ConsultationBookingThankYouModal'
 import { bookAppointment, buildAppointmentPayload } from '@/services/appointments'
 import { isDoctorBookable } from '@/services/doctors'
 import { DEFAULT_CONSULTATION_CITY } from '@/shared/mocks/doctorConsultation'
@@ -87,6 +88,7 @@ export default function DoctorConsultationPage() {
   const [bookingDoctor, setBookingDoctor] = useState(null)
   const [profileDoctorId, setProfileDoctorId] = useState(null)
   const [booking, setBooking] = useState(false)
+  const [bookingSuccessId, setBookingSuccessId] = useState(null)
   const { specialties, loading: loadingSpecialties } = useMedicalSpecialties()
 
   const primarySpecialties = useMemo(
@@ -106,7 +108,7 @@ export default function DoctorConsultationPage() {
 
     setBooking(true)
     try {
-      await bookAppointment(
+      const appointment = await bookAppointment(
         buildAppointmentPayload({
           doctorId: doctor.id,
           consultationDate,
@@ -119,7 +121,7 @@ export default function DoctorConsultationPage() {
         }),
       )
       setBookingDoctor(null)
-      toast.success(`Consultation booked with ${doctor.name} at ${slot.time}`)
+      setBookingSuccessId(appointment.code || appointment.id || null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not book appointment')
     } finally {
@@ -350,6 +352,12 @@ export default function DoctorConsultationPage() {
           }}
         />
       ) : null}
+
+      <ConsultationBookingThankYouModal
+        open={Boolean(bookingSuccessId)}
+        bookingId={bookingSuccessId}
+        onClose={() => setBookingSuccessId(null)}
+      />
     </div>
   )
 }
