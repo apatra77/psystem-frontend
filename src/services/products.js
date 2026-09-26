@@ -715,7 +715,7 @@ export async function fetchProductsSearchPage(
   params.set('query', trimmed)
   params.set('page', String(page))
   params.set('size', String(size))
-  const path = `/api/products/search?${params.toString()}`
+  const path = `${CUSTOMER_CATALOG_PRODUCTS}/search?${params.toString()}`
 
   if (!force && inFlightProductsSearchRequests.has(path)) {
     return inFlightProductsSearchRequests.get(path)

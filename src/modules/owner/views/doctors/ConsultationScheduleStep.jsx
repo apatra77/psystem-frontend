@@ -255,16 +255,16 @@ function WeeklyScheduleTable({ weekly, onChange, errors }) {
         </p>
       </div>
 
-      <div className="overflow-x-auto owner-scroll rounded-[12px]" style={{ border: `1px solid ${colors.borderSubtle}` }}>
-        <table className="w-full min-w-[720px] text-[11.5px]">
+      <div className="rounded-[12px] overflow-hidden" style={{ border: `1px solid ${colors.borderSubtle}` }}>
+        <table className="w-full table-fixed text-[11.5px]">
           <colgroup>
+            <col style={{ width: '11%' }} />
             <col style={{ width: '13%' }} />
             <col style={{ width: '14%' }} />
-            <col style={{ width: '112px' }} />
-            <col style={{ width: '112px' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '11%' }} />
             <col style={{ width: '14%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '23%' }} />
           </colgroup>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
@@ -315,24 +315,24 @@ function WeeklyScheduleTable({ weekly, onChange, errors }) {
                         ) : null
                       ) : (
                         <>
-                          <td className="px-2 py-2 align-middle min-w-[112px]">
-                            <div className="h-[38px] flex items-center">
+                          <td className="px-2 py-2 align-middle">
+                            <div className="h-[38px] flex items-center min-w-0">
                               <ModalSelect
                                 value={slot.start}
                                 onChange={(e) => patchSlot(key, slotIndex, 'start', e.target.value)}
                                 options={TIME_SLOT_OPTIONS}
-                                className={SCHEDULE_TIME_SELECT_WRAPPER}
+                                className={SCHEDULE_SELECT_WRAPPER}
                                 inputClassName={SCHEDULE_TIME_CONTROL_INNER}
                               />
                             </div>
                           </td>
-                          <td className="px-2 py-2 align-middle min-w-[112px]">
-                            <div className="h-[38px] flex items-center">
+                          <td className="px-2 py-2 align-middle">
+                            <div className="h-[38px] flex items-center min-w-0">
                               <ModalSelect
                                 value={slot.end}
                                 onChange={(e) => patchSlot(key, slotIndex, 'end', e.target.value)}
                                 options={TIME_SLOT_OPTIONS}
-                                className={SCHEDULE_TIME_SELECT_WRAPPER}
+                                className={SCHEDULE_SELECT_WRAPPER}
                                 inputClassName={SCHEDULE_TIME_CONTROL_INNER}
                               />
                             </div>
@@ -355,12 +355,12 @@ function WeeklyScheduleTable({ weekly, onChange, errors }) {
                             </div>
                           </td>
                           <td className="px-2 py-2 align-middle">
-                            <div className="flex items-center gap-1 h-[38px]">
+                            <div className="flex flex-wrap items-center gap-1 min-h-[38px] py-0.5">
                               {slotIndex === day.slots.length - 1 ? (
                                 <button
                                   type="button"
                                   onClick={() => updateDay(key, { slots: [...day.slots, createDefaultTimeWindow({ start: '02:00 PM', end: '05:00 PM' })] })}
-                                  className="text-[10px] font-bold px-2 py-1 rounded-md cursor-pointer whitespace-nowrap"
+                                  className="text-[10px] font-bold px-2 py-1 rounded-md cursor-pointer whitespace-nowrap shrink-0"
                                   style={{ color: colors.accent, border: '1px solid rgba(64,222,170,0.35)' }}
                                 >
                                   + Add time slot
