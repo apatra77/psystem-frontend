@@ -38,15 +38,41 @@ function DoctorAvatar({ doctor }) {
 }
 
 function availabilityBadge(availability, availableToday) {
-  const label = availability || (availableToday ? 'Available Now' : 'Available Tomorrow')
-  const isNow = /now|today|available/i.test(label) && !/tomorrow|next|not available|unavailable/i.test(label)
+  const label =
+    availability || (availableToday ? 'Available today' : 'Available tomorrow')
+  const lower = label.toLowerCase()
+  const isUnavailable = /not available|inactive|on leave|unavailable/.test(lower)
+  const isNow =
+    (/available now|available today/.test(lower) || availableToday) &&
+    !/tomorrow|available on|not available/.test(lower)
+  const isSoon = /available tomorrow|available on/.test(lower)
 
-  return {
-    label,
-    style: isNow
-      ? { color: '#40deaa', background: 'rgba(64,222,170,0.12)', border: '1px solid rgba(64,222,170,0.28)' }
-      : { color: colors.textMuted, background: 'rgba(255,255,255,0.05)', border: `1px solid ${colors.borderSubtle}` },
+  let style = {
+    color: colors.textMuted,
+    background: 'rgba(255,255,255,0.05)',
+    border: `1px solid ${colors.borderSubtle}`,
   }
+  if (isUnavailable) {
+    style = {
+      color: colors.textDim,
+      background: 'rgba(255,255,255,0.03)',
+      border: `1px solid ${colors.borderSubtle}`,
+    }
+  } else if (isNow) {
+    style = {
+      color: '#40deaa',
+      background: 'rgba(64,222,170,0.12)',
+      border: '1px solid rgba(64,222,170,0.28)',
+    }
+  } else if (isSoon) {
+    style = {
+      color: colors.textHighlight,
+      background: 'rgba(255,213,143,0.1)',
+      border: '1px solid rgba(255,213,143,0.22)',
+    }
+  }
+
+  return { label, style }
 }
 
 export default function DoctorTopCard({ doctor, onConsult }) {

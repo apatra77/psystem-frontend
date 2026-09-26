@@ -3,7 +3,10 @@ import { X } from 'lucide-react'
 import PortalModal, { ModalFieldLabel, ModalInput } from '@/shared/ui/PortalModal'
 import { useAuthStore } from '@/app/store/authStore'
 import { fmtINR } from '@/app/utils/format'
-import { getDoctorConsultationDateParam } from '@/services/doctors'
+import {
+  formatDoctorNextAvailableShort,
+  getDoctorConsultationDateParam,
+} from '@/services/doctors'
 import { fetchUserProfile } from '@/services/user'
 import { colors } from '@/app/themes/colors'
 
@@ -17,10 +20,22 @@ function resolveMobileFromSources(profile, authUser) {
   return extractMobileDigits(profile?.mobile ?? authUser?.mobile ?? authUser?.phone ?? '')
 }
 
+function resolveSlotDayLabel(consultationDateParam) {
+  if (consultationDateParam === 'tomorrow') return 'Tomorrow'
+  if (consultationDateParam === 'today') return 'Today'
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(consultationDateParam))) {
+    return (
+      formatDoctorNextAvailableShort({ consultationDate: consultationDateParam }) ||
+      consultationDateParam
+    )
+  }
+  return 'Selected date'
+}
+
 export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConfirm }) {
   const authUser = useAuthStore((s) => s.user)
   const consultationDateParam = doctor ? getDoctorConsultationDateParam(doctor) : 'today'
-  const slotDayLabel = consultationDateParam === 'tomorrow' ? 'Tomorrow' : 'Today'
+  const slotDayLabel = resolveSlotDayLabel(consultationDateParam)
 
   const [slots, setSlots] = useState([])
   const [consultationDate, setConsultationDate] = useState('')
@@ -71,7 +86,12 @@ export default function DoctorBookingModal({ doctor, fetchSlots, onClose, onConf
 
         if (!cancelled) {
           const slotsWithTimes = nextSlots.filter((slot) => slot.time)
-          setConsultationDate(nextDate)
+          const resolvedDate =
+            nextDate ||
+            (/^\d{4}-\d{2}-\d{2}$/.test(String(consultationDateParam))
+              ? consultationDateParam
+              : '')
+          setConsultationDate(resolvedDate)
           setSlots(slotsWithTimes)
           setSelectedSlot(slotsWithTimes[0] ?? null)
         }

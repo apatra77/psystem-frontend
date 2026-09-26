@@ -181,10 +181,83 @@ export function isDoctorAvailableTomorrow(doctor = {}) {
   return /available tomorrow/.test(label)
 }
 
-/** Consult is allowed for today and tomorrow; only blocked when doctor is not available. */
+const MONTH_NAME_TO_INDEX = {
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
+}
+
+function pad2(value) {
+  return String(value).padStart(2, '0')
+}
+
+function parseIsoDateFromAvailabilityLabel(label) {
+  const text = String(label ?? '').trim()
+  const match = text.match(/\b([A-Za-z]{3}),?\s+(\d{1,2})\s+([A-Za-z]{3})(?:\s+(\d{4}))?/i)
+  if (!match) return ''
+
+  const monthIndex = MONTH_NAME_TO_INDEX[match[3].slice(0, 3).toLowerCase()]
+  if (monthIndex == null) return ''
+
+  const day = Number(match[2])
+  const year = match[4] ? Number(match[4]) : new Date().getFullYear()
+  if (!day || !year) return ''
+
+  return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`
+}
+
+/** Next bookable calendar day from list API (slot object or "Next: …" label). */
+export function getDoctorNextConsultationDateIso(doctor = {}) {
+  const fromSlot = doctor.nextAvailableSlot?.consultationDate
+  if (fromSlot && /^\d{4}-\d{2}-\d{2}$/.test(String(fromSlot))) {
+    return String(fromSlot)
+  }
+
+  return parseIsoDateFromAvailabilityLabel(doctor.availabilityLabelRaw)
+}
+
+function isSameLocalCalendarDay(isoDate, dayOffset = 0) {
+  if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(String(isoDate))) return false
+
+  const [year, month, day] = String(isoDate).split('-').map(Number)
+  const target = new Date(year, month - 1, day)
+  const ref = new Date()
+  ref.setHours(0, 0, 0, 0)
+  ref.setDate(ref.getDate() + dayOffset)
+
+  return (
+    target.getFullYear() === ref.getFullYear() &&
+    target.getMonth() === ref.getMonth() &&
+    target.getDate() === ref.getDate()
+  )
+}
+
+export function hasDoctorFutureBookableSlot(doctor = {}) {
+  if (doctor.nextAvailableSlot?.isBookable === false) return false
+
+  const iso = getDoctorNextConsultationDateIso(doctor)
+  if (iso) return true
+
+  const raw = String(doctor.availabilityLabelRaw ?? '').trim()
+  if (!raw || /^not available$/i.test(raw)) return false
+
+  return Boolean(parseAvailabilityLabelToShortDate(raw))
+}
+
+/** Consult is allowed for today, tomorrow, or the next listed slot day. */
 export function isDoctorBookable(doctor = {}) {
   const status = String(doctor.availabilityStatus ?? '').toUpperCase()
-  if (status === 'NOT_AVAILABLE' || status === 'ON_LEAVE' || status === 'INACTIVE') return false
+  if (status === 'ON_LEAVE' || status === 'INACTIVE') return false
+  if (status === 'NOT_AVAILABLE') return hasDoctorFutureBookableSlot(doctor)
   if (
     status === 'AVAILABLE_NOW' ||
     status === 'AVAILABLE_TODAY' ||
@@ -193,7 +266,9 @@ export function isDoctorBookable(doctor = {}) {
     return true
   }
 
-  const label = String(doctor.availabilityLabel ?? doctor.availability ?? '').toLowerCase()
+  const label = String(
+    doctor.availabilityLabelRaw ?? doctor.availabilityLabel ?? doctor.availability ?? '',
+  ).toLowerCase()
   if (/not available|on leave|unavailable/.test(label)) return false
   if (/available now|available today|available tomorrow/.test(label)) return true
 
@@ -201,25 +276,125 @@ export function isDoctorBookable(doctor = {}) {
 }
 
 export function getDoctorConsultationDateParam(doctor = {}) {
-  if (isDoctorAvailableTomorrow(doctor) && !isDoctorAvailableToday(doctor)) {
-    return 'tomorrow'
+  if (isDoctorAvailableToday(doctor)) return 'today'
+  if (isDoctorAvailableTomorrow(doctor)) return 'tomorrow'
+
+  const iso = getDoctorNextConsultationDateIso(doctor)
+  if (iso) {
+    if (isSameLocalCalendarDay(iso, 0)) return 'today'
+    if (isSameLocalCalendarDay(iso, 1)) return 'tomorrow'
+    return iso
   }
+
   return 'today'
 }
 
-export function getDoctorBookButtonLabel(doctor = {}) {
-  if (!isDoctorBookable(doctor)) return 'Not Available'
-  if (isDoctorAvailableTomorrow(doctor) && !isDoctorAvailableToday(doctor)) {
-    return 'Book for Tomorrow'
-  }
-  return 'Book Appointment'
+function capitalizeWord(word = '') {
+  const raw = String(word).trim()
+  if (!raw) return ''
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase()
 }
 
-function deriveAvailableToday(item, availabilityStatus, availabilityLabel) {
+/** "28 Sep, Mon" — date + weekday only (no time). */
+export function formatDoctorNextAvailableShort(slot) {
+  if (!slot || typeof slot !== 'object') return ''
+
+  const iso = pick(slot, 'consultationDate', 'date')
+  if (iso && /^\d{4}-\d{2}-\d{2}$/.test(String(iso))) {
+    const [year, monthIndex, day] = String(iso).split('-').map(Number)
+    const date = new Date(year, monthIndex - 1, day)
+    if (!Number.isNaN(date.getTime())) {
+      const weekday = date.toLocaleDateString('en-GB', { weekday: 'short' })
+      const month = date.toLocaleDateString('en-GB', { month: 'short' })
+      return `${day} ${month}, ${weekday}`
+    }
+  }
+
+  const formatted = String(pick(slot, 'formattedDateLabel') ?? '').trim()
+  const match = formatted.match(/\b([A-Za-z]{3}),?\s+(\d{1,2})\s+([A-Za-z]{3})/i)
+  if (match) {
+    return `${match[2]} ${capitalizeWord(match[3])}, ${capitalizeWord(match[1])}`
+  }
+
+  return ''
+}
+
+function parseAvailabilityLabelToShortDate(label) {
+  const text = String(label ?? '').trim()
+  if (!text) return ''
+
+  const match = text.match(/\b([A-Za-z]{3}),?\s+(\d{1,2})\s+([A-Za-z]{3})(?:\s+\d{4})?/i)
+  if (!match) return ''
+
+  return `${match[2]} ${capitalizeWord(match[3])}, ${capitalizeWord(match[1])}`
+}
+
+/** User-facing availability line for list cards (no slot times). */
+export function buildDoctorAvailabilityDisplay(availabilityStatus, nextAvailableSlot, rawLabel = '') {
+  const status = String(availabilityStatus ?? '').toUpperCase()
+  const raw = String(rawLabel ?? '').trim()
+  const shortDate = formatDoctorNextAvailableShort(nextAvailableSlot) || parseAvailabilityLabelToShortDate(raw)
+
+  if (status === 'ON_LEAVE') return raw || 'On leave'
+  if (status === 'INACTIVE') return raw || 'Inactive'
+
+  if (status === 'AVAILABLE_NOW') return 'Available now'
+  if (status === 'AVAILABLE_TODAY') return 'Available today'
+  if (status === 'AVAILABLE_TOMORROW') return 'Available tomorrow'
+
+  if (/^not available$/i.test(raw) && !shortDate) return 'Not available'
+
+  if (shortDate) return `Available on ${shortDate}`
+
+  if (/available tomorrow/i.test(raw)) return 'Available tomorrow'
+  if (/available now|available today/i.test(raw)) return 'Available today'
+  if (/^not available$/i.test(raw)) return 'Not available'
+
+  return raw || 'Not available'
+}
+
+function mapNextAvailableSlotFromApi(raw) {
+  if (!raw || typeof raw !== 'object') return null
+
+  return {
+    consultationDate: pick(raw, 'consultationDate', 'date') ?? '',
+    formattedDateLabel: pick(raw, 'formattedDateLabel') ?? '',
+    startTime: normalizeApiTime(pick(raw, 'startTime', 'start')),
+    endTime: normalizeApiTime(pick(raw, 'endTime', 'end')),
+    slotLabel: pick(raw, 'slotLabel', 'label') ?? '',
+    isBookable: raw.isBookable !== false,
+  }
+}
+
+export function getDoctorBookButtonLabel(doctor = {}) {
+  if (!isDoctorBookable(doctor)) return 'Not available'
+
+  if (isDoctorAvailableToday(doctor)) return 'Book for today'
+  if (isDoctorAvailableTomorrow(doctor)) return 'Book for tomorrow'
+
+  const iso = getDoctorNextConsultationDateIso(doctor)
+  if (iso) {
+    if (isSameLocalCalendarDay(iso, 0)) return 'Book for today'
+    if (isSameLocalCalendarDay(iso, 1)) return 'Book for tomorrow'
+    const shortDate = formatDoctorNextAvailableShort({ consultationDate: iso })
+    const compact = shortDate.split(',')[0]?.trim()
+    if (compact) return `Book for ${compact}`
+  }
+
+  const shortDate = formatDoctorNextAvailableShort(doctor.nextAvailableSlot)
+  if (shortDate) {
+    const compact = shortDate.split(',')[0]?.trim()
+    return compact ? `Book for ${compact}` : 'Book consultation'
+  }
+
+  return 'Book consultation'
+}
+
+function deriveAvailableToday(item, availabilityStatus, availabilityLabelRaw) {
   return isDoctorAvailableToday({
     availabilityStatus,
-    availabilityLabel,
-    availability: availabilityLabel,
+    availabilityLabel: availabilityLabelRaw,
+    availability: availabilityLabelRaw,
     availableToday: item.availableToday ?? item.isAvailableToday,
   })
 }
@@ -229,11 +404,17 @@ export function mapDoctorFromApi(item = {}) {
   const rating = Number(pick(item, 'rating', 'averageRating', 'avgRating')) || 0
   const fee = Number(pick(item, 'consultationFee', 'fee', 'price', 'consultationPrice')) || 0
   const availabilityStatus = pick(item, 'availabilityStatus') ?? ''
-  const availabilityLabel =
+  const availabilityLabelRaw =
     pick(item, 'availabilityLabel', 'availability') ??
     availabilityStatus ??
     pick(item, 'status') ??
     ''
+  const nextAvailableSlot = mapNextAvailableSlotFromApi(item.nextAvailableSlot)
+  const availabilityDisplay = buildDoctorAvailabilityDisplay(
+    availabilityStatus,
+    nextAvailableSlot,
+    availabilityLabelRaw,
+  )
   const specialtyObj = item.medicalSpecialty ?? item.specialty
   const specialtyName =
     typeof specialtyObj === 'object' && specialtyObj != null
@@ -297,9 +478,11 @@ export function mapDoctorFromApi(item = {}) {
     imageUrl: resolveDoctorImageUrl(rawImage),
     doctorStatus: pick(item, 'doctorStatus', 'status') ?? '',
     availabilityStatus,
-    availability: availabilityLabel ?? '',
-    availabilityLabel: availabilityLabel ?? '',
-    availableToday: deriveAvailableToday(item, availabilityStatus, availabilityLabel),
+    availabilityLabelRaw: availabilityLabelRaw ?? '',
+    availability: availabilityDisplay,
+    availabilityLabel: availabilityDisplay,
+    nextAvailableSlot,
+    availableToday: deriveAvailableToday(item, availabilityStatus, availabilityLabelRaw),
     bio: pick(item, 'profileSummary', 'bio', 'about', 'description') ?? '',
     languages: Array.isArray(item.languages) ? item.languages : [],
     consultationTimingsSummary:

@@ -1,9 +1,5 @@
 import { Star } from 'lucide-react'
-import {
-  getDoctorBookButtonLabel,
-  isDoctorAvailableTomorrow,
-  isDoctorBookable,
-} from '@/services/doctors'
+import { getDoctorBookButtonLabel, isDoctorBookable } from '@/services/doctors'
 import { colors } from '@/app/themes/colors'
 
 function DoctorAvatar({ doctor, size = 56 }) {
@@ -44,8 +40,9 @@ function DoctorAvatar({ doctor, size = 56 }) {
 
 export default function PopularDoctorCard({ doctor, slots = [], onConsult, onViewProfile }) {
   const canConsult = isDoctorBookable(doctor)
-  const slotHeading = isDoctorAvailableTomorrow(doctor) ? 'Available Tomorrow' : 'Available Today'
-  const visibleSlots = canConsult ? slots : []
+  const availabilityLine = doctor.availabilityLabel || doctor.availability || 'Not available'
+  const showNextDateOnly = Boolean(doctor.nextAvailableSlot?.consultationDate)
+  const visibleSlots = canConsult && !showNextDateOnly ? slots : []
 
   return (
     <article
@@ -81,10 +78,21 @@ export default function PopularDoctorCard({ doctor, slots = [], onConsult, onVie
 
         <div className="lg:w-[280px]">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: colors.textDim }}>
-            {slotHeading}
+            Next availability
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {visibleSlots.length > 0 ? (
+            {showNextDateOnly || visibleSlots.length === 0 ? (
+              <span
+                className="rounded-[8px] px-2.5 py-1.5 text-[11px] font-bold leading-snug"
+                style={{
+                  color: colors.textHighlight,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${colors.borderSubtle}`,
+                }}
+              >
+                {availabilityLine}
+              </span>
+            ) : (
               visibleSlots.map((slot) => (
                 <span
                   key={slot.id}
@@ -98,10 +106,6 @@ export default function PopularDoctorCard({ doctor, slots = [], onConsult, onVie
                   {slot.time}
                 </span>
               ))
-            ) : (
-              <span className="text-[11px]" style={{ color: colors.textDim }}>
-                No slots today
-              </span>
             )}
           </div>
         </div>
