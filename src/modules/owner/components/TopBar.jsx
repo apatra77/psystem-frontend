@@ -211,7 +211,7 @@ export default function TopBar() {
                 ))
               ) : (
                 <div className="px-2.5 py-3 text-[11.5px] leading-relaxed" style={{ color: colors.textDim }}>
-                  No saved addresses yet. Add one from My Profile.
+                  No saved addresses yet. Add one from Store Profile.
                 </div>
               )}
             </div>
@@ -356,7 +356,7 @@ export default function TopBar() {
                 style={{ color: colors.textHighlight }}
               >
                 <User size={15} strokeWidth={1.8} style={{ color: colors.textDim }} />
-                My Profile
+                Store Profile
               </button>
               <button
                 type="button"

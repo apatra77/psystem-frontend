@@ -390,15 +390,21 @@ export default function ProfileSetupModal({
   initialMobile = '',
   initialCountryCode = DEFAULT_COUNTRY_CODE,
   initialAddress = null,
+  /** `'admin'` = owner portal store profile copy; default keeps customer wording. */
+  portalVariant = 'customer',
   onComplete,
   onSkip,
   onClose,
 }) {
+  const isAdminStore = portalVariant === 'admin'
   const isAddAddress = mode === 'addAddress'
   const isEditAddress = mode === 'editAddress'
   const isEditProfile = mode === 'editProfile'
   const isAddressForm = isAddAddress || isEditAddress
   const usesCancelSave = isAddressForm || isEditProfile
+  const nameFieldLabel = isAdminStore ? 'Store name' : 'Full name'
+  const nameRequiredError = isAdminStore ? 'Store name is required' : 'Full name is required'
+  const namePlaceholder = isAdminStore ? 'Your store name' : 'Rahul Sharma'
   const [fullName, setFullName] = useState(initialFullName)
   const [email, setEmail] = useState(initialEmail)
   const [mobile, setMobile] = useState(initialMobile)
@@ -475,7 +481,7 @@ export default function ProfileSetupModal({
     e.preventDefault()
     const nextErrors = {}
 
-    if (!fullName.trim()) nextErrors.name = 'Full name is required'
+    if (!fullName.trim()) nextErrors.name = nameRequiredError
     if (!email.trim()) nextErrors.email = 'Email is required'
     else if (!isValidEmail(email.trim())) nextErrors.email = 'Enter a valid email'
     if (!mobile.trim()) nextErrors.mobile = 'Mobile number is required'
@@ -580,20 +586,28 @@ export default function ProfileSetupModal({
                 style={{ letterSpacing: '-0.025em' }}
               >
                 {isEditProfile
-                  ? 'Edit profile'
+                  ? isAdminStore
+                    ? 'Edit store profile'
+                    : 'Edit profile'
                   : isEditAddress
                     ? 'Edit address'
                     : isAddAddress
                       ? 'Add new address'
-                      : 'Complete your profile'}
+                      : isAdminStore
+                        ? 'Complete your store profile'
+                        : 'Complete your profile'}
               </h2>
               <p className="text-[13px] mt-1.5 leading-relaxed" style={{ color: colors.textSecondary }}>
-                {isEditProfile
-                  ? 'Update your name and delivery address.'
-                  : isEditAddress
-                    ? 'Update your name and delivery address.'
-                    : isAddAddress
-                      ? 'Add your name and delivery address to save this location.'
+                {isEditProfile || isEditAddress
+                  ? isAdminStore
+                    ? 'Update Store name and address.'
+                    : 'Update your name and delivery address.'
+                  : isAddAddress
+                    ? isAdminStore
+                      ? 'Add your store name and address to save this location.'
+                      : 'Add your name and delivery address to save this location.'
+                    : isAdminStore
+                      ? 'Add your store name and address to finish setting up your store.'
                       : "You're almost there. Add your name and delivery address to finish setting up your account."}
               </p>
             </div>
@@ -604,13 +618,13 @@ export default function ProfileSetupModal({
                   className="block text-xs font-bold uppercase tracking-wider mb-1.5"
                   style={{ color: colors.textDim }}
                 >
-                  Full name
+                  {nameFieldLabel}
                 </label>
                 <ProfileField
                   icon={UserCircle}
                   value={fullName}
                   onChange={setFullName}
-                  placeholder="Rahul Sharma"
+                  placeholder={namePlaceholder}
                   error={errors.name}
                   autoComplete="name"
                 />

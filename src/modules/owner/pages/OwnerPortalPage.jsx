@@ -12,6 +12,7 @@ function OwnerPortalGate() {
       <OwnerLayout />
       {showProfileSetup && (
         <ProfileSetupModal
+          portalVariant="admin"
           initialEmail={authUser?.email ?? ''}
           initialMobile={authUser?.mobile ?? ''}
           initialCountryCode={authUser?.countryCode ?? '+91'}

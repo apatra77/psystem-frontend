@@ -394,5 +394,5 @@ export const PAGE_META = {
     title: 'Callback Requests',
     subtitle: 'Review customer callback requests and mark them as contacted.',
   },
-  profile: { title: 'My Profile', subtitle: 'Manage your personal information' },
+  profile: { title: 'Store Profile', subtitle: 'Manage your store name and address' },
 }
