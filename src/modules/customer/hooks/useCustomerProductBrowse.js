@@ -3,11 +3,20 @@ import { useCatalogStore } from '@/app/store/catalogStore'
 import {
   fetchCategories,
   fetchCustomerProductsByCategoryPage,
+  fetchCustomerProductsByGroupNamePage,
+  fetchCustomerProductsInStockAll,
   fetchCustomerProductsPage,
   OWNER_PRODUCTS_PAGE_SIZE,
 } from '@/services/products'
 
-export function useCustomerProductBrowse({ page = 1, categorySlug = '', enabled = true, refreshKey = 0 } = {}) {
+export function useCustomerProductBrowse({
+  page = 1,
+  categorySlug = '',
+  groupName = '',
+  inStockOnly = false,
+  enabled = true,
+  refreshKey = 0,
+} = {}) {
   const [products, setProducts] = useState([])
   const [totalElements, setTotalElements] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -40,6 +49,43 @@ export function useCustomerProductBrowse({ page = 1, categorySlug = '', enabled 
           categories = useCatalogStore.getState().categories
         }
 
+        const apiPage = Math.max(0, page - 1)
+        const pageSize = OWNER_PRODUCTS_PAGE_SIZE
+        const forceRefresh = refreshKey > 0
+
+        if (inStockOnly) {
+          const allProducts = await fetchCustomerProductsInStockAll(categories, { force: forceRefresh })
+          if (cancelled) return
+
+          const total = allProducts.length
+          const totalPagesCount = Math.max(1, Math.ceil(total / pageSize))
+          const safePage = Math.min(page, totalPagesCount)
+          const start = (safePage - 1) * pageSize
+          const pageProducts = allProducts.slice(start, start + pageSize)
+
+          setProducts(pageProducts)
+          setTotalElements(total)
+          setTotalPages(totalPagesCount)
+          useCatalogStore.getState().mergeProducts(allProducts)
+          return
+        }
+
+        if (groupName) {
+          const result = await fetchCustomerProductsByGroupNamePage(groupName, categories, {
+            page: apiPage,
+            size: pageSize,
+            force: forceRefresh,
+          })
+
+          if (cancelled) return
+
+          setProducts(result.products)
+          setTotalElements(result.totalElements)
+          setTotalPages(Math.max(1, result.totalPages))
+          useCatalogStore.getState().mergeProducts(result.products)
+          return
+        }
+
         if (categorySlug) {
           const category = categories.find((item) => item.slug === categorySlug)
           if (!category) {
@@ -52,8 +98,9 @@ export function useCustomerProductBrowse({ page = 1, categorySlug = '', enabled 
           }
 
           const result = await fetchCustomerProductsByCategoryPage(category.id, categories, {
-            page: Math.max(0, page - 1),
-            size: OWNER_PRODUCTS_PAGE_SIZE,
+            page: apiPage,
+            size: pageSize,
+            force: forceRefresh,
           })
 
           if (cancelled) return
@@ -66,8 +113,9 @@ export function useCustomerProductBrowse({ page = 1, categorySlug = '', enabled 
         }
 
         const result = await fetchCustomerProductsPage(categories, {
-          page: Math.max(0, page - 1),
-          size: OWNER_PRODUCTS_PAGE_SIZE,
+          page: apiPage,
+          size: pageSize,
+          force: forceRefresh,
         })
 
         if (cancelled) return
@@ -90,7 +138,7 @@ export function useCustomerProductBrowse({ page = 1, categorySlug = '', enabled 
     return () => {
       cancelled = true
     }
-  }, [page, categorySlug, enabled, refreshKey])
+  }, [page, categorySlug, groupName, inStockOnly, enabled, refreshKey])
 
   const currentPage = Math.min(page, totalPages)
   const rangeStart = totalElements === 0 ? 0 : (currentPage - 1) * OWNER_PRODUCTS_PAGE_SIZE + 1

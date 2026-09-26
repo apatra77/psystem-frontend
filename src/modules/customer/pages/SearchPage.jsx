@@ -34,15 +34,25 @@ function sortProducts(list, sort) {
   return sorted
 }
 
-function applyClientFilters(products, filters, { skipQuery = false, skipCategory = false } = {}) {
+function applyClientFilters(
+  products,
+  filters,
+  { skipQuery = false, skipCategory = false, skipBrands = false, skipInStock = false } = {},
+) {
   const q = skipQuery ? '' : filters.query.trim().toLowerCase()
 
   return products.filter((p) => {
     if (q && !`${p.name} ${p.brand} ${p.desc}`.toLowerCase().includes(q)) return false
     if (!skipCategory && filters.category !== 'all' && p.cat !== filters.category) return false
-    if (filters.brands.length && !productMatchesAnyShopBrand(p, filters.brands)) return false
+    if (!skipBrands && filters.brands.length && !productMatchesAnyShopBrand(p, filters.brands)) return false
     if (p.price < filters.minPrice || p.price > filters.maxPrice) return false
-    if (filters.inStockOnly && !resolveCustomerProductStock(p, p.stock).inStock) return false
+    if (
+      !skipInStock &&
+      filters.inStockOnly &&
+      !resolveCustomerProductStock(p, p.stock).inStock
+    ) {
+      return false
+    }
     return true
   })
 }
@@ -133,10 +143,16 @@ export default function SearchPage() {
   const activeCategorySlug =
     slug ?? (filters.category !== 'all' ? filters.category : '')
 
+  const browseGroupName =
+    !isSearchMode && filters.brands.length === 1 && !filters.inStockOnly ? filters.brands[0] : ''
+  const browseInStockOnly = !isSearchMode && filters.inStockOnly
+
   const searchState = useCustomerProductSearch(urlQuery, { page, enabled: isSearchMode, refreshKey })
   const browseState = useCustomerProductBrowse({
     page,
-    categorySlug: activeCategorySlug,
+    categorySlug: browseGroupName || browseInStockOnly ? '' : activeCategorySlug,
+    groupName: browseGroupName,
+    inStockOnly: browseInStockOnly,
     enabled: !isSearchMode,
     refreshKey,
   })
@@ -184,6 +200,10 @@ export default function SearchPage() {
   }, [slug])
 
   useEffect(() => {
+    setPage(1)
+  }, [filters.brands, filters.inStockOnly])
+
+  useEffect(() => {
     if (slug) {
       setFilter({ category: slug })
       return
@@ -208,9 +228,18 @@ export default function SearchPage() {
     () =>
       applyClientFilters(apiProducts, filters, {
         skipQuery: isSearchMode,
-        skipCategory: Boolean(activeCategorySlug),
+        skipCategory: Boolean(activeCategorySlug) && !browseGroupName && !browseInStockOnly,
+        skipBrands: Boolean(browseGroupName),
+        skipInStock: browseInStockOnly,
       }),
-    [apiProducts, filters, isSearchMode, activeCategorySlug],
+    [
+      apiProducts,
+      filters,
+      isSearchMode,
+      activeCategorySlug,
+      browseGroupName,
+      browseInStockOnly,
+    ],
   )
 
   const displayProducts = useMemo(

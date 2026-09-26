@@ -31,7 +31,12 @@ export const ENDPOINTS = {
     resetPassword: '/api/auth/reset-password',
     changePassword: '/api/auth/change-password',
   },
-  catalog: { products: '/api/products', categories: '/api/categories', brands: '/api/brands', search: '/api/search' },
+  catalog: {
+    products: '/api/catalog/products',
+    categories: '/api/categories',
+    brands: '/api/brands',
+    search: '/api/search',
+  },
   cart: { root: '/api/cart', coupon: '/api/cart/coupon' },
   orders: { root: '/api/orders', track: (id) => `/api/orders/${id}/track`, invoice: (id) => `/api/orders/${id}/invoice/pdf` },
   payments: { root: '/api/payments', verify: '/api/payments/verify', methods: '/api/payments/methods' },

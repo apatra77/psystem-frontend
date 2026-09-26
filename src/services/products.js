@@ -436,11 +436,17 @@ export function mapProductToRailItem(product) {
   }
 }
 
+/** Customer shop catalog (GET). Owner/admin CRUD stays on `/api/products`. */
+export const CUSTOMER_CATALOG_PRODUCTS = '/api/catalog/products'
+
 let inFlightCustomerProductsRequest = null
 let cachedCustomerProducts = null
 
 /** Fetches products and maps them for the customer catalog / landing rails. */
-export async function fetchCustomerProducts(categories = [], { force = false } = {}) {
+export async function fetchCustomerProducts(
+  categories = [],
+  { force = false, page = 0, size = 50 } = {},
+) {
   if (inFlightCustomerProductsRequest) {
     return inFlightCustomerProductsRequest
   }
@@ -449,7 +455,8 @@ export async function fetchCustomerProducts(categories = [], { force = false } =
     return cachedCustomerProducts
   }
 
-  inFlightCustomerProductsRequest = authFetch('/api/products', {}, PRODUCT_API_BASE)
+  const query = buildProductsPageQuery({ page, size })
+  inFlightCustomerProductsRequest = authFetch(`${CUSTOMER_CATALOG_PRODUCTS}?${query}`, {}, PRODUCT_API_BASE)
     .then((payload) => {
       const items = extractApiList(payload, ['products']).map((item) =>
         mapProductToCustomerCatalog(item, categories),
@@ -596,7 +603,7 @@ export async function fetchCustomerProductsPage(
   { page = 0, size = OWNER_PRODUCTS_PAGE_SIZE, force = false } = {},
 ) {
   const query = buildProductsPageQuery({ page, size })
-  const path = `/api/products?${query}`
+  const path = `${CUSTOMER_CATALOG_PRODUCTS}?${query}`
 
   if (!force && inFlightCustomerProductsPageRequests.has(path)) {
     return inFlightCustomerProductsPageRequests.get(path)
@@ -610,6 +617,66 @@ export async function fetchCustomerProductsPage(
 
   inFlightCustomerProductsPageRequests.set(path, request)
   return request
+}
+
+export async function fetchCustomerProductsByGroupNamePage(
+  groupName,
+  categories = [],
+  { page = 0, size = OWNER_PRODUCTS_PAGE_SIZE, force = false } = {},
+) {
+  const trimmed = String(groupName ?? '').trim()
+  if (!trimmed) {
+    return { products: [], totalElements: 0, totalPages: 1, page: 0, size: 0 }
+  }
+
+  const params = new URLSearchParams()
+  params.set('groupName', trimmed)
+  params.set('page', String(page))
+  params.set('size', String(size))
+  const path = `${CUSTOMER_CATALOG_PRODUCTS}/by-group-name?${params.toString()}`
+
+  if (!force && inFlightCustomerProductsPageRequests.has(path)) {
+    return inFlightCustomerProductsPageRequests.get(path)
+  }
+
+  const request = authFetch(path, {}, PRODUCT_API_BASE)
+    .then((payload) => parseCustomerProductsPage(payload, categories))
+    .finally(() => {
+      inFlightCustomerProductsPageRequests.delete(path)
+    })
+
+  inFlightCustomerProductsPageRequests.set(path, request)
+  return request
+}
+
+let inFlightCustomerInStockProductsRequest = null
+let cachedCustomerInStockProducts = null
+
+/** GET /api/catalog/products/all?instock=instock — full in-stock catalog (client-paginated in shop). */
+export async function fetchCustomerProductsInStockAll(categories = [], { force = false } = {}) {
+  if (inFlightCustomerInStockProductsRequest) {
+    return inFlightCustomerInStockProductsRequest
+  }
+
+  if (!force && cachedCustomerInStockProducts) {
+    return cachedCustomerInStockProducts
+  }
+
+  const path = `${CUSTOMER_CATALOG_PRODUCTS}/all?instock=instock`
+
+  inFlightCustomerInStockProductsRequest = authFetch(path, {}, PRODUCT_API_BASE)
+    .then((payload) => {
+      const products = extractApiList(payload, ['products']).map((item) =>
+        mapProductToCustomerCatalog(item, categories),
+      )
+      cachedCustomerInStockProducts = products
+      return products
+    })
+    .finally(() => {
+      inFlightCustomerInStockProductsRequest = null
+    })
+
+  return inFlightCustomerInStockProductsRequest
 }
 
 export async function fetchCustomerProductsByCategoryPage(
