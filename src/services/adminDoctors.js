@@ -65,6 +65,7 @@ const CONSULTATION_TO_API = {
 }
 
 let inFlightSummaryRequest = null
+let cachedDashboardSummary = null
 const inFlightDoctorRequests = new Map()
 const inFlightListRequests = new Map()
 
@@ -914,7 +915,8 @@ function buildAdminDoctorsQuery({
   return `${BASE}?${params.toString()}`
 }
 
-export async function fetchAdminDoctorsDashboardSummary() {
+export async function fetchAdminDoctorsDashboardSummary({ force = false } = {}) {
+  if (!force && cachedDashboardSummary) return cachedDashboardSummary
   if (inFlightSummaryRequest) return inFlightSummaryRequest
 
   inFlightSummaryRequest = authFetch(`${BASE}/dashboard-summary`, {}, DOCTOR_API_BASE)
@@ -952,7 +954,7 @@ export async function fetchAdminDoctorsDashboardSummary() {
         Number(pick(data, 'activePercent', 'activePercentage')) ||
         (totalDoctors ? Math.round((activeDoctors / totalDoctors) * 100) : 0)
 
-      return {
+      const summary = {
         totalDoctors,
         activeDoctors,
         activePercent,
@@ -962,6 +964,8 @@ export async function fetchAdminDoctorsDashboardSummary() {
         consultationBookings,
         bookingsToday,
       }
+      cachedDashboardSummary = summary
+      return summary
     })
     .finally(() => {
       inFlightSummaryRequest = null
@@ -1077,6 +1081,7 @@ export function clearAdminDoctorsCache({ invalidateLists = false } = {}) {
   if (invalidateLists) {
     inFlightListRequests.clear()
     inFlightSummaryRequest = null
+    cachedDashboardSummary = null
   }
 }
 

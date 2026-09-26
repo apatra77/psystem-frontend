@@ -17,7 +17,7 @@ import GlassCard from '../../components/GlassCard'
 import { ModalSelect } from '../../components/PortalModal'
 import Spinner from '@/components/ui/Spinner'
 import { useAdminDoctorsQuery } from '../../hooks/useAdminDoctorsQuery'
-import { useMedicalSpecialties } from '@/hooks/useMedicalSpecialties'
+import { useAdminMedicalSpecialties } from '@/hooks/useMedicalSpecialties'
 import {
   DOCTOR_STATUS_FILTERS,
   DOCTORS_PAGE_SIZE,
@@ -115,11 +115,11 @@ export default function DoctorsList() {
   const prevPathRef = useRef(location.pathname)
   const [search, setSearch] = useState('')
   const [specialtyId, setSpecialtyId] = useState('all')
-  const [status, setStatus] = useState('active')
+  const [status, setStatus] = useState('all')
   const [page, setPage] = useState(0)
   const [specialtiesOpen, setSpecialtiesOpen] = useState(false)
   const [bookingsOpen, setBookingsOpen] = useState(false)
-  const { specialties } = useMedicalSpecialties()
+  const { specialties } = useAdminMedicalSpecialties()
   const {
     doctors,
     summary,
@@ -155,7 +155,7 @@ export default function DoctorsList() {
   const resetFilters = () => {
     setSearch('')
     setSpecialtyId('all')
-    setStatus('active')
+    setStatus('all')
     setPage(0)
   }
 
@@ -272,7 +272,7 @@ export default function DoctorsList() {
               setPage(0)
             }}
             options={statusOptions}
-            placeholder="Available"
+            placeholder="All"
           />
           <button
             type="button"

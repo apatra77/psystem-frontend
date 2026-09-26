@@ -34,38 +34,56 @@ export function useAdminDoctorsQuery({
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(0)
 
-  const load = useCallback(async ({ force = false } = {}) => {
-    setLoading(true)
-    setError('')
-    if (force) clearAdminDoctorsCache({ invalidateLists: true })
-
+  const loadSummary = useCallback(async ({ force = false } = {}) => {
     try {
-      const [listResult, summaryResult] = await Promise.all([
-        fetchAdminDoctors({ search, specialtyId, status, storeId, page, size: pageSize }),
-        fetchAdminDoctorsDashboardSummary(),
-      ])
-
-      mergeSpecialtiesFromDoctors(listResult.doctors)
+      const summaryResult = await fetchAdminDoctorsDashboardSummary({ force })
       setSummary(summaryResult ?? EMPTY_SUMMARY)
-      setDoctors(listResult.doctors)
-      setTotalElements(listResult.totalElements)
-      setTotalPages(Math.max(1, listResult.totalPages))
-      setCurrentPage(listResult.page)
-    } catch (err) {
-      setDoctors([])
+    } catch {
       setSummary(EMPTY_SUMMARY)
-      setTotalElements(0)
-      setTotalPages(1)
-      setCurrentPage(0)
-      setError(err instanceof Error ? err.message : 'Could not load doctors')
-    } finally {
-      setLoading(false)
     }
-  }, [search, specialtyId, status, storeId, page, pageSize])
+  }, [])
+
+  const loadDoctors = useCallback(
+    async ({ force = false } = {}) => {
+      setLoading(true)
+      setError('')
+      if (force) clearAdminDoctorsCache({ invalidateLists: true })
+
+      try {
+        const listResult = await fetchAdminDoctors({
+          search,
+          specialtyId,
+          status,
+          storeId,
+          page,
+          size: pageSize,
+        })
+
+        mergeSpecialtiesFromDoctors(listResult.doctors)
+        setDoctors(listResult.doctors)
+        setTotalElements(listResult.totalElements)
+        setTotalPages(Math.max(1, listResult.totalPages))
+        setCurrentPage(listResult.page)
+      } catch (err) {
+        setDoctors([])
+        setTotalElements(0)
+        setTotalPages(1)
+        setCurrentPage(0)
+        setError(err instanceof Error ? err.message : 'Could not load doctors')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [search, specialtyId, status, storeId, page, pageSize],
+  )
 
   useEffect(() => {
-    load()
-  }, [load])
+    loadSummary()
+  }, [loadSummary])
+
+  useEffect(() => {
+    loadDoctors()
+  }, [loadDoctors])
 
   const rangeStart = totalElements ? currentPage * pageSize + 1 : 0
   const rangeEnd = Math.min(totalElements, (currentPage + 1) * pageSize)
@@ -74,7 +92,9 @@ export function useAdminDoctorsQuery({
     [currentPage, totalPages],
   )
 
-  const reload = useCallback(() => load({ force: true }), [load])
+  const reload = useCallback(async () => {
+    await Promise.all([loadSummary({ force: true }), loadDoctors({ force: true })])
+  }, [loadSummary, loadDoctors])
 
   return {
     doctors,
