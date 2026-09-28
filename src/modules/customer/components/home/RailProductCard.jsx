@@ -5,6 +5,7 @@ import { useCatalogStore } from '@/app/store/catalogStore'
 import { fmtINR } from '@/app/utils/format'
 import { colors } from '@/app/themes/colors'
 import CartAddControl from '@/modules/customer/components/CartAddControl'
+import ProductMetaStack from '@/modules/customer/components/ProductMetaStack'
 
 /**
  * One product tile inside a merchandising rail on the customer landing page.
@@ -60,7 +61,7 @@ function RailProductCard({ product, accent = colors.accent }) {
         >
           {product.name}
         </h3>
-        <p className="mt-0.5 text-[11px]" style={{ color: colors.textSecondary }}>{product.pack}</p>
+        <ProductMetaStack product={product} size="sm" fallback={product.pack || '—'} />
       </div>
 
       {product.chip && (

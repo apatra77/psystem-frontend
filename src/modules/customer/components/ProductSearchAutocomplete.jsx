@@ -4,6 +4,7 @@ import { Loader2, Search } from 'lucide-react'
 import { PATHS, buildPath } from '@/app/router/paths'
 import { useCatalogStore } from '@/app/store/catalogStore'
 import { useProductSearchSuggestions } from '@/modules/customer/hooks/useProductSearchSuggestions'
+import ProductMetaStack from '@/modules/customer/components/ProductMetaStack'
 import { colors } from '@/app/themes/colors'
 
 function ProductThumb({ product }) {
@@ -27,11 +28,6 @@ function ProductThumb({ product }) {
       💊
     </div>
   )
-}
-
-function buildSubtitle(product) {
-  const parts = [product.brand, product.pack].filter(Boolean)
-  return parts.join(' · ') || product.desc || 'View product details'
 }
 
 export default function ProductSearchAutocomplete({
@@ -208,22 +204,22 @@ export default function ProductSearchAutocomplete({
                   onMouseEnter={() => setHighlightIndex(index)}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => goToProduct(product)}
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left cursor-pointer transition-colors"
+                  className="flex w-full items-start gap-3 px-3 py-2.5 text-left cursor-pointer transition-colors"
                   style={{
                     background: highlighted ? 'rgba(64,222,170,0.1)' : 'transparent',
                   }}
                 >
-                  <ProductThumb product={product} />
+                  <div className="mt-0.5 flex-shrink-0">
+                    <ProductThumb product={product} />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div
-                      className="truncate text-[13px] font-extrabold"
+                      className="truncate text-[13px] font-extrabold leading-tight"
                       style={{ color: highlighted ? colors.accent : colors.textBright }}
                     >
                       {product.name}
                     </div>
-                    <div className="mt-0.5 truncate text-[11.5px]" style={{ color: colors.textDim }}>
-                      {buildSubtitle(product)}
-                    </div>
+                    <ProductMetaStack product={product} size="sm" fallback="View product details" />
                   </div>
                 </button>
               )

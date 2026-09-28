@@ -7,6 +7,7 @@ import { useCatalogStore } from '@/app/store/catalogStore'
 import { fmtINR } from '@/app/utils/format'
 import { colors } from '@/app/themes/colors'
 import { resolveCustomerProductStock } from '@/modules/customer/utils/looseQuantity'
+import ProductMetaStack from '@/modules/customer/components/ProductMetaStack'
 
 export default function ProductCard({ product }) {
   const inStock = resolveCustomerProductStock(product, product.stock).inStock
@@ -82,9 +83,7 @@ export default function ProductCard({ product }) {
         >
           {product.name}
         </h3>
-        <p className="mt-0.5 text-[11px]" style={{ color: colors.textSecondary }}>
-          {product.brand} · {product.pack}
-        </p>
+        <ProductMetaStack product={product} size="sm" />
       </Link>
 
       <div

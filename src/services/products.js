@@ -415,6 +415,8 @@ export function mapProductToRailItem(product) {
   return {
     id: product.id,
     name: product.name,
+    brand: product.brand ?? '',
+    groupName: product.groupName ?? '',
     pack: product.pack ?? '—',
     price,
     mrp,

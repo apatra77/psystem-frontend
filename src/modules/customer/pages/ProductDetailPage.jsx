@@ -11,6 +11,7 @@ import { fmtINR } from '@/app/utils/format'
 import { msg } from '@/shared/messages/messages'
 import { productAllowsLoose } from '@/modules/customer/utils/looseQuantity'
 import { colors } from '@/app/themes/colors'
+import ProductMetaStack from '@/modules/customer/components/ProductMetaStack'
 
 export default function ProductDetailPage() {
   const { id } = useParams()
@@ -43,14 +44,16 @@ export default function ProductDetailPage() {
           </div>
 
           <h1 className="text-[26px] font-extrabold leading-tight" style={{ color: colors.textBright }}>{product.name}</h1>
-          <p className="text-[13px] mt-1.5" style={{ color: colors.textMuted }}>{product.brand} · {product.pack}</p>
+          <ProductMetaStack product={product} size="md" />
 
           <div className="flex items-end gap-3 mt-5">
             <span className="text-[30px] font-extrabold" style={{ color: colors.textBright }}>{fmtINR(product.price)}</span>
             {off > 0 && <span className="text-[15px] line-through mb-1" style={{ color: colors.textDim }}>{fmtINR(product.mrp)}</span>}
           </div>
 
-          <p className="text-[13.5px] leading-relaxed mt-5" style={{ color: colors.textMuted }}>{product.desc}</p>
+          {product.desc ? (
+            <p className="text-[13.5px] leading-relaxed mt-5" style={{ color: colors.textMuted }}>{product.desc}</p>
+          ) : null}
 
           {product.rx && (
             <p className="text-[12.5px] mt-4 px-3 py-2.5 rounded-[11px]" style={{ background: 'rgba(178,135,255,.10)', border: '1px solid rgba(178,135,255,.3)', color: colors.purpleLight }}>
