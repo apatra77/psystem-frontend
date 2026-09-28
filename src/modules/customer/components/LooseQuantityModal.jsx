@@ -107,7 +107,9 @@ export default function LooseQuantityModal({
     if (clamped.capped) {
       const max =
         clamped.fullPackQty < nextFull ? clamped.maxFullPacks : clamped.maxLooseUnits
-      toast.error(msg('customer.maxQuantityReached', { max, name: product.name }))
+      if (max > 0) {
+        toast.error(msg('customer.maxQuantityReached', { max, name: product.name }))
+      }
     }
 
     setFullPackQty(clamped.fullPackQty)

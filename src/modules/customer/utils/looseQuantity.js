@@ -174,6 +174,28 @@ export function productForStockClamp(source = {}) {
   return source
 }
 
+/** Merge catalog product with cart line inventory for loose clamp / modal steppers. */
+export function mergeLooseStockContext(product = {}, cartLine = null) {
+  if (!cartLine) return productForStockClamp(product)
+
+  const fromLine = productForStockClamp(cartLine)
+  return {
+    ...product,
+    ...fromLine,
+    id: product.id ?? cartLine.id,
+    name: product.name ?? cartLine.name,
+    price: product.price ?? cartLine.price,
+    mrp: product.mrp ?? cartLine.mrp,
+    pack: product.pack ?? cartLine.pack,
+    unitsPerPack: getProductUnitsPerPack({
+      ...product,
+      unitsPerPack: product.unitsPerPack ?? cartLine.unitsPerPack,
+    }),
+    looseSaleAllowed: true,
+    looseQuantity: true,
+  }
+}
+
 export function resolveLooseSaleAllowed(item, product = {}) {
   const allowed = pick(item, 'looseSaleAllowed', 'looseSaleEnabled', 'allowLoose')
   if (allowed === true || allowed === 'true') return true

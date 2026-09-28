@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { useCartStore } from '@/app/store/cartStore'
 import { fmtINR } from '@/app/utils/format'
@@ -6,6 +6,7 @@ import { colors } from '@/app/themes/colors'
 import LooseQuantityModal from '@/modules/customer/components/LooseQuantityModal'
 import {
   formatLooseCartSummary,
+  mergeLooseStockContext,
   productAllowsLoose,
 } from '@/modules/customer/utils/looseQuantity'
 
@@ -30,6 +31,10 @@ export default function CartAddControl({
   const [modalOpen, setModalOpen] = useState(false)
 
   const allowsLoose = productAllowsLoose(product)
+  const looseProduct = useMemo(
+    () => (cartItem ? mergeLooseStockContext(product, cartItem) : product),
+    [product, cartItem],
+  )
   const stock = product.stock ?? 999
   const disabled = stock <= 0 || pending
   const off = product.mrp > product.price ? Math.round(((product.mrp - product.price) / product.mrp) * 100) : 0
@@ -64,7 +69,7 @@ export default function CartAddControl({
 
   const increase = (e) => {
     stop(e)
-    run(() => setQty(product.id, cartQty + 1, { product }))
+    run(() => setQty(product.id, cartQty + 1))
   }
 
   const add = (e) => {
@@ -187,7 +192,7 @@ export default function CartAddControl({
 
       {modalOpen && (
         <LooseQuantityModal
-          product={product}
+          product={looseProduct}
           onClose={() => setModalOpen(false)}
           onConfirm={handleLooseConfirm}
           initialFullPackQty={cartItem?.fullPackQty ?? 0}

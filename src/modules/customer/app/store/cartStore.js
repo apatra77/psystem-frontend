@@ -2,7 +2,16 @@ import { create } from 'zustand'
 import { msg } from '@/shared/messages/messages'
 import { toast } from './uiStore'
 import { COUPONS, DELIVERY_FEE, FREE_DELIVERY_ABOVE, PACKAGING_FEE } from '@/shared/mocks/pricing'
-import { addCartItem, deleteCartItem, fetchMyCart, mapCartItemFromApi, parseCartPayload, resolveCartItemId, updateCartItem } from '@/services/cart'
+import {
+  addCartItem,
+  buildCartLineUpdateBody,
+  deleteCartItem,
+  fetchMyCart,
+  mapCartItemFromApi,
+  parseCartPayload,
+  resolveCartItemId,
+  updateCartItem,
+} from '@/services/cart'
 import {
   clampLooseQuantities,
   clampPackQuantity,
@@ -11,6 +20,7 @@ import {
   getCartLineSubtotal,
   getProductStockLimits,
   getProductUnitsPerPack,
+  mergeLooseStockContext,
   productAllowsLoose,
   productForStockClamp,
 } from '@/modules/customer/utils/looseQuantity'
@@ -37,6 +47,7 @@ const buildLocalItem = (product, qty, cartItemId = null, looseMeta = null) => {
     unitLabel: product.unitLabel,
     looseSaleAllowed: productAllowsLoose(product),
     packBased: productAllowsLoose(product),
+    cartUpdateMode: productAllowsLoose(product) ? 'pack' : 'quantity',
     maxFullPacks: limits.maxFullPacks,
     maxLooseUnits: limits.maxLooseUnits,
   }
@@ -53,7 +64,7 @@ const buildLocalItem = (product, qty, cartItemId = null, looseMeta = null) => {
     }
   }
 
-  return { ...base, qty, fullPackQty: qty, packBased: true }
+  return { ...base, qty, fullPackQty: qty }
 }
 
 async function resolveLineItemId(productId, postResponse = null) {
@@ -200,26 +211,39 @@ export const useCartStore = create((set, get) => ({
     const existing = get().items.find((i) => String(i.id) === productId)
 
     if (isLooseAdd) {
-      const clamped = clampLooseQuantities(
-        product,
-        qtyOrLoose.fullPackQty,
-        qtyOrLoose.looseUnitQty,
-      )
-      const fullPackQty = clamped.fullPackQty
-      const looseUnitQty = clamped.looseUnitQty
-      const totalUnits =
-        fullPackQty * getProductUnitsPerPack(product) + looseUnitQty
+      const clampSource = mergeLooseStockContext(product, existing)
+      const requestedFull = Math.max(0, Number(qtyOrLoose.fullPackQty) || 0)
+      const requestedLoose = Math.max(0, Number(qtyOrLoose.looseUnitQty) || 0)
+      const unitsPerPack = getProductUnitsPerPack(clampSource)
+      const requestedTotal = requestedFull * unitsPerPack + requestedLoose
 
-      if (clamped.capped) {
+      if (requestedTotal === 0) {
+        if (existing) await get().removeItem(productId)
+        return
+      }
+
+      const clamped = clampLooseQuantities(clampSource, requestedFull, requestedLoose)
+      let fullPackQty = clamped.fullPackQty
+      let looseUnitQty = clamped.looseUnitQty
+      let totalUnits = fullPackQty * unitsPerPack + looseUnitQty
+
+      const usedInventoryFallback = totalUnits === 0 && requestedTotal > 0
+
+      if (totalUnits === 0 && requestedTotal > 0) {
+        fullPackQty = requestedFull
+        looseUnitQty = requestedLoose
+        totalUnits = requestedTotal
+      }
+
+      if (clamped.capped && !usedInventoryFallback) {
         const max =
-          clamped.fullPackQty < qtyOrLoose.fullPackQty
-            ? clamped.maxFullPacks
-            : clamped.maxLooseUnits
-        toast.error(msg('customer.maxQuantityReached', { max, name: product.name }))
+          clamped.fullPackQty < requestedFull ? clamped.maxFullPacks : clamped.maxLooseUnits
+        if (max > 0) {
+          toast.error(msg('customer.maxQuantityReached', { max, name: product.name }))
+        }
       }
 
       if (!totalUnits) {
-        if (existing) await get().removeItem(productId)
         return
       }
 
@@ -237,11 +261,19 @@ export const useCartStore = create((set, get) => ({
         let cartItemId = existing?.cartItemId
         let quantity = totalUnits
 
-        if (existing?.cartItemId) {
-          await updateCartItem(existing.cartItemId, {
-            packQuantity: fullPackQty,
-            looseQuantity: looseUnitQty,
-          })
+        if (existing) {
+          if (!cartItemId) {
+            const resolved = await resolveLineItemId(productId)
+            cartItemId = resolved.cartItemId
+          }
+          if (cartItemId) {
+            await updateCartItem(cartItemId, {
+              packQuantity: fullPackQty,
+              looseQuantity: looseUnitQty,
+            })
+          } else {
+            throw new Error('Cart item id missing — could not update quantity')
+          }
         } else {
           const response = await addCartItem({
             productId: product.id,
@@ -284,7 +316,7 @@ export const useCartStore = create((set, get) => ({
     }
 
     if (existing) {
-      await get().setQty(productId, existing.qty + qty, { product })
+      await get().setQty(productId, existing.qty + qty)
       return
     }
 
@@ -314,18 +346,35 @@ export const useCartStore = create((set, get) => ({
     }
   },
 
-  setQty: async (id, qty, { product } = {}) => {
+  setQty: async (id, qty) => {
     const productId = String(id)
     const item = get().items.find((i) => String(i.id) === productId)
     if (!item) return
     if (item.looseQuantity) return
 
     const previousItems = get().items
-    const clampSource = product ?? productForStockClamp(item)
-    const { qty: nextQty, capped, maxQty } = clampPackQuantity(clampSource, qty)
+    // Always clamp from the cart line — catalog products can report zero pack stock
+    // while the line is still valid, which wrongly routed increases to DELETE.
+    const clampSource = productForStockClamp(item)
+    let { qty: nextQty, capped, maxQty } = clampPackQuantity(clampSource, qty)
+
+    if (qty > item.qty && nextQty <= item.qty && maxQty === 0) {
+      nextQty = qty
+      capped = false
+    }
 
     if (capped && maxQty > 0) {
       toast.error(msg('customer.maxQuantityReached', { max: maxQty, name: item.name }))
+    }
+
+    if (nextQty <= 0 && qty > item.qty) {
+      toast.error(
+        msg('customer.maxQuantityReached', {
+          max: maxQty > 0 ? maxQty : item.qty,
+          name: item.name,
+        }),
+      )
+      return
     }
 
     if (nextQty === item.qty) return
@@ -361,11 +410,7 @@ export const useCartStore = create((set, get) => ({
         return
       }
 
-      const updatePayload = item.packBased
-        ? { packQuantity: nextQty, looseQuantity: 0 }
-        : { quantity: nextQty }
-
-      await updateCartItem(cartItemId, updatePayload)
+      await updateCartItem(cartItemId, buildCartLineUpdateBody(item, nextQty))
       await refreshCartFromServer(set, get)
     } catch (error) {
       set({ items: previousItems })
@@ -383,18 +428,21 @@ export const useCartStore = create((set, get) => ({
       return
     }
 
-    const product = {
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      mrp: item.mrp,
-      pack: item.pack,
-      unitsPerPack: item.unitsPerPack,
-      packLabel: item.packLabel,
-      unitLabel: item.unitLabel,
-      looseSaleAllowed: true,
-      looseQuantity: true,
-    }
+    const product = mergeLooseStockContext(
+      {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        mrp: item.mrp,
+        pack: item.pack,
+        unitsPerPack: item.unitsPerPack,
+        packLabel: item.packLabel,
+        unitLabel: item.unitLabel,
+        looseSaleAllowed: true,
+        looseQuantity: true,
+      },
+      item,
+    )
 
     await get().addItem(product, {
       loose: true,

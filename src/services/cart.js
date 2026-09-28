@@ -22,6 +22,22 @@ const LINE_ITEM_ID_KEYS = [
   'lineId',
 ]
 
+/** Server cart line UUID (often `id`, distinct from productId). */
+export function resolveCartLineItemId(line) {
+  if (!line || typeof line !== 'object') return ''
+
+  const explicit = pick(line, ...LINE_ITEM_ID_KEYS)
+  if (explicit) return String(explicit)
+
+  const productId = pick(line, ...PRODUCT_ID_KEYS) ?? pick(line?.product, 'productId', 'id')
+  const rawLineId = line.id
+  if (rawLineId != null && rawLineId !== '' && String(rawLineId) !== String(productId ?? '')) {
+    return String(rawLineId)
+  }
+
+  return ''
+}
+
 const PRODUCT_ID_KEYS = ['productId', 'product_id', 'productID']
 const QTY_KEYS = ['quantity', 'qty']
 
@@ -65,7 +81,7 @@ export function mapCartItemFromApi(payload, productId) {
   const item = line ?? payload?.data ?? payload?.item ?? payload ?? {}
 
   return {
-    cartItemId: String(pick(item, ...LINE_ITEM_ID_KEYS) ?? ''),
+    cartItemId: resolveCartLineItemId(item),
     quantity: Number(pick(item, ...QTY_KEYS)) || undefined,
   }
 }
@@ -75,7 +91,7 @@ export function mapCartLineToStoreItem(line) {
   const product = line?.product ?? line?.productDetails ?? line?.productInfo ?? {}
 
   const productId = pick(line, ...PRODUCT_ID_KEYS) ?? pick(product, 'productId', 'id')
-  const cartItemId = pick(line, ...LINE_ITEM_ID_KEYS)
+  const cartItemId = resolveCartLineItemId(line)
   const packings = product.packings ?? line.packings
   const primaryPacking = Array.isArray(packings) ? packings[0] : null
   const looseMeta = resolveProductLooseMeta({ ...product, packings })
@@ -124,6 +140,12 @@ export function mapCartLineToStoreItem(line) {
 
   const genericName = pick(line, 'genericName', 'brand') ?? pick(product, 'genericName', 'brand') ?? ''
   const limits = getProductStockLimits({ ...product, stock: pick(product, 'stock', 'fullPackQuantity') })
+  const cartUpdateMode =
+    looseSaleAllowed && hasPackFields
+      ? 'pack'
+      : Number.isFinite(fullPackQty) && fullPackQty > 0
+        ? 'pack'
+        : 'quantity'
 
   const base = {
     id: String(productId ?? cartItemId ?? ''),
@@ -150,6 +172,7 @@ export function mapCartLineToStoreItem(line) {
     unitLabel: looseMeta.unitLabel,
     looseSaleAllowed,
     packBased: hasPackFields,
+    cartUpdateMode,
     maxFullPacks: limits.maxFullPacks,
     maxLooseUnits: limits.maxLooseUnits,
   }
@@ -241,6 +264,25 @@ export async function addCartItem({ productId, quantity, price, packQuantity, lo
     },
     CART_API_BASE,
   )
+}
+
+/** Build PUT body for a cart line from store item + target qty. */
+export function buildCartLineUpdateBody(item, nextQty) {
+  const qty = Math.max(0, Number(nextQty) || 0)
+  const mode = item?.cartUpdateMode === 'pack' || (item?.packBased && item?.looseQuantity) ? 'pack' : 'quantity'
+
+  if (item?.looseQuantity) {
+    return {
+      packQuantity: Number(item.fullPackQty) || 0,
+      looseQuantity: Number(item.looseUnitQty) || 0,
+    }
+  }
+
+  if (mode === 'pack') {
+    return { packQuantity: qty, looseQuantity: 0 }
+  }
+
+  return { quantity: qty }
 }
 
 /** PUT /api/carts/me/items/{itemId} — update line-item quantity. */
