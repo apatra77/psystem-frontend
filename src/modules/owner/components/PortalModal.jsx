@@ -8,7 +8,7 @@ export default function PortalModal({
   children,
   width = 520,
   scrollable = true,
-  closeOnBackdrop = true,
+  closeOnBackdrop = false,
   minHeight,
   maxHeight,
   zIndex = 200,

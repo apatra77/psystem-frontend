@@ -44,9 +44,6 @@ export default function DownloadModal({ onClose }) {
   return (
     <div
       ref={overlayRef}
-      onClick={(e) => {
-        if (e.target === overlayRef.current) onClose()
-      }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{
         background: 'rgba(5,15,12,0.75)',

@@ -200,8 +200,28 @@ function pad2(value) {
   return String(value).padStart(2, '0')
 }
 
+function doctorAvailabilityLabelCandidates(doctor = {}) {
+  return [doctor.availabilityLabelRaw, doctor.availabilityLabel, doctor.availability]
+    .map((value) => String(value ?? '').trim())
+    .filter(Boolean)
+}
+
 function parseIsoDateFromAvailabilityLabel(label) {
   const text = String(label ?? '').trim()
+  if (!text) return ''
+
+  const dmyMatch = text.match(
+    /(?:available on\s+)?(\d{1,2})\s+([A-Za-z]{3})(?:,\s*[A-Za-z]{3})?(?:\s+(\d{4}))?/i,
+  )
+  if (dmyMatch) {
+    const monthIndex = MONTH_NAME_TO_INDEX[dmyMatch[2].slice(0, 3).toLowerCase()]
+    const day = Number(dmyMatch[1])
+    const year = dmyMatch[3] ? Number(dmyMatch[3]) : new Date().getFullYear()
+    if (monthIndex != null && day && year) {
+      return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`
+    }
+  }
+
   const match = text.match(/\b([A-Za-z]{3}),?\s+(\d{1,2})\s+([A-Za-z]{3})(?:\s+(\d{4}))?/i)
   if (!match) return ''
 
@@ -222,7 +242,12 @@ export function getDoctorNextConsultationDateIso(doctor = {}) {
     return String(fromSlot)
   }
 
-  return parseIsoDateFromAvailabilityLabel(doctor.availabilityLabelRaw)
+  for (const label of doctorAvailabilityLabelCandidates(doctor)) {
+    const iso = parseIsoDateFromAvailabilityLabel(label)
+    if (iso) return iso
+  }
+
+  return ''
 }
 
 function isSameLocalCalendarDay(isoDate, dayOffset = 0) {
@@ -247,10 +272,13 @@ export function hasDoctorFutureBookableSlot(doctor = {}) {
   const iso = getDoctorNextConsultationDateIso(doctor)
   if (iso) return true
 
-  const raw = String(doctor.availabilityLabelRaw ?? '').trim()
-  if (!raw || /^not available$/i.test(raw)) return false
+  for (const label of doctorAvailabilityLabelCandidates(doctor)) {
+    if (/^not available$/i.test(label)) continue
+    if (parseIsoDateFromAvailabilityLabel(label)) return true
+    if (parseAvailabilityLabelToShortDate(label)) return true
+  }
 
-  return Boolean(parseAvailabilityLabelToShortDate(raw))
+  return false
 }
 
 /** Consult is allowed for today, tomorrow, or the next listed slot day. */
@@ -271,6 +299,9 @@ export function isDoctorBookable(doctor = {}) {
   ).toLowerCase()
   if (/not available|on leave|unavailable/.test(label)) return false
   if (/available now|available today|available tomorrow/.test(label)) return true
+  if (/available on/i.test(label) && hasDoctorFutureBookableSlot(doctor)) return true
+
+  if (hasDoctorFutureBookableSlot(doctor)) return true
 
   return isDoctorAvailableToday(doctor) || isDoctorAvailableTomorrow(doctor)
 }
@@ -322,6 +353,12 @@ export function formatDoctorNextAvailableShort(slot) {
 function parseAvailabilityLabelToShortDate(label) {
   const text = String(label ?? '').trim()
   if (!text) return ''
+
+  const dmyMatch = text.match(/(?:available on\s+)?(\d{1,2})\s+([A-Za-z]{3})(?:,\s*([A-Za-z]{3}))?/i)
+  if (dmyMatch) {
+    const weekday = dmyMatch[3] ? `, ${capitalizeWord(dmyMatch[3])}` : ''
+    return `${dmyMatch[1]} ${capitalizeWord(dmyMatch[2])}${weekday}`
+  }
 
   const match = text.match(/\b([A-Za-z]{3}),?\s+(\d{1,2})\s+([A-Za-z]{3})(?:\s+\d{4})?/i)
   if (!match) return ''

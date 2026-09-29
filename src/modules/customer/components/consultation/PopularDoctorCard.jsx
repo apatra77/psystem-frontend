@@ -1,4 +1,5 @@
 import { Star } from 'lucide-react'
+import DoctorNextAvailability from '@/modules/customer/components/consultation/DoctorNextAvailability'
 import { getDoctorBookButtonLabel, isDoctorBookable } from '@/services/doctors'
 import { colors } from '@/app/themes/colors'
 
@@ -40,9 +41,6 @@ function DoctorAvatar({ doctor, size = 56 }) {
 
 export default function PopularDoctorCard({ doctor, slots = [], onConsult, onViewProfile }) {
   const canConsult = isDoctorBookable(doctor)
-  const availabilityLine = doctor.availabilityLabel || doctor.availability || 'Not available'
-  const showNextDateOnly = Boolean(doctor.nextAvailableSlot?.consultationDate)
-  const visibleSlots = canConsult && !showNextDateOnly ? slots : []
 
   return (
     <article
@@ -76,39 +74,7 @@ export default function PopularDoctorCard({ doctor, slots = [], onConsult, onVie
           </div>
         </div>
 
-        <div className="lg:w-[280px]">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: colors.textDim }}>
-            Next availability
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {showNextDateOnly || visibleSlots.length === 0 ? (
-              <span
-                className="rounded-[8px] px-2.5 py-1.5 text-[11px] font-bold leading-snug"
-                style={{
-                  color: colors.textHighlight,
-                  background: 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${colors.borderSubtle}`,
-                }}
-              >
-                {availabilityLine}
-              </span>
-            ) : (
-              visibleSlots.map((slot) => (
-                <span
-                  key={slot.id}
-                  className="rounded-[8px] px-2.5 py-1.5 text-[11px] font-bold"
-                  style={{
-                    color: colors.textHighlight,
-                    background: 'rgba(255,255,255,0.04)',
-                    border: `1px solid ${colors.borderSubtle}`,
-                  }}
-                >
-                  {slot.time}
-                </span>
-              ))
-            )}
-          </div>
-        </div>
+        <DoctorNextAvailability doctor={doctor} slots={slots} className="lg:w-[280px]" />
 
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:self-center">
           <button

@@ -283,7 +283,6 @@ export default function BulkUploadModal({ onClose, onUploaded }) {
       onClose={uploadResult ? handleDismissUploadResult : onClose}
       width={720}
       scrollable={false}
-      closeOnBackdrop={!busy && !uploadResult}
     >
       <div className="relative flex flex-col max-h-[min(88vh,calc(100dvh-1.5rem))]">
         {submitting && (

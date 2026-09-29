@@ -8,6 +8,7 @@ export default function PortalModal({
   width = 520,
   accentBorder = false,
   scrollable = true,
+  closeOnBackdrop = false,
 }) {
   useEffect(() => {
     const onKey = (e) => {
@@ -28,7 +29,7 @@ export default function PortalModal({
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6"
       style={{ background: 'rgba(3,8,6,0.82)', backdropFilter: 'blur(10px)' }}
-      onClick={onClose}
+      onClick={closeOnBackdrop ? onClose : undefined}
       role="presentation"
     >
       <div

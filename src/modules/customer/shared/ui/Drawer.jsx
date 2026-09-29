@@ -17,7 +17,7 @@ export default function Drawer({ open, onClose, title, side = 'right', width = 3
   return (
     <PortalModal>
       <div className="fixed inset-0 z-[110]" role="dialog" aria-modal="true">
-        <div className="absolute inset-0" style={{ background: 'rgba(3,10,8,0.7)' }} onClick={onClose} />
+        <div className="absolute inset-0" style={{ background: 'rgba(3,10,8,0.7)' }} aria-hidden="true" />
         <aside
           className="absolute top-0 bottom-0 flex flex-col"
           style={{

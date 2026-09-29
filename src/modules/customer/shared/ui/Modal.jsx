@@ -16,7 +16,7 @@ export default function Modal({ open, onClose, title, subtitle, width = 560, chi
   return (
     <PortalModal>
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true">
-        <div className="absolute inset-0" style={{ background: 'rgba(3,10,8,0.72)', backdropFilter: 'blur(6px)' }} onClick={onClose} />
+        <div className="absolute inset-0" style={{ background: 'rgba(3,10,8,0.72)', backdropFilter: 'blur(6px)' }} aria-hidden="true" />
         <div
           className="relative w-full rounded-[20px] overflow-hidden max-h-[90vh] flex flex-col"
           style={{ maxWidth: width, background: '#0b1d17', border: `1px solid ${colors.border}`, boxShadow: '0 30px 80px rgba(0,0,0,0.55)' }}

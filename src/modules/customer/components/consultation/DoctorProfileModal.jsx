@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Mail, MapPin, Phone, Star, X } from 'lucide-react'
 import PortalModal from '@/shared/ui/PortalModal'
 import { fmtINR } from '@/app/utils/format'
-import { isDoctorBookable } from '@/services/doctors'
+import { getDoctorBookButtonLabel, isDoctorBookable } from '@/services/doctors'
 import { colors } from '@/app/themes/colors'
 
 function doctorInitials(name = '') {
@@ -18,10 +18,15 @@ function doctorInitials(name = '') {
 
 function formatDoctorStatus(status = '') {
   const raw = String(status).trim().toUpperCase()
-  if (raw === 'ACTIVE') return 'Available'
   if (raw === 'ON_LEAVE') return 'On Leave'
   if (raw === 'INACTIVE') return 'Inactive'
   return status
+}
+
+/** Account status only — not the same as next consultation availability (see Availability tile). */
+function shouldShowDoctorStatusBadge(status = '') {
+  const raw = String(status).trim().toUpperCase()
+  return raw === 'ON_LEAVE' || raw === 'INACTIVE'
 }
 
 function InfoTile({ label, value }) {
@@ -90,6 +95,8 @@ export default function DoctorProfileModal({ doctorId, fetchProfile, onClose, on
   }, [doctorId, fetchProfile])
 
   if (!doctorId) return null
+
+  const bookable = doctor ? isDoctorBookable(doctor) : false
 
   const feeLabel =
     doctor?.consultationFeeLabel ||
@@ -179,7 +186,7 @@ export default function DoctorProfileModal({ doctorId, fetchProfile, onClose, on
                       {doctor.doctorCode}
                     </span>
                   ) : null}
-                  {doctor.doctorStatus ? (
+                  {shouldShowDoctorStatusBadge(doctor.doctorStatus) ? (
                     <span
                       className="rounded-full px-2.5 py-1 text-[10px] font-extrabold"
                       style={{ color: colors.textBright, background: 'rgba(255,255,255,0.06)', border: `1px solid ${colors.borderSubtle}` }}
@@ -366,11 +373,11 @@ export default function DoctorProfileModal({ doctorId, fetchProfile, onClose, on
           </button>
           <button
             type="button"
-            disabled={!isDoctorBookable(doctor)}
+            disabled={!bookable}
             onClick={() => onBook?.(doctor)}
-            className="cursor-pointer rounded-[10px] px-5 py-2 text-[12.5px] font-extrabold disabled:cursor-not-allowed disabled:opacity-45"
+            className="cursor-pointer rounded-[10px] px-5 py-2 text-[12.5px] font-extrabold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
             style={
-              isDoctorBookable(doctor)
+              bookable
                 ? {
                     color: colors.accentText,
                     background: colors.primaryBtn,
@@ -383,7 +390,7 @@ export default function DoctorProfileModal({ doctorId, fetchProfile, onClose, on
                   }
             }
           >
-            Book consultation
+            {getDoctorBookButtonLabel(doctor)}
           </button>
         </div>
       ) : null}
