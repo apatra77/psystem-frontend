@@ -231,17 +231,28 @@ export default function AdminOrderDetailPanel({
               <h3 className="text-[12px] font-extrabold uppercase tracking-[0.08em] mb-3" style={{ color: colors.textDim }}>
                 Order Items
               </h3>
-              <div className="rounded-[14px] overflow-hidden" style={{ border: `1px solid ${colors.borderSubtle}` }}>
-                <table className="w-full border-collapse">
+              <div
+                className="rounded-[14px] overflow-x-auto owner-scroll"
+                style={{ border: `1px solid ${colors.borderSubtle}` }}
+              >
+                <table className="w-full min-w-[520px] border-collapse">
                   <thead>
                     <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
-                      {['Product', 'QTY', 'Unit Price', 'Total'].map((heading) => (
+                      {[
+                        { label: 'Product', align: 'left' },
+                        { label: 'Full Qty', align: 'right' },
+                        { label: 'Loose Qty', align: 'right' },
+                        { label: 'Unit Price', align: 'right' },
+                        { label: 'Total', align: 'right' },
+                      ].map(({ label, align }) => (
                         <th
-                          key={heading}
-                          className="text-left text-[10px] font-extrabold uppercase tracking-[0.08em] px-3 py-2.5"
+                          key={label}
+                          className={`text-[10px] font-extrabold uppercase tracking-[0.08em] px-3 py-2.5 ${
+                            align === 'right' ? 'text-right' : 'text-left'
+                          }`}
                           style={{ color: colors.textDim, borderBottom: `1px solid ${colors.borderSubtle}` }}
                         >
-                          {heading}
+                          {label}
                         </th>
                       ))}
                     </tr>
@@ -249,7 +260,7 @@ export default function AdminOrderDetailPanel({
                   <tbody>
                     {detailItems.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-3 py-6 text-center text-[12px]" style={{ color: colors.textDim }}>
+                        <td colSpan={5} className="px-3 py-6 text-center text-[12px]" style={{ color: colors.textDim }}>
                           No items found
                         </td>
                       </tr>
@@ -269,11 +280,16 @@ export default function AdminOrderDetailPanel({
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-3 text-[12px] font-semibold text-white tabular-nums">{item.qty}</td>
-                          <td className="px-3 py-3 text-[12px] font-semibold text-white tabular-nums whitespace-nowrap">
+                          <td className="px-3 py-3 text-[12px] font-semibold text-white tabular-nums text-right">
+                            {item.fullPackQty ?? item.qty ?? 0}
+                          </td>
+                          <td className="px-3 py-3 text-[12px] font-semibold text-white tabular-nums text-right">
+                            {item.looseUnitQty ?? 0}
+                          </td>
+                          <td className="px-3 py-3 text-[12px] font-semibold text-white tabular-nums text-right whitespace-nowrap">
                             {fmtINR(item.price)}
                           </td>
-                          <td className="px-3 py-3 text-[12px] font-extrabold text-white tabular-nums whitespace-nowrap">
+                          <td className="px-3 py-3 text-[12px] font-extrabold text-white tabular-nums text-right whitespace-nowrap">
                             {fmtINR(item.lineTotal)}
                           </td>
                         </tr>

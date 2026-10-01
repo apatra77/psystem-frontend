@@ -87,6 +87,40 @@ function extractOrderItems(order) {
   return Array.isArray(items) ? items : []
 }
 
+function isNumericQuantityValue(value) {
+  if (value == null || value === '') return false
+  if (typeof value === 'boolean') return false
+  const n = Number(value)
+  return Number.isFinite(n)
+}
+
+/** Pack / loose counts on order lines (cart uses packQuantity + looseUnitQuantity). */
+function readAdminOrderLineQuantities(line, mappedQty) {
+  const fullRaw = pick(line, 'packQuantity', 'packQty', 'fullPackQuantity', 'fullPackQty', 'fullQuantity')
+  let fullPackQty = isNumericQuantityValue(fullRaw) ? Number(fullRaw) : NaN
+
+  let looseUnitQty = NaN
+  for (const key of ['looseQty', 'looseUnitQuantity', 'looseUnitQty']) {
+    const value = line?.[key]
+    if (isNumericQuantityValue(value)) {
+      looseUnitQty = Number(value)
+      break
+    }
+  }
+  if (!Number.isFinite(looseUnitQty) && isNumericQuantityValue(line?.looseQuantity)) {
+    looseUnitQty = Number(line.looseQuantity)
+  }
+
+  const hasPackFields = Number.isFinite(fullPackQty) || Number.isFinite(looseUnitQty)
+  if (!hasPackFields) {
+    return { fullPackQty: mappedQty, looseUnitQty: 0, hasPackFields: false }
+  }
+
+  if (!Number.isFinite(fullPackQty)) fullPackQty = 0
+  if (!Number.isFinite(looseUnitQty)) looseUnitQty = 0
+  return { fullPackQty, looseUnitQty, hasPackFields: true }
+}
+
 function mapOrderItemFromApi(line, index) {
   const product = line?.product ?? line?.productDetails ?? line?.productInfo ?? {}
 
@@ -280,10 +314,25 @@ function mapAdminOrderDetailItemFromApi(line, index) {
     pick(Array.isArray(product?.packings) ? product.packings[0] : null, 'packingType', 'unit', 'label') ??
     ''
 
+  const { fullPackQty, looseUnitQty, hasPackFields } = readAdminOrderLineQuantities(line, mapped.qty)
+
+  const unitPrice =
+    Number(pick(line, 'unitPrice', 'price', 'sellingPrice', 'salePrice')) || mapped.price
+  const lineTotalRaw = pick(line, 'lineTotal', 'totalPrice', 'itemTotal', 'subtotal', 'total', 'amount')
+  let lineTotal = unitPrice * mapped.qty
+  if (lineTotalRaw != null && lineTotalRaw !== '' && Number.isFinite(Number(lineTotalRaw))) {
+    lineTotal = Number(lineTotalRaw)
+  }
+
   return {
     ...mapped,
+    price: unitPrice,
+    qty: mapped.qty,
+    fullPackQty,
+    looseUnitQty,
+    hasPackFields,
     form: String(form ?? '').trim(),
-    lineTotal: mapped.price * mapped.qty,
+    lineTotal,
     rx: Boolean(
       pick(line, 'rx', 'requiresPrescription', 'prescriptionRequired') ??
         pick(product, 'rx', 'requiresPrescription', 'prescriptionRequired'),
